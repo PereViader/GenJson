@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GenJson.Generator;
 
-public record PropertyData(string Name, bool IsString);
+public record PropertyData(string Name, bool IsNullable, bool IsString);
 public record ClassData(string ClassName, string Namespace, List<PropertyData> Properties);
 
 [Generator]
@@ -65,10 +65,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 propertySymbol.DeclaredAccessibility == Accessibility.Public &&
                 !propertySymbol.IsStatic)
             {
-                properties.Add(new PropertyData(
-                    propertySymbol.Name,
-                    propertySymbol.Type.SpecialType == SpecialType.System_String
-                ));
+                bool isNullable = propertySymbol.Type.IsReferenceType ||
+                                  propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+
+                bool isString = propertySymbol.Type.SpecialType == SpecialType.System_String;
+
+                properties.Add(new PropertyData(propertySymbol.Name, isNullable, isString));
             }
         }
 
@@ -99,32 +101,62 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.AppendLine("            var sb = new System.Text.StringBuilder();");
         sb.AppendLine("            sb.Append(\"{\");");
+        sb.AppendLine("            bool first = true;");
 
-        for (int i = 0; i < data.Properties.Count; i++)
+        foreach (var prop in data.Properties)
         {
-            var prop = data.Properties[i];
+            string indent = "            ";
 
-            sb.Append("            sb.Append(\"");
-            if (i > 0)
+            if (prop.IsNullable)
             {
-                sb.Append(",");
+                sb.Append("            if (obj.");
+                sb.Append(prop.Name);
+                sb.AppendLine(" is not null)");
+                sb.AppendLine("            {");
+                indent = "                ";
             }
-            sb.Append("\\\"");
+
+            // Comma handling
+            sb.Append(indent);
+            sb.AppendLine("if (!first)");
+            sb.Append(indent);
+            sb.AppendLine("{");
+            sb.Append(indent);
+            sb.AppendLine("    sb.Append(\",\");");
+            sb.Append(indent);
+            sb.AppendLine("}");
+            sb.Append(indent);
+            sb.AppendLine("first = false;");
+
+            // Property Key
+            sb.Append(indent);
+            sb.Append("sb.Append(\"\\\"");
             sb.Append(prop.Name);
-            sb.Append("\\\":");
+            sb.AppendLine("\\\":\");"); // "Key":
+
+            // Start Quote if string
             if (prop.IsString)
             {
-                sb.Append("\\\"");
+                sb.Append(indent);
+                sb.AppendLine("sb.Append(\"\\\"\");");
             }
-            sb.AppendLine("\");");
 
-            sb.Append("            sb.Append(obj.");
+            // Property Value
+            sb.Append(indent);
+            sb.Append("sb.Append(obj.");
             sb.Append(prop.Name);
             sb.AppendLine(");");
 
+            // End Quote if string
             if (prop.IsString)
             {
-                sb.AppendLine("            sb.Append(\"\\\"\");");
+                sb.Append(indent);
+                sb.AppendLine("sb.Append(\"\\\"\");");
+            }
+
+            if (prop.IsNullable)
+            {
+                sb.AppendLine("            }");
             }
         }
 

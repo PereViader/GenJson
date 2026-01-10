@@ -5,9 +5,61 @@
         {
             var sb = new System.Text.StringBuilder();
             sb.Append("{");
-            sb.Append("\"Value\":\"");
+            bool first = true;
+            if (obj.Value is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"Value\":");
+                sb.Append("\"");
+                sb.Append(obj.Value);
+                sb.Append("\"");
+            }
+            if (obj.NullableValue is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableValue\":");
+                sb.Append("\"");
+                sb.Append(obj.NullableValue);
+                sb.Append("\"");
+            }
+            sb.Append("}");
+            return sb.ToString();
+        }
+    }
+
+  
+    public static class GenJson_IntClass_Extensions
+    {
+        public static string ToJson(this IntClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Value\":");
             sb.Append(obj.Value);
-            sb.Append("\"");
+            if (obj.NullableValue is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableValue\":");
+                sb.Append(obj.NullableValue);
+            }
             sb.Append("}");
             return sb.ToString();
         }
