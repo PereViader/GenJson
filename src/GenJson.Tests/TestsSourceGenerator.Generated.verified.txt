@@ -1,0 +1,16 @@
+﻿[  
+    public static class GenJson_StringClass_Extensions
+    {
+        public static string ToJson(this StringClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{");
+            sb.Append("\"Value\":\"");
+            sb.Append(obj.Value);
+            sb.Append("\"");
+            sb.Append("}");
+            return sb.ToString();
+        }
+    }
+
+]

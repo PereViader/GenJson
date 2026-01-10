@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9</LangVersion> <!--Lang version must be 9 because unity3d does not support anything higher-->
+    <Nullable>enable</Nullable>
+    <AssemblyName>GenJson</AssemblyName>
+    <RootNamespace>GenJson</RootNamespace>
+    <Authors>Pere Viader</Authors>
+    <RepositoryUrl>https://github.com/PereViader/GenJson</RepositoryUrl>
+    <Product>GenJson</Product>
+    <Description>Source generator to convert types to json</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/PereViader/GenJson</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="$(SolutionDir)GenJson.Generator\bin\$(Configuration)\netstandard2.0\GenJson.Generator.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>
