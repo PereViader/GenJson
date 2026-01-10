@@ -5,57 +5,56 @@ namespace GenJson.Tests;
 public class TestRuntime
 {
     [Test]
-    public void TestStringWithValue()
+    public void TestEmptyClass()
     {
-        var obj = new StringClass()
-        {
-            Value = "Yes1",
-            NullableValue = "Yes2"
-        };
-
+        var obj = new EmptyClass();
         var json = obj.ToJson();
-        var expected = """{"Value":"Yes1","NullableValue":"Yes2"}""";
+        var expected = """{}""";
         Assert.That(json, Is.EqualTo(expected));
     }
     
     [Test]
-    public void TestStringNull()
+    public void TestStringClass()
     {
         var obj = new StringClass()
         {
-            Value = string.Empty,
-            NullableValue = null
+            Present = "Yes1",
+            NullablePresent = "Yes2",
+            NullableNull = null
         };
 
         var json = obj.ToJson();
-        var expected = """{"Value":""}""";
-
+        var expected = """{"Present":"Yes1","NullablePresent":"Yes2"}""";
         Assert.That(json, Is.EqualTo(expected));
     }
     
     [Test]
-    public void TestIntWithValue()
+    public void TestIntClass()
     {
         var obj = new IntClass()
         {
-            Value = 1,
-            NullableValue = 2
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
         };
         var json = obj.ToJson();
-        var expected = """{"Value":1,"NullableValue":2}""";
+        var expected = """{"Present":1,"NullablePresent":2}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 
     [Test]
-    public void TestIntNull()
+    public void TestParentClass()
     {
-        var obj = new IntClass()
+        var obj = new ParentClass()
         {
-            Value = 0,
-            NullableValue = null
+            Present = new EmptyClass()
+            {
+                Value = 1
+            },
+            NullablePresent = new EmptyClass()
         };
         var json = obj.ToJson();
-        var expected = """{"Value":0}""";
+        var expected = """{"Present":{"Value":1},"NullablePresent":{}}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 }

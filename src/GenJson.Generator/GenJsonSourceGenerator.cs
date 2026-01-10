@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GenJson.Generator;
 
-public record PropertyData(string Name, bool IsNullable, bool IsString);
+public record PropertyData(string Name, string TypeName, bool IsNullable, bool IsString, bool IsGenJson);
 public record ClassData(string ClassName, string Namespace, List<PropertyData> Properties);
 
 [Generator]
@@ -70,7 +70,17 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                 bool isString = propertySymbol.Type.SpecialType == SpecialType.System_String;
 
-                properties.Add(new PropertyData(propertySymbol.Name, isNullable, isString));
+                bool isGenJson = propertySymbol.Type.GetAttributes()
+                    .Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
+
+                // Also check if the underlying type of a nullable type has the attribute
+                if (!isGenJson && propertySymbol.Type is INamedTypeSymbol namedType && namedType.IsGenericType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                {
+                    isGenJson = namedType.TypeArguments[0].GetAttributes()
+                       .Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
+                }
+
+                properties.Add(new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(), isNullable, isString, isGenJson));
             }
         }
 
@@ -96,10 +106,20 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        public static string ToJson(this ");
         sb.Append(data.ClassName);
-        sb.AppendLine(" obj)");
-        sb.AppendLine("        {");
+        sb.AppendLine("""
+         obj)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    obj.ToJson(sb);
+                    return sb.ToString();
+                }
+        """);
 
-        sb.AppendLine("            var sb = new System.Text.StringBuilder();");
+        sb.AppendLine();
+        sb.Append("        public static void ToJson(this ");
+        sb.Append(data.ClassName);
+        sb.AppendLine(" obj, System.Text.StringBuilder sb)");
+        sb.AppendLine("        {");
         sb.AppendLine("            sb.Append(\"{\");");
         sb.AppendLine("            bool first = true;");
 
@@ -143,9 +163,19 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             // Property Value
             sb.Append(indent);
-            sb.Append("sb.Append(obj.");
-            sb.Append(prop.Name);
-            sb.AppendLine(");");
+
+            if (prop.IsGenJson)
+            {
+                sb.Append("obj.");
+                sb.Append(prop.Name);
+                sb.AppendLine(".ToJson(sb);");
+            }
+            else
+            {
+                sb.Append("sb.Append(obj.");
+                sb.Append(prop.Name);
+                sb.AppendLine(");");
+            }
 
             // End Quote if string
             if (prop.IsString)
@@ -161,7 +191,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("            sb.Append(\"}\");");
-        sb.AppendLine("            return sb.ToString();");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
 

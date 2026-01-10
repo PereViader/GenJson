@@ -22,6 +22,7 @@ public class TestsSourceGenerator
     {
         var code = File.ReadAllText("TestSourceGenerator.Source.cs");
         var generated = Generate(code);
+
         Assert.That(generated.diagnostics, Is.Empty);
         return Verifier.Verify(generated.code);
     }
@@ -33,20 +34,20 @@ public class TestsSourceGenerator
             .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location) && !a.Location.Contains("GenJson.Tests.dll"))
             .Select(a => MetadataReference.CreateFromFile(a.Location))
             .ToList();
-        
+
         references.Add(MetadataReference.CreateFromFile(typeof(GenJsonAttribute).Assembly.Location));
-        
+
         var compilation = CSharpCompilation.Create("AssemblyName",
-            [CSharpSyntaxTree.ParseText(SourceText.From(code, Encoding.UTF8))],
+            [CSharpSyntaxTree.ParseText(SourceText.From(code, Encoding.UTF8), new CSharpParseOptions(LanguageVersion.Latest))],
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
                 .WithNullableContextOptions(NullableContextOptions.Enable));
 
         var driver = CSharpGeneratorDriver.Create(new GenJsonSourceGenerator());
         driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
-        
+
         var generatedTrees = outputCompilation.SyntaxTrees.ToList();
-        
+
         var generatedCode = generatedTrees.Skip(1).Select(x => x.ToString());
         return (code: generatedCode, diagnostics: outputCompilation.GetDiagnostics());
     }

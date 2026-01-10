@@ -1,0 +1,1 @@
+- Always keep the Microsoft.CodeAnalysis.CSharp version to 4.1.0
