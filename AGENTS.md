@@ -1,1 +1,2 @@
 - Always keep the Microsoft.CodeAnalysis.CSharp version to 4.1.0
+- When TestSourceGenerator fails after running `dotnet test` and the cause is due a an expected change in the source generator, validate that the updated  `TestsSourceGenerator.Generated.received.txt` is correct and then you can run `sh src/GenJson.Tests/accept-received.sh`
