@@ -1,4 +1,7 @@
-﻿using NUnit.Framework;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using NUnit.Framework;
 
 namespace GenJson.Tests;
 
@@ -127,6 +130,35 @@ public class TestRuntime
         };
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
+        Assert.That(json, Is.EqualTo(expected));
+    }
+    
+    [Test]
+    public void TestDictionaryClass()
+    {
+        var obj = new DictionaryClass()
+        {
+            PresentIntInt = new Dictionary<int, int>() { { 1, 2 },  { 3, 4 } },
+            PresentIntString = new Dictionary<int, string>() { { 5, "6"} },
+            PresentStringInt = new Dictionary<string, int>() { { "7", 8 } },
+            PresentIntEnumerableInt = new Dictionary<int, IEnumerable<int>>() { {9, [10]}},
+            PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { {11, new EmptyClass() {Value = 12}} },
+            NullableDictionaryIntIntNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"PresentIntInt":{"1":2,"3":4},"PresentIntString":{"5":"6"},"PresentStringInt":{"7":8},"PresentIntEnumerableInt":{"9":[10]},"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
+        Assert.That(json, Is.EqualTo(expected));
+    }
+    
+    [Test]
+    public void TestNestedDictionaryClass()
+    {
+        var obj = new NestedDictionaryClass()
+        {
+            Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass()} } } },
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 }

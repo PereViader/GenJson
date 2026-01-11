@@ -30,6 +30,7 @@ public abstract record GenJsonDataType
     }
 
     public sealed record Enumerable(GenJsonDataType ElementType) : GenJsonDataType;
+    public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType) : GenJsonDataType;
 }
 
 
@@ -115,6 +116,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return GenJsonDataType.Object.Instance;
         }
 
+        if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
+        {
+            return new GenJsonDataType.Dictionary(GetGenJsonDataType(keyType!), GetGenJsonDataType(valueType!));
+        }
+
         ITypeSymbol? resolvedElementType = GetEnumerableElementType(type);
         if (resolvedElementType != null)
         {
@@ -123,6 +129,43 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         return GenJsonDataType.Primitive.Instance;
     }
+
+    private static bool TryGetDictionaryTypes(ITypeSymbol type, out ITypeSymbol? keyType, out ITypeSymbol? valueType)
+    {
+        keyType = null;
+        valueType = null;
+
+        if (type is INamedTypeSymbol namedType)
+        {
+            if (IsDictionary(namedType))
+            {
+                keyType = namedType.TypeArguments[0];
+                valueType = namedType.TypeArguments[1];
+                return true;
+            }
+
+            // Check interfaces
+            var dictInterface = namedType.AllInterfaces.FirstOrDefault(IsDictionary);
+
+            if (dictInterface != null)
+            {
+                keyType = dictInterface.TypeArguments[0];
+                valueType = dictInterface.TypeArguments[1];
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDictionary(INamedTypeSymbol type)
+    {
+        return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
+               (type.OriginalDefinition.Name == "IDictionary" || type.OriginalDefinition.Name == "IReadOnlyDictionary") &&
+               type.TypeParameters.Length == 2;
+    }
+
+
 
     private static bool HasGenJsonAttribute(ITypeSymbol type)
     {
@@ -334,6 +377,74 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                 sb.Append(arrayIndent);
                 sb.AppendLine("sb.Append(\"]\");");
+
+                sb.Append(indent);
+                sb.AppendLine("}"); // end block
+                break;
+
+            case GenJsonDataType.Dictionary dictionary:
+                // Enclose in a block to scope variables
+                sb.Append(indent);
+                sb.AppendLine("{");
+
+                string dictIndent = indent + "    ";
+
+                sb.Append(dictIndent);
+                sb.AppendLine("sb.Append(\"{\");");
+
+                sb.Append(dictIndent);
+                string firstItemVarDict = $"firstItem{depth}";
+                sb.Append("bool ");
+                sb.Append(firstItemVarDict);
+                sb.AppendLine(" = true;");
+
+                string kvpVar = $"kvp{depth}";
+
+                sb.Append(dictIndent);
+                sb.Append("foreach (var ");
+                sb.Append(kvpVar);
+                sb.Append(" in ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(")");
+                sb.Append(dictIndent);
+                sb.AppendLine("{");
+
+                string loopIndentDict = dictIndent + "    ";
+
+                sb.Append(loopIndentDict);
+                sb.Append("if (!");
+                sb.Append(firstItemVarDict);
+                sb.AppendLine(")");
+                sb.Append(loopIndentDict);
+                sb.AppendLine("{");
+                sb.Append(loopIndentDict);
+                sb.AppendLine("    sb.Append(\",\");");
+                sb.Append(loopIndentDict);
+                sb.AppendLine("}");
+                sb.Append(loopIndentDict);
+                sb.Append(firstItemVarDict);
+                sb.AppendLine(" = false;");
+
+                // Key
+                sb.Append(loopIndentDict);
+                sb.AppendLine("sb.Append(\"\\\"\");");
+
+                sb.Append(loopIndentDict);
+                sb.Append("sb.Append(");
+                sb.Append(kvpVar);
+                sb.AppendLine(".Key);");
+
+                sb.Append(loopIndentDict);
+                sb.AppendLine("sb.Append(\"\\\":\");");
+
+                // Value
+                GenerateValue(sb, dictionary.ValueType, $"{kvpVar}.Value", loopIndentDict, depth + 1);
+
+                sb.Append(dictIndent);
+                sb.AppendLine("}"); // end foreach
+
+                sb.Append(dictIndent);
+                sb.AppendLine("sb.Append(\"}\");");
 
                 sb.Append(indent);
                 sb.AppendLine("}"); // end block

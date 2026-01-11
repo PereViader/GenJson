@@ -908,4 +908,241 @@ namespace GenJson.Tests
     }
 }
 
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_DictionaryClass_Extensions
+    {
+        public static string ToJson(this DictionaryClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this DictionaryClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"PresentIntInt\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.PresentIntInt)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    sb.Append(kvp0.Value);
+                }
+                sb.Append("}");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"PresentIntString\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.PresentIntString)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    sb.Append("\"");
+                    sb.Append(kvp0.Value);
+                    sb.Append("\"");
+                }
+                sb.Append("}");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"PresentStringInt\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.PresentStringInt)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    sb.Append(kvp0.Value);
+                }
+                sb.Append("}");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"PresentIntEnumerableInt\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.PresentIntEnumerableInt)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    {
+                        sb.Append("[");
+                        bool firstItem1 = true;
+                        foreach (var item1 in kvp0.Value)
+                        {
+                            if (!firstItem1)
+                            {
+                                sb.Append(",");
+                            }
+                            firstItem1 = false;
+                            sb.Append(item1);
+                        }
+                        sb.Append("]");
+                    }
+                }
+                sb.Append("}");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"PresentDictionaryIntEmptyClasses\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.PresentDictionaryIntEmptyClasses)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    kvp0.Value.ToJson(sb);
+                }
+                sb.Append("}");
+            }
+            if (obj.NullableDictionaryIntIntNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableDictionaryIntIntNull\":");
+                {
+                    sb.Append("{");
+                    bool firstItem0 = true;
+                    foreach (var kvp0 in obj.NullableDictionaryIntIntNull)
+                    {
+                        if (!firstItem0)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem0 = false;
+                        sb.Append("\"");
+                        sb.Append(kvp0.Key);
+                        sb.Append("\":");
+                        sb.Append(kvp0.Value);
+                    }
+                    sb.Append("}");
+                }
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_NestedDictionaryClass_Extensions
+    {
+        public static string ToJson(this NestedDictionaryClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this NestedDictionaryClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Present\":");
+            {
+                sb.Append("{");
+                bool firstItem0 = true;
+                foreach (var kvp0 in obj.Present)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    sb.Append("\"");
+                    sb.Append(kvp0.Key);
+                    sb.Append("\":");
+                    {
+                        sb.Append("{");
+                        bool firstItem1 = true;
+                        foreach (var kvp1 in kvp0.Value)
+                        {
+                            if (!firstItem1)
+                            {
+                                sb.Append(",");
+                            }
+                            firstItem1 = false;
+                            sb.Append("\"");
+                            sb.Append(kvp1.Key);
+                            sb.Append("\":");
+                            kvp1.Value.ToJson(sb);
+                        }
+                        sb.Append("}");
+                    }
+                }
+                sb.Append("}");
+            }
+            sb.Append("}");
+        }
+    }
+}
+
 ]

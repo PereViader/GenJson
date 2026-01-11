@@ -86,3 +86,20 @@ public class NestedEnumerableClass
 {
     public EmptyClass[][] EnumerablePresent { get;  init; }
 }
+
+[GenJson]
+public class DictionaryClass
+{
+    public IReadOnlyDictionary<int, int> PresentIntInt { get; init; }
+    public IReadOnlyDictionary<int, string> PresentIntString { get; init; }
+    public IReadOnlyDictionary<string, int> PresentStringInt { get; init; }
+    public IReadOnlyDictionary<int, IEnumerable<int>> PresentIntEnumerableInt { get; init; }
+    public IReadOnlyDictionary<int, EmptyClass> PresentDictionaryIntEmptyClasses { get; init; }
+    public IReadOnlyDictionary<int, int>? NullableDictionaryIntIntNull { get; init; }
+}
+
+[GenJson]
+public class NestedDictionaryClass
+{
+    public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
+}
