@@ -22,7 +22,14 @@ namespace GenJson.Tests
                 }
                 first = false;
                 sb.Append("\"Value\":");
-                sb.Append(obj.Value);
+                if (obj.Value is null)
+                {
+                    sb.Append("null");
+                }
+                else
+                {
+                    sb.Append(obj.Value.Value);
+                }
             }
             sb.Append("}");
         }
@@ -114,7 +121,14 @@ namespace GenJson.Tests
                 }
                 first = false;
                 sb.Append("\"NullablePresent\":");
-                sb.Append(obj.NullablePresent);
+                if (obj.NullablePresent is null)
+                {
+                    sb.Append("null");
+                }
+                else
+                {
+                    sb.Append(obj.NullablePresent.Value);
+                }
             }
             if (obj.NullableNull is not null)
             {
@@ -124,7 +138,14 @@ namespace GenJson.Tests
                 }
                 first = false;
                 sb.Append("\"NullableNull\":");
-                sb.Append(obj.NullableNull);
+                if (obj.NullableNull is null)
+                {
+                    sb.Append("null");
+                }
+                else
+                {
+                    sb.Append(obj.NullableNull.Value);
+                }
             }
             sb.Append("}");
         }
@@ -1140,6 +1161,178 @@ namespace GenJson.Tests
                 }
                 sb.Append("}");
             }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_PrimitiveClass_Extensions
+    {
+        public static string ToJson(this PrimitiveClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this PrimitiveClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Bool\":");
+            sb.Append(obj.Bool ? "true" : "false");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Int\":");
+            sb.Append(obj.Int);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Uint\":");
+            sb.Append(obj.Uint);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Char\":");
+            sb.Append("\"");
+            sb.Append(obj.Char);
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Long\":");
+            sb.Append(obj.Long);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Short\":");
+            sb.Append(obj.Short);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Byte\":");
+            sb.Append(obj.Byte);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"SByte\":");
+            sb.Append(obj.SByte);
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Float\":");
+            sb.Append(obj.Float.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Double\":");
+            sb.Append(obj.Double.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Decimal\":");
+            sb.Append(obj.Decimal.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"String\":");
+            sb.Append("\"");
+            sb.Append(obj.String);
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"DateTime\":");
+            sb.Append("\"");
+            sb.Append(obj.DateTime.ToString("O"));
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"TimeSpan\":");
+            sb.Append("\"");
+            sb.Append(obj.TimeSpan.ToString());
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"DateOnly\":");
+            sb.Append("\"");
+            sb.Append(obj.DateOnly.ToString("O"));
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"TimeOnly\":");
+            sb.Append("\"");
+            sb.Append(obj.TimeOnly.ToString("O"));
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"DateTimeOffset\":");
+            sb.Append("\"");
+            sb.Append(obj.DateTimeOffset.ToString("O"));
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Guid\":");
+            sb.Append("\"");
+            sb.Append(obj.Guid.ToString());
+            sb.Append("\"");
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"Version\":");
+            sb.Append("\"");
+            sb.Append(obj.Version.ToString());
+            sb.Append("\"");
             sb.Append("}");
         }
     }

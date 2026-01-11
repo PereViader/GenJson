@@ -132,33 +132,63 @@ public class TestRuntime
         var expected = """{"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestDictionaryClass()
     {
         var obj = new DictionaryClass()
         {
-            PresentIntInt = new Dictionary<int, int>() { { 1, 2 },  { 3, 4 } },
-            PresentIntString = new Dictionary<int, string>() { { 5, "6"} },
+            PresentIntInt = new Dictionary<int, int>() { { 1, 2 }, { 3, 4 } },
+            PresentIntString = new Dictionary<int, string>() { { 5, "6" } },
             PresentStringInt = new Dictionary<string, int>() { { "7", 8 } },
-            PresentIntEnumerableInt = new Dictionary<int, IEnumerable<int>>() { {9, [10]}},
-            PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { {11, new EmptyClass() {Value = 12}} },
+            PresentIntEnumerableInt = new Dictionary<int, IEnumerable<int>>() { { 9, [10] } },
+            PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { { 11, new EmptyClass() { Value = 12 } } },
             NullableDictionaryIntIntNull = null
         };
         var json = obj.ToJson();
         var expected = """{"PresentIntInt":{"1":2,"3":4},"PresentIntString":{"5":"6"},"PresentStringInt":{"7":8},"PresentIntEnumerableInt":{"9":[10]},"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestNestedDictionaryClass()
     {
         var obj = new NestedDictionaryClass()
         {
-            Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass()} } } },
+            Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass() } } } },
         };
         var json = obj.ToJson();
         var expected = """{"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
+        Assert.That(json, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void TestPrimitiveClass()
+    {
+        var obj = new PrimitiveClass()
+        {
+            Bool = true,
+            Int = 1,
+            Uint = 2,
+            Char = 'c',
+            Long = 3,
+            Short = 4,
+            Byte = 5,
+            SByte = 6,
+            Float = 1.1f,
+            Double = 2.2,
+            Decimal = 3.3m,
+            String = "string",
+            DateTime = new DateTime(2000, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+            TimeSpan = new TimeSpan(1, 2, 3),
+            DateOnly = new DateOnly(2000, 1, 1),
+            TimeOnly = new TimeOnly(12, 0, 0),
+            DateTimeOffset = new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero),
+            Guid = Guid.Parse("d7f8a9a0-1234-5678-9abc-def012345678"),
+            Version = new Version(1, 2, 3)
+        };
+        var json = obj.ToJson();
+        var expected = """{"Bool":true,"Int":1,"Uint":2,"Char":"c","Long":3,"Short":4,"Byte":5,"SByte":6,"Float":1.1,"Double":2.2,"Decimal":3.3,"String":"string","DateTime":"2000-01-01T12:00:00.0000000Z","TimeSpan":"01:02:03","DateOnly":"2000-01-01","TimeOnly":"12:00:00.0000000","DateTimeOffset":"2000-01-01T12:00:00.0000000+00:00","Guid":"d7f8a9a0-1234-5678-9abc-def012345678","Version":"1.2.3"}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 }

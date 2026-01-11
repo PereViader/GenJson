@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 #pragma warning disable CS8618
 namespace GenJson.Tests;
@@ -102,4 +103,28 @@ public class DictionaryClass
 public class NestedDictionaryClass
 {
     public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
+}
+
+[GenJson]
+public class PrimitiveClass
+{
+    public bool Bool { get; init; }
+    public int Int { get; init; }
+    public uint Uint { get; init; }
+    public char Char { get; init; }
+    public long Long { get; init; }
+    public short Short { get; init; } 
+    public byte Byte { get; init; }
+    public sbyte SByte { get; init; }
+    public float Float { get; init; }
+    public double Double { get; init; }
+    public decimal Decimal { get; init; }
+    public string String { get; init; }
+    public DateTime DateTime { get; init; }
+    public TimeSpan TimeSpan { get; init; }
+    public DateOnly DateOnly { get; init; }
+    public TimeOnly TimeOnly { get; init; }
+    public DateTimeOffset DateTimeOffset { get; init; }
+    public Guid Guid { get; init; }
+    public Version Version { get; init; }
 }
