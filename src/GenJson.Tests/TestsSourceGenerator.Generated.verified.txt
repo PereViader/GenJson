@@ -45,18 +45,15 @@ namespace GenJson.Tests
         {
             sb.Append("{");
             bool first = true;
-            if (obj.Present is not null)
+            if (!first)
             {
-                if (!first)
-                {
-                    sb.Append(",");
-                }
-                first = false;
-                sb.Append("\"Present\":");
-                sb.Append("\"");
-                sb.Append(obj.Present);
-                sb.Append("\"");
+                sb.Append(",");
             }
+            first = false;
+            sb.Append("\"Present\":");
+            sb.Append("\"");
+            sb.Append(obj.Present);
+            sb.Append("\"");
             if (obj.NullablePresent is not null)
             {
                 if (!first)
@@ -150,16 +147,13 @@ namespace GenJson.Tests
         {
             sb.Append("{");
             bool first = true;
-            if (obj.Present is not null)
+            if (!first)
             {
-                if (!first)
-                {
-                    sb.Append(",");
-                }
-                first = false;
-                sb.Append("\"Present\":");
-                obj.Present.ToJson(sb);
+                sb.Append(",");
             }
+            first = false;
+            sb.Append("\"Present\":");
+            obj.Present.ToJson(sb);
             if (obj.NullablePresent is not null)
             {
                 if (!first)
@@ -179,6 +173,681 @@ namespace GenJson.Tests
                 first = false;
                 sb.Append("\"NullableNull\":");
                 obj.NullableNull.ToJson(sb);
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_EnumerableIntClass_Extensions
+    {
+        public static string ToJson(this EnumerableIntClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this EnumerableIntClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"EnumerablePresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.EnumerablePresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append(item);
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ArrayPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ArrayPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append(item);
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ListPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ListPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append(item);
+                }
+                sb.Append("]");
+            }
+            if (obj.NullableEnumerablePresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerablePresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerablePresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableEnumerableNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerableNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerableNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append(item);
+                    }
+                    sb.Append("]");
+                }
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_EnumerableStringClass_Extensions
+    {
+        public static string ToJson(this EnumerableStringClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this EnumerableStringClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"EnumerablePresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.EnumerablePresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append("\"");
+                    sb.Append(item);
+                    sb.Append("\"");
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ArrayPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ArrayPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append("\"");
+                    sb.Append(item);
+                    sb.Append("\"");
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ListPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ListPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    sb.Append("\"");
+                    sb.Append(item);
+                    sb.Append("\"");
+                }
+                sb.Append("]");
+            }
+            if (obj.NullableEnumerablePresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerablePresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerablePresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableEnumerableNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerableNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerableNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        sb.Append("\"");
+                        sb.Append(item);
+                        sb.Append("\"");
+                    }
+                    sb.Append("]");
+                }
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_EnumerableParentClass_Extensions
+    {
+        public static string ToJson(this EnumerableParentClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this EnumerableParentClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"EnumerablePresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.EnumerablePresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    item.ToJson(sb);
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ArrayPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ArrayPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    item.ToJson(sb);
+                }
+                sb.Append("]");
+            }
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"ListPresent\":");
+            {
+                sb.Append("[");
+                bool firstItem = true;
+                foreach (var item in obj.ListPresent)
+                {
+                    if (!firstItem)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem = false;
+                    item.ToJson(sb);
+                }
+                sb.Append("]");
+            }
+            if (obj.NullableEnumerablePresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerablePresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerablePresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListPresent is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListPresent\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListPresent)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableEnumerableNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableEnumerableNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableEnumerableNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableArrayNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableArrayNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableArrayNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
+            }
+            if (obj.NullableListNull is not null)
+            {
+                if (!first)
+                {
+                    sb.Append(",");
+                }
+                first = false;
+                sb.Append("\"NullableListNull\":");
+                {
+                    sb.Append("[");
+                    bool firstItem = true;
+                    foreach (var item in obj.NullableListNull)
+                    {
+                        if (!firstItem)
+                        {
+                            sb.Append(",");
+                        }
+                        firstItem = false;
+                        item.ToJson(sb);
+                    }
+                    sb.Append("]");
+                }
             }
             sb.Append("}");
         }

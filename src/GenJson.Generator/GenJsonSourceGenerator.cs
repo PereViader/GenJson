@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -8,8 +9,45 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GenJson.Generator;
 
-public record PropertyData(string Name, string TypeName, bool IsNullable, bool IsString, bool IsGenJson);
-public record ClassData(string ClassName, string Namespace, List<PropertyData> Properties);
+public enum GenJsonDataType
+{
+    Primitive,
+    String,
+    Object,
+    Enumerable
+}
+
+public class EquatableArray<T> : IEquatable<EquatableArray<T>>
+{
+    public EquatableArray(IEnumerable<T> collection)
+    {
+        Value = collection.ToArray();
+    }
+
+    public T[] Value { get; }
+
+    public bool Equals(EquatableArray<T>? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Value.SequenceEqual(other.Value);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as EquatableArray<T>);
+
+    public override int GetHashCode()
+    {
+        int hash = 17;
+        foreach (var item in Value)
+        {
+            hash = hash * 23 + (item?.GetHashCode() ?? 0);
+        }
+        return hash;
+    }
+}
+
+public record PropertyData(string Name, string TypeName, bool IsNullable, GenJsonDataType Type, GenJsonDataType ElementType);
+public record ClassData(string ClassName, string Namespace, EquatableArray<PropertyData> Properties);
 
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
@@ -65,26 +103,96 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 propertySymbol.DeclaredAccessibility == Accessibility.Public &&
                 !propertySymbol.IsStatic)
             {
-                bool isNullable = propertySymbol.Type.IsReferenceType ||
-                                  propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+                bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+                                  propertySymbol.NullableAnnotation == NullableAnnotation.Annotated;
 
-                bool isString = propertySymbol.Type.SpecialType == SpecialType.System_String;
+                GenJsonDataType type = GenJsonDataType.Primitive;
+                GenJsonDataType elementType = GenJsonDataType.Primitive;
 
-                bool isGenJson = propertySymbol.Type.GetAttributes()
-                    .Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
-
-                // Also check if the underlying type of a nullable type has the attribute
-                if (!isGenJson && propertySymbol.Type is INamedTypeSymbol namedType && namedType.IsGenericType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                if (propertySymbol.Type.SpecialType == SpecialType.System_String)
                 {
-                    isGenJson = namedType.TypeArguments[0].GetAttributes()
-                       .Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
+                    type = GenJsonDataType.String;
+                }
+                else if (HasGenJsonAttribute(propertySymbol.Type))
+                {
+                    type = GenJsonDataType.Object;
+                }
+                else
+                {
+                    ITypeSymbol? resolvedElementType = GetEnumerableElementType(propertySymbol.Type);
+
+                    if (resolvedElementType != null)
+                    {
+                        type = GenJsonDataType.Enumerable;
+                        if (resolvedElementType.SpecialType == SpecialType.System_String)
+                        {
+                            elementType = GenJsonDataType.String;
+                        }
+                        else if (HasGenJsonAttribute(resolvedElementType))
+                        {
+                            elementType = GenJsonDataType.Object;
+                        }
+                        else
+                        {
+                            elementType = GenJsonDataType.Primitive;
+                        }
+                    }
+                    else
+                    {
+                        type = GenJsonDataType.Primitive;
+                    }
                 }
 
-                properties.Add(new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(), isNullable, isString, isGenJson));
+                properties.Add(new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(), isNullable, type, elementType));
             }
         }
 
-        return new ClassData(classSymbol.Name, ns, properties);
+        return new ClassData(classSymbol.Name, ns, new EquatableArray<PropertyData>(properties));
+    }
+
+    private static bool HasGenJsonAttribute(ITypeSymbol type)
+    {
+        if (type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
+        {
+            return true;
+        }
+
+        // Check nullable underlying type
+        if (type is INamedTypeSymbol namedType &&
+            namedType.IsGenericType &&
+            namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        {
+            return namedType.TypeArguments[0].GetAttributes()
+                  .Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
+        }
+
+        return false;
+    }
+
+    private static ITypeSymbol? GetEnumerableElementType(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol arrayType)
+        {
+            return arrayType.ElementType;
+        }
+
+        if (type is INamedTypeSymbol namedTypeSym)
+        {
+            if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
+            {
+                if (namedTypeSym.TypeArguments.Length > 0)
+                {
+                    return namedTypeSym.TypeArguments[0];
+                }
+            }
+
+            var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+            if (enumerableInterface != null)
+            {
+                return enumerableInterface.TypeArguments[0];
+            }
+        }
+        return null;
     }
 
     private void Generate(SourceProductionContext context, ClassData data)
@@ -123,7 +231,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("            sb.Append(\"{\");");
         sb.AppendLine("            bool first = true;");
 
-        foreach (var prop in data.Properties)
+        foreach (var prop in data.Properties.Value)
         {
             string indent = "            ";
 
@@ -154,34 +262,100 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(prop.Name);
             sb.AppendLine("\\\":\");"); // "Key":
 
-            // Start Quote if string
-            if (prop.IsString)
+            if (prop.Type == GenJsonDataType.Enumerable)
             {
+                // Enclose in a block to scope 'firstItem'
                 sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-            }
+                sb.AppendLine("{");
 
-            // Property Value
-            sb.Append(indent);
+                string arrayIndent = indent + "    ";
 
-            if (prop.IsGenJson)
-            {
-                sb.Append("obj.");
+                sb.Append(arrayIndent);
+                sb.AppendLine("sb.Append(\"[\");");
+
+                sb.Append(arrayIndent);
+                sb.AppendLine("bool firstItem = true;");
+
+                sb.Append(arrayIndent);
+                sb.Append("foreach (var item in obj.");
                 sb.Append(prop.Name);
-                sb.AppendLine(".ToJson(sb);");
+                sb.AppendLine(")");
+                sb.Append(arrayIndent);
+                sb.AppendLine("{");
+
+                string loopIndent = arrayIndent + "    ";
+
+                sb.Append(loopIndent);
+                sb.AppendLine("if (!firstItem)");
+                sb.Append(loopIndent);
+                sb.AppendLine("{");
+                sb.Append(loopIndent);
+                sb.AppendLine("    sb.Append(\",\");");
+                sb.Append(loopIndent);
+                sb.AppendLine("}");
+                sb.Append(loopIndent);
+                sb.AppendLine("firstItem = false;");
+
+                if (prop.ElementType == GenJsonDataType.Object)
+                {
+                    sb.Append(loopIndent);
+                    sb.AppendLine("item.ToJson(sb);");
+                }
+                else if (prop.ElementType == GenJsonDataType.String)
+                {
+                    sb.Append(loopIndent);
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                    sb.Append(loopIndent);
+                    sb.AppendLine("sb.Append(item);");
+                    sb.Append(loopIndent);
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                }
+                else
+                {
+                    sb.Append(loopIndent);
+                    sb.AppendLine("sb.Append(item);");
+                }
+
+                sb.Append(arrayIndent);
+                sb.AppendLine("}"); // end foreach
+
+                sb.Append(arrayIndent);
+                sb.AppendLine("sb.Append(\"]\");");
+
+                sb.Append(indent);
+                sb.AppendLine("}"); // end block
             }
             else
             {
-                sb.Append("sb.Append(obj.");
-                sb.Append(prop.Name);
-                sb.AppendLine(");");
-            }
+                // Start Quote if string
+                if (prop.Type == GenJsonDataType.String)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                }
 
-            // End Quote if string
-            if (prop.IsString)
-            {
+                // Property Value
                 sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
+
+                if (prop.Type == GenJsonDataType.Object)
+                {
+                    sb.Append("obj.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(".ToJson(sb);");
+                }
+                else
+                {
+                    sb.Append("sb.Append(obj.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(");");
+                }
+
+                // End Quote if string
+                if (prop.Type == GenJsonDataType.String)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                }
             }
 
             if (prop.IsNullable)
