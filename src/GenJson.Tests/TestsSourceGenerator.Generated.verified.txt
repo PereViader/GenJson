@@ -203,15 +203,15 @@ namespace GenJson.Tests
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.EnumerablePresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.EnumerablePresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    sb.Append(item);
+                    firstItem0 = false;
+                    sb.Append(item0);
                 }
                 sb.Append("]");
             }
@@ -223,15 +223,15 @@ namespace GenJson.Tests
             sb.Append("\"ArrayPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ArrayPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ArrayPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    sb.Append(item);
+                    firstItem0 = false;
+                    sb.Append(item0);
                 }
                 sb.Append("]");
             }
@@ -243,15 +243,15 @@ namespace GenJson.Tests
             sb.Append("\"ListPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ListPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ListPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    sb.Append(item);
+                    firstItem0 = false;
+                    sb.Append(item0);
                 }
                 sb.Append("]");
             }
@@ -265,15 +265,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerablePresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerablePresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -288,15 +288,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -311,15 +311,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -334,15 +334,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerableNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerableNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -357,15 +357,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -380,15 +380,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        sb.Append(item);
+                        firstItem0 = false;
+                        sb.Append(item0);
                     }
                     sb.Append("]");
                 }
@@ -422,16 +422,16 @@ namespace GenJson.Tests
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.EnumerablePresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.EnumerablePresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
+                    firstItem0 = false;
                     sb.Append("\"");
-                    sb.Append(item);
+                    sb.Append(item0);
                     sb.Append("\"");
                 }
                 sb.Append("]");
@@ -444,16 +444,16 @@ namespace GenJson.Tests
             sb.Append("\"ArrayPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ArrayPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ArrayPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
+                    firstItem0 = false;
                     sb.Append("\"");
-                    sb.Append(item);
+                    sb.Append(item0);
                     sb.Append("\"");
                 }
                 sb.Append("]");
@@ -466,16 +466,16 @@ namespace GenJson.Tests
             sb.Append("\"ListPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ListPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ListPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
+                    firstItem0 = false;
                     sb.Append("\"");
-                    sb.Append(item);
+                    sb.Append(item0);
                     sb.Append("\"");
                 }
                 sb.Append("]");
@@ -490,16 +490,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerablePresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerablePresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -515,16 +515,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -540,16 +540,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -565,16 +565,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerableNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerableNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -590,16 +590,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -615,16 +615,16 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
+                        firstItem0 = false;
                         sb.Append("\"");
-                        sb.Append(item);
+                        sb.Append(item0);
                         sb.Append("\"");
                     }
                     sb.Append("]");
@@ -659,15 +659,15 @@ namespace GenJson.Tests
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.EnumerablePresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.EnumerablePresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    item.ToJson(sb);
+                    firstItem0 = false;
+                    item0.ToJson(sb);
                 }
                 sb.Append("]");
             }
@@ -679,15 +679,15 @@ namespace GenJson.Tests
             sb.Append("\"ArrayPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ArrayPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ArrayPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    item.ToJson(sb);
+                    firstItem0 = false;
+                    item0.ToJson(sb);
                 }
                 sb.Append("]");
             }
@@ -699,15 +699,15 @@ namespace GenJson.Tests
             sb.Append("\"ListPresent\":");
             {
                 sb.Append("[");
-                bool firstItem = true;
-                foreach (var item in obj.ListPresent)
+                bool firstItem0 = true;
+                foreach (var item0 in obj.ListPresent)
                 {
-                    if (!firstItem)
+                    if (!firstItem0)
                     {
                         sb.Append(",");
                     }
-                    firstItem = false;
-                    item.ToJson(sb);
+                    firstItem0 = false;
+                    item0.ToJson(sb);
                 }
                 sb.Append("]");
             }
@@ -721,15 +721,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerablePresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerablePresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
@@ -744,15 +744,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
@@ -767,15 +767,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListPresent)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListPresent)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
@@ -790,15 +790,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableEnumerableNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableEnumerableNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
@@ -813,15 +813,15 @@ namespace GenJson.Tests
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableArrayNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableArrayNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
@@ -836,18 +836,72 @@ namespace GenJson.Tests
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
-                    bool firstItem = true;
-                    foreach (var item in obj.NullableListNull)
+                    bool firstItem0 = true;
+                    foreach (var item0 in obj.NullableListNull)
                     {
-                        if (!firstItem)
+                        if (!firstItem0)
                         {
                             sb.Append(",");
                         }
-                        firstItem = false;
-                        item.ToJson(sb);
+                        firstItem0 = false;
+                        item0.ToJson(sb);
                     }
                     sb.Append("]");
                 }
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_NestedEnumerableClass_Extensions
+    {
+        public static string ToJson(this NestedEnumerableClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this NestedEnumerableClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            bool first = true;
+            if (!first)
+            {
+                sb.Append(",");
+            }
+            first = false;
+            sb.Append("\"EnumerablePresent\":");
+            {
+                sb.Append("[");
+                bool firstItem0 = true;
+                foreach (var item0 in obj.EnumerablePresent)
+                {
+                    if (!firstItem0)
+                    {
+                        sb.Append(",");
+                    }
+                    firstItem0 = false;
+                    {
+                        sb.Append("[");
+                        bool firstItem1 = true;
+                        foreach (var item1 in item0)
+                        {
+                            if (!firstItem1)
+                            {
+                                sb.Append(",");
+                            }
+                            firstItem1 = false;
+                            item1.ToJson(sb);
+                        }
+                        sb.Append("]");
+                    }
+                }
+                sb.Append("]");
             }
             sb.Append("}");
         }

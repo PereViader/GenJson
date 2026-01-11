@@ -12,7 +12,7 @@ public class TestRuntime
         var expected = """{}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestStringClass()
     {
@@ -27,7 +27,7 @@ public class TestRuntime
         var expected = """{"Present":"Yes1","NullablePresent":"Yes2"}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestIntClass()
     {
@@ -77,7 +77,7 @@ public class TestRuntime
         var expected = """{"EnumerablePresent":[1,2],"ArrayPresent":[3],"ListPresent":[4],"NullableEnumerablePresent":[5],"NullableArrayPresent":[6],"NullableListPresent":[7]}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestEnumerableStringClass()
     {
@@ -85,7 +85,7 @@ public class TestRuntime
         {
             EnumerablePresent = ["1", "2"],
             ArrayPresent = ["3"],
-            ListPresent = ["4"], 
+            ListPresent = ["4"],
             NullableEnumerablePresent = ["5"],
             NullableArrayPresent = ["6"],
             NullableListPresent = ["7"],
@@ -97,15 +97,15 @@ public class TestRuntime
         var expected = """{"EnumerablePresent":["1","2"],"ArrayPresent":["3"],"ListPresent":["4"],"NullableEnumerablePresent":["5"],"NullableArrayPresent":["6"],"NullableListPresent":["7"]}""";
         Assert.That(json, Is.EqualTo(expected));
     }
-    
+
     [Test]
     public void TestEnumerableParentClass()
     {
         var obj = new EnumerableParentClass()
         {
-            EnumerablePresent = [new EmptyClass() { Value = 1 }, new EmptyClass(){ Value = 2 }],
+            EnumerablePresent = [new EmptyClass() { Value = 1 }, new EmptyClass() { Value = 2 }],
             ArrayPresent = [new EmptyClass()],
-            ListPresent = [new EmptyClass()], 
+            ListPresent = [new EmptyClass()],
             NullableEnumerablePresent = [new EmptyClass()],
             NullableArrayPresent = [new EmptyClass()],
             NullableListPresent = [new EmptyClass()],
@@ -115,6 +115,18 @@ public class TestRuntime
         };
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":[{"Value":1},{"Value":2}],"ArrayPresent":[{}],"ListPresent":[{}],"NullableEnumerablePresent":[{}],"NullableArrayPresent":[{}],"NullableListPresent":[{}]}""";
+        Assert.That(json, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void TestNestedEnumerableClass()
+    {
+        var obj = new NestedEnumerableClass()
+        {
+            EnumerablePresent = [[new EmptyClass() { Value = 1 }, new EmptyClass()], [new EmptyClass(), new EmptyClass() { Value = 2 }]],
+        };
+        var json = obj.ToJson();
+        var expected = """{"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 }

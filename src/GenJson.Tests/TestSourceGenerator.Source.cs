@@ -80,3 +80,9 @@ public class EnumerableParentClass
     public EmptyClass[]? NullableArrayNull { get; init; }
     public List<EmptyClass>? NullableListNull { get; init; }
 }
+
+[GenJson]
+public class NestedEnumerableClass
+{
+    public EmptyClass[][] EnumerablePresent { get;  init; }
+}
