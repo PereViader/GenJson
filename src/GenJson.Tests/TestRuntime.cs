@@ -21,13 +21,13 @@ public class TestRuntime
     {
         var obj = new StringClass()
         {
-            Present = "Yes1",
-            NullablePresent = "Yes2",
+            Present = "1",
+            NullablePresent = "2",
             NullableNull = null
         };
 
         var json = obj.ToJson();
-        var expected = """{"Present":"Yes1","NullablePresent":"Yes2"}""";
+        var expected = """{"Present":"1","NullablePresent":"2"}""";
         Assert.That(json, Is.EqualTo(expected));
     }
 
