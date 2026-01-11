@@ -1,4 +1,3 @@
-﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -324,7 +323,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine(" obj, System.Text.StringBuilder sb)");
         sb.AppendLine("        {");
         sb.AppendLine("            sb.Append(\"{\");");
-        sb.AppendLine("            bool first = true;");
+
+        bool needFirst = data.Properties.Value.Count > 1 && data.Properties.Value[0].IsNullable;
+        if (needFirst)
+        {
+            sb.AppendLine("            bool first = true;");
+        }
+
+        var state = 0; // 0: True, 1: False, 2: Unknown
 
         foreach (var prop in data.Properties.Value)
         {
@@ -339,17 +345,48 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 indent = "                ";
             }
 
-            // Comma handling
-            sb.Append(indent);
-            sb.AppendLine("if (!first)");
-            sb.Append(indent);
-            sb.AppendLine("{");
-            sb.Append(indent);
-            sb.AppendLine("    sb.Append(\",\");");
-            sb.Append(indent);
-            sb.AppendLine("}");
-            sb.Append(indent);
-            sb.AppendLine("first = false;");
+            if (state == 0) // True
+            {
+                if (prop.IsNullable)
+                {
+                    if (needFirst)
+                    {
+                        sb.Append(indent);
+                        sb.AppendLine("first = false;");
+                    }
+                    state = 2; // Unknown
+                }
+                else
+                {
+                    state = 1; // False
+                }
+            }
+            else if (state == 1) // False
+            {
+                sb.Append(indent);
+                sb.AppendLine("sb.Append(\",\");");
+            }
+            else // Unknown
+            {
+                sb.Append(indent);
+                sb.AppendLine("if (!first)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    sb.Append(\",\");");
+                sb.Append(indent);
+                sb.AppendLine("}");
+
+                if (prop.IsNullable)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("first = false;");
+                }
+                else
+                {
+                    state = 1; // False
+                }
+            }
 
             // Property Key
             sb.Append(indent);
