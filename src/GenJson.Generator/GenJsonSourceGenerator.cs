@@ -107,7 +107,7 @@ namespace GenJson
 
     internal static class GenJsonParser
     {
-        public static void SkipWhitespace(string json, ref int index)
+        public static void SkipWhitespace(ReadOnlySpan<char> json, ref int index)
         {
             while (index < json.Length && char.IsWhiteSpace(json[index]))
             {
@@ -115,7 +115,7 @@ namespace GenJson
             }
         }
 
-        public static void Expect(string json, ref int index, char expected)
+        public static void Expect(ReadOnlySpan<char> json, ref int index, char expected)
         {
             SkipWhitespace(json, ref index);
             if (index >= json.Length || json[index] != expected)
@@ -125,7 +125,7 @@ namespace GenJson
             index++;
         }
 
-        public static string ParseString(string json, ref int index)
+        public static string ParseString(ReadOnlySpan<char> json, ref int index)
         {
             Expect(json, ref index, '"');
             var sb = new StringBuilder();
@@ -149,9 +149,9 @@ namespace GenJson
                         case 't': sb.Append('\t'); break;
                         case 'u': // Unicode escape
                             if (index + 4 > json.Length) throw new Exception("Invalid unicode escape at " + index);
-                            var hex = json.Substring(index, 4);
+                            var hexSequence = json.Slice(index, 4);
                             index += 4;
-                            sb.Append((char)int.Parse(hex, NumberStyles.HexNumber));
+                            sb.Append((char)int.Parse(hexSequence, NumberStyles.HexNumber));
                             break;
                         default: sb.Append(c); break;
                     }
@@ -164,66 +164,70 @@ namespace GenJson
             throw new Exception("Unterminated string at " + index);
         }
 
-        public static char ParseChar(string json, ref int index)
+        public static char ParseChar(ReadOnlySpan<char> json, ref int index)
         {
             var s = ParseString(json, ref index);
             if (s.Length != 1) throw new Exception("Expected string of length 1 for char at " + index);
             return s[0];
         }
 
-        public static int ParseInt(string json, ref int index) => (int)ParseLong(json, ref index);
-        public static uint ParseUInt(string json, ref int index) => (uint)ParseLong(json, ref index);
-        public static short ParseShort(string json, ref int index) => (short)ParseLong(json, ref index);
-        public static ushort ParseUShort(string json, ref int index) => (ushort)ParseLong(json, ref index);
-        public static byte ParseByte(string json, ref int index) => (byte)ParseLong(json, ref index);
-        public static sbyte ParseSByte(string json, ref int index) => (sbyte)ParseLong(json, ref index);
+        public static int ParseInt(ReadOnlySpan<char> json, ref int index) => (int)ParseLong(json, ref index);
+        public static uint ParseUInt(ReadOnlySpan<char> json, ref int index) => (uint)ParseLong(json, ref index);
+        public static short ParseShort(ReadOnlySpan<char> json, ref int index) => (short)ParseLong(json, ref index);
+        public static ushort ParseUShort(ReadOnlySpan<char> json, ref int index) => (ushort)ParseLong(json, ref index);
+        public static byte ParseByte(ReadOnlySpan<char> json, ref int index) => (byte)ParseLong(json, ref index);
+        public static sbyte ParseSByte(ReadOnlySpan<char> json, ref int index) => (sbyte)ParseLong(json, ref index);
 
-        public static long ParseLong(string json, ref int index)
+        public static long ParseLong(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && char.IsDigit(json[index])) index++;
-            return long.Parse(json.Substring(start, index - start));
+            var slice = json.Slice(start, index - start);
+            return long.Parse(slice);
         }
         
-        public static ulong ParseULong(string json, ref int index)
+        public static ulong ParseULong(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
             int start = index;
             while (index < json.Length && char.IsDigit(json[index])) index++;
-            return ulong.Parse(json.Substring(start, index - start));
+            var slice = json.Slice(start, index - start);
+            return ulong.Parse(slice);
         }
 
-        public static double ParseDouble(string json, ref int index)
+        public static double ParseDouble(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            return double.Parse(json.Substring(start, index - start), CultureInfo.InvariantCulture);
+            var slice = json.Slice(start, index - start);
+            return double.Parse(slice, CultureInfo.InvariantCulture);
         }
         
-        public static float ParseFloat(string json, ref int index) => (float)ParseDouble(json, ref index);
+        public static float ParseFloat(ReadOnlySpan<char> json, ref int index) => (float)ParseDouble(json, ref index);
 
-        public static decimal ParseDecimal(string json, ref int index)
+        public static decimal ParseDecimal(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            return decimal.Parse(json.Substring(start, index - start), CultureInfo.InvariantCulture);
+            var slice = json.Slice(start, index - start);
+            return decimal.Parse(slice, CultureInfo.InvariantCulture);
         }
 
-        public static bool ParseBoolean(string json, ref int index)
+        public static bool ParseBoolean(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
-            if (json.Length - index >= 4 && json.Substring(index, 4) == "true")
+            if (json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual("true"))
             {
                 index += 4;
                 return true;
             }
-            if (json.Length - index >= 5 && json.Substring(index, 5) == "false")
+            if (json.Length - index >= 5 && json.Slice(index, 5).SequenceEqual("false"))
             {
                 index += 5;
                 return false;
@@ -231,16 +235,16 @@ namespace GenJson
             throw new Exception("Expected boolean at " + index);
         }
 
-        public static bool IsNull(string json, ref int index)
+        public static bool IsNull(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
-            return json.Length - index >= 4 && json.Substring(index, 4) == "null";
+            return json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual("null");
         }
 
-        public static void ParseNull(string json, ref int index)
+        public static void ParseNull(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
-            if (json.Length - index >= 4 && json.Substring(index, 4) == "null")
+            if (json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual("null"))
             {
                 index += 4;
                 return;
@@ -248,7 +252,7 @@ namespace GenJson
              throw new Exception("Expected null at " + index);
         }
         
-        public static void SkipValue(string json, ref int index)
+        public static void SkipValue(ReadOnlySpan<char> json, ref int index)
         {
             SkipWhitespace(json, ref index);
             if (index >= json.Length) return;
@@ -635,16 +639,17 @@ namespace GenJson
         sb.AppendLine("        public static " + data.ClassName + " FromJson(string json)");
         sb.AppendLine("        {");
         sb.AppendLine("            if (json is null) throw new System.ArgumentNullException(nameof(json));");
+        sb.AppendLine("            System.ReadOnlySpan<char> span = json;");
         sb.AppendLine("            var index = 0;");
-        sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
-        sb.AppendLine("            var result = Parse(json, ref index);");
-        sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
-        sb.AppendLine("            if (index != json.Length) throw new System.ArgumentException(\"Unexpected extra characters\", nameof(json));");
+        sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(span, ref index);");
+        sb.AppendLine("            var result = Parse(span, ref index);");
+        sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(span, ref index);");
+        sb.AppendLine("            if (index != span.Length) throw new System.ArgumentException(\"Unexpected extra characters\", nameof(json));");
         sb.AppendLine("            return result;");
         sb.AppendLine("        }");
 
         sb.AppendLine();
-        sb.AppendLine("        internal static " + data.ClassName + " Parse(string json, ref int index)");
+        sb.AppendLine("        internal static " + data.ClassName + " Parse(System.ReadOnlySpan<char> json, ref int index)");
         sb.AppendLine("        {");
         sb.AppendLine("            global::GenJson.GenJsonParser.Expect(json, ref index, '{');");
 
