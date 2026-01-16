@@ -191,5 +191,20 @@ public class TestRuntime
         var expected = """{"Bool":true,"Int":1,"Uint":2,"Char":"c","Long":3,"Short":4,"Byte":5,"SByte":6,"Float":1.1,"Double":2.2,"Decimal":3.3,"String":"string","DateTime":"2000-01-01T12:00:00.0000000Z","TimeSpan":"01:02:03","DateOnly":"2000-01-01","TimeOnly":"12:00:00.0000000","DateTimeOffset":"2000-01-01T12:00:00.0000000+00:00","Guid":"d7f8a9a0-1234-5678-9abc-def012345678","Version":"1.2.3"}""";
         Assert.That(json, Is.EqualTo(expected));
     }
+    
+    [Test]
+    public void TestEnumClass()
+    {
+        var obj = new IntEnumClass()
+        {
+            PresentNumber = (IntEnum)0,
+            PresentText = IntEnum.One,
+            NullablePresentNumber = IntEnum.Two,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"PresentNumber":0,"PresentText":"One","NullablePresentNumber":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+    }
 }
 

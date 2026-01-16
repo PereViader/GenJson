@@ -9,4 +9,20 @@ namespace GenJson
     public sealed class GenJsonAttribute : Attribute
     {
     }
+
+    public static class GenJson
+    {
+        public static class Enum
+        {
+            [AttributeUsage(AttributeTargets.Property)]
+            public sealed class AsText : Attribute
+            {
+            }
+
+            [AttributeUsage(AttributeTargets.Property)]
+            public sealed class AsNumber : Attribute
+            {
+            }
+        }
+    }
 }

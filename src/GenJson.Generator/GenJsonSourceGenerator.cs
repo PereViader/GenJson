@@ -91,6 +91,7 @@ public abstract record GenJsonDataType
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
     public sealed record Enumerable(GenJsonDataType ElementType) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType) : GenJsonDataType;
+    public sealed record Enum(bool AsString, string UnderlyingType) : GenJsonDataType;
 }
 
 public record PropertyData(string Name, bool IsNullable, GenJsonDataType Type);
@@ -153,7 +154,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
                                   propertySymbol.NullableAnnotation == NullableAnnotation.Annotated;
 
-                var type = GetGenJsonDataType(propertySymbol.Type);
+                var type = GetGenJsonDataType(propertySymbol, propertySymbol.Type);
 
                 properties.Add(new PropertyData(propertySymbol.Name, isNullable, type));
             }
@@ -162,12 +163,19 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return new ClassData(classSymbol.Name, ns, new EquatableList<PropertyData>(properties));
     }
 
-    private static GenJsonDataType GetGenJsonDataType(ITypeSymbol type)
+    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, ITypeSymbol type)
     {
+        if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
+        {
+            var asString = propertySymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText");
+            var underlyingType = enumType.EnumUnderlyingType?.ToDisplayString() ?? "int";
+            return new GenJsonDataType.Enum(asString, underlyingType);
+        }
+
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol namedRaw && namedRaw.TypeArguments.Length > 0)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(namedRaw.TypeArguments[0]));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, namedRaw.TypeArguments[0]));
         }
 
         if (type.SpecialType == SpecialType.System_String)
@@ -206,13 +214,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            return new GenJsonDataType.Dictionary(GetGenJsonDataType(keyType!), GetGenJsonDataType(valueType!));
+            return new GenJsonDataType.Dictionary(GetGenJsonDataType(propertySymbol, keyType!), GetGenJsonDataType(propertySymbol, valueType!));
         }
 
         ITypeSymbol? resolvedElementType = GetEnumerableElementType(type);
         if (resolvedElementType != null)
         {
-            return new GenJsonDataType.Enumerable(GetGenJsonDataType(resolvedElementType));
+            return new GenJsonDataType.Enumerable(GetGenJsonDataType(propertySymbol, resolvedElementType));
         }
 
         return GenJsonDataType.Primitive.Instance;
@@ -637,6 +645,28 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     sb.Append(indent);
                     sb.AppendLine("}"); // end block
+                }
+                break;
+
+            case GenJsonDataType.Enum enumType:
+                sb.Append(indent);
+                if (enumType.AsString)
+                {
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                    sb.Append(indent);
+                    sb.Append("sb.Append(");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(".ToString());");
+                    sb.Append(indent);
+                    sb.AppendLine("sb.Append(\"\\\"\");");
+                }
+                else
+                {
+                    sb.Append("sb.Append((");
+                    sb.Append(enumType.UnderlyingType);
+                    sb.Append(")");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(");");
                 }
                 break;
         }

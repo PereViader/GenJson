@@ -121,6 +121,71 @@ namespace GenJson.Tests
   
 namespace GenJson.Tests
 {
+    public static class GenJson_IntEnumClass_Extensions
+    {
+        public static string ToJson(this IntEnumClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this IntEnumClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            sb.Append("\"PresentNumber\":");
+            sb.Append((int)obj.PresentNumber);
+            sb.Append(",");
+            sb.Append("\"PresentText\":");
+            sb.Append("\"");
+            sb.Append(obj.PresentText.ToString());
+            sb.Append("\"");
+            sb.Append(",");
+            sb.Append("\"NullablePresentNumber\":");
+            sb.Append((int)obj.NullablePresentNumber);
+            if (obj.NullableNull is not null)
+            {
+                sb.Append(",");
+                sb.Append("\"NullableNull\":");
+                if (obj.NullableNull is null)
+                {
+                    sb.Append("null");
+                }
+                else
+                {
+                    sb.Append((int)obj.NullableNull.Value);
+                }
+            }
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
+    public static class GenJson_ByteEnumClass_Extensions
+    {
+        public static string ToJson(this ByteEnumClass obj)
+        {
+            var sb = new System.Text.StringBuilder();
+            obj.ToJson(sb);
+            return sb.ToString();
+        }
+
+        public static void ToJson(this ByteEnumClass obj, System.Text.StringBuilder sb)
+        {
+            sb.Append("{");
+            sb.Append("\"Present\":");
+            sb.Append((byte)obj.Present);
+            sb.Append("}");
+        }
+    }
+}
+
+  
+namespace GenJson.Tests
+{
     public static class GenJson_ParentClass_Extensions
     {
         public static string ToJson(this ParentClass obj)
