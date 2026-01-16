@@ -14,6 +14,17 @@ GenJson is a high-performance C# Source Generator library that automatically cre
   - Standard Structs: `DateTime`, `DateOnly`, `TimeOnly`, `TimeSpan`, `Guid`, `Version`.
 - **Flexible Output**: Generates both string-returning methods and `StringBuilder` extensions for efficient appending.
 
+## Benchmark
+
+| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
+|------------------------ |-----------:|-----------:|------------:|-------:|---------------:|
+| GenJson_ToJson          |   332.1 ns |    6.61 ns |    11.40 ns | 0.0777 |        3.81 KB |
+| NewtonsoftJson_ToJson   | 1,795.2 ns |   35.23 ns |    47.03 ns | 0.1068 |        5.26 KB |
+| MicrosoftJson_ToJson    |   841.4 ns |   16.61 ns |    22.73 ns | 0.0305 |        1.54 KB |
+| GenJson_FromJson        | 1,185.1 ns |   23.10 ns |    22.69 ns | 0.1545 |        7.59 KB |
+| NewtonsoftJson_FromJson | 3,119.1 ns |   61.09 ns |    87.61 ns | 0.1144 |        5.67 KB |
+| MicrosoftJson_FromJson  | 1,881.5 ns |   11.56 ns |     9.03 ns | 0.0572 |        2.84 KB |
+
 ## Usage
 
 ### 1. Mark your class

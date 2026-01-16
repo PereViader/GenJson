@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.Tests", "GenJson.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson", "GenJson\GenJson.csproj", "{4F0266D7-4960-42CA-8A56-D00E6EEEC703}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.Benchmark", "GenJson.Benchmark\GenJson.Benchmark.csproj", "{19149134-CF37-4089-9D2B-6F1049557467}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{4F0266D7-4960-42CA-8A56-D00E6EEEC703}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F0266D7-4960-42CA-8A56-D00E6EEEC703}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4F0266D7-4960-42CA-8A56-D00E6EEEC703}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19149134-CF37-4089-9D2B-6F1049557467}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19149134-CF37-4089-9D2B-6F1049557467}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19149134-CF37-4089-9D2B-6F1049557467}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19149134-CF37-4089-9D2B-6F1049557467}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
