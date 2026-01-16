@@ -1,31 +1,303 @@
 ﻿[  
+namespace GenJson
+{
+    using System;
+    using System.Globalization;
+    using System.Text;
+
+    internal static class GenJsonParser
+    {
+        public static void SkipWhitespace(string json, ref int index)
+        {
+            while (index < json.Length && char.IsWhiteSpace(json[index]))
+            {
+                index++;
+            }
+        }
+
+        public static void Expect(string json, ref int index, char expected)
+        {
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length || json[index] != expected)
+            {
+                throw new Exception($"Expected '{expected}' at {index}");
+            }
+            index++;
+        }
+
+        public static string ParseString(string json, ref int index)
+        {
+            Expect(json, ref index, '"');
+            var sb = new StringBuilder();
+            while (index < json.Length)
+            {
+                var c = json[index++];
+                if (c == '"') return sb.ToString();
+                if (c == '\\')
+                {
+                    if (index >= json.Length) throw new Exception("Unexpected end of json string at " + index);
+                    c = json[index++];
+                    switch (c)
+                    {
+                        case '"': sb.Append('"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        case '/': sb.Append('/'); break;
+                        case 'b': sb.Append('\b'); break;
+                        case 'f': sb.Append('\f'); break;
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        case 'u': // Unicode escape
+                            if (index + 4 > json.Length) throw new Exception("Invalid unicode escape at " + index);
+                            var hex = json.Substring(index, 4);
+                            index += 4;
+                            sb.Append((char)int.Parse(hex, NumberStyles.HexNumber));
+                            break;
+                        default: sb.Append(c); break;
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            throw new Exception("Unterminated string at " + index);
+        }
+
+        public static char ParseChar(string json, ref int index)
+        {
+            var s = ParseString(json, ref index);
+            if (s.Length != 1) throw new Exception("Expected string of length 1 for char at " + index);
+            return s[0];
+        }
+
+        public static int ParseInt(string json, ref int index) => (int)ParseLong(json, ref index);
+        public static uint ParseUInt(string json, ref int index) => (uint)ParseLong(json, ref index);
+        public static short ParseShort(string json, ref int index) => (short)ParseLong(json, ref index);
+        public static ushort ParseUShort(string json, ref int index) => (ushort)ParseLong(json, ref index);
+        public static byte ParseByte(string json, ref int index) => (byte)ParseLong(json, ref index);
+        public static sbyte ParseSByte(string json, ref int index) => (sbyte)ParseLong(json, ref index);
+
+        public static long ParseLong(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            int start = index;
+            if (index < json.Length && json[index] == '-') index++;
+            while (index < json.Length && char.IsDigit(json[index])) index++;
+            return long.Parse(json.Substring(start, index - start));
+        }
+        
+        public static ulong ParseULong(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            int start = index;
+            while (index < json.Length && char.IsDigit(json[index])) index++;
+            return ulong.Parse(json.Substring(start, index - start));
+        }
+
+        public static double ParseDouble(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            int start = index;
+            if (index < json.Length && json[index] == '-') index++;
+            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
+            return double.Parse(json.Substring(start, index - start), CultureInfo.InvariantCulture);
+        }
+        
+        public static float ParseFloat(string json, ref int index) => (float)ParseDouble(json, ref index);
+
+        public static decimal ParseDecimal(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            int start = index;
+            if (index < json.Length && json[index] == '-') index++;
+            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
+            return decimal.Parse(json.Substring(start, index - start), CultureInfo.InvariantCulture);
+        }
+
+        public static bool ParseBoolean(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            if (json.Length - index >= 4 && json.Substring(index, 4) == "true")
+            {
+                index += 4;
+                return true;
+            }
+            if (json.Length - index >= 5 && json.Substring(index, 5) == "false")
+            {
+                index += 5;
+                return false;
+            }
+            throw new Exception("Expected boolean at " + index);
+        }
+
+        public static bool IsNull(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            return json.Length - index >= 4 && json.Substring(index, 4) == "null";
+        }
+
+        public static void ParseNull(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            if (json.Length - index >= 4 && json.Substring(index, 4) == "null")
+            {
+                index += 4;
+                return;
+            }
+             throw new Exception("Expected null at " + index);
+        }
+        
+        public static void SkipValue(string json, ref int index)
+        {
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length) return;
+            char c = json[index];
+            if (c == '"')
+            {
+                ParseString(json, ref index);
+            }
+            else if (c == '{')
+            {
+                index++;
+                while (index < json.Length)
+                {
+                    SkipWhitespace(json, ref index);
+                    if (json[index] == '}')
+                    {
+                        index++;
+                        return;
+                    }
+                    SkipValue(json, ref index); // Key (string) is a value
+                    SkipWhitespace(json, ref index);
+                    if (json[index] == ':') index++;
+                    SkipValue(json, ref index); // Value
+                    SkipWhitespace(json, ref index);
+                    if (json[index] == ',') index++;
+                }
+            }
+            else if (c == '[')
+            {
+                index++;
+                while (index < json.Length)
+                {
+                    SkipWhitespace(json, ref index);
+                    if (json[index] == ']')
+                    {
+                        index++;
+                        return;
+                    }
+                    SkipValue(json, ref index);
+                    SkipWhitespace(json, ref index);
+                    if (json[index] == ',') index++;
+                }
+            }
+            else if (char.IsDigit(c) || c == '-')
+            {
+                if (c == '-') index++;
+                while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
+            }
+            else if (c == 't') // true
+            {
+                index += 4;
+            }
+            else if (c == 'f') // false
+            {
+                index += 5;
+            }
+            else if (c == 'n') // null
+            {
+                index += 4;
+            }
+            else
+            {
+                index++; // Unknown
+            }
+        }
+    }
+}
+  
 namespace GenJson.Tests
 {
-    public static class GenJson_EmptyClass_Extensions
+    partial class EmptyClass
     {
-        public static string ToJson(this EmptyClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this EmptyClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
-            if (obj.Value is not null)
+            if (this.Value is not null)
             {
                 sb.Append("\"Value\":");
-                if (obj.Value is null)
+                if (this.Value is null)
                 {
                     sb.Append("null");
                 }
                 else
                 {
-                    sb.Append(obj.Value.Value);
+                    sb.Append(this.Value.Value);
                 }
             }
             sb.Append("}");
+        }
+
+        public static EmptyClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static EmptyClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            int? _Value = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new EmptyClass
+                    {
+                        Value = _Value,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Value":
+                        if (global::GenJson.GenJsonParser.IsNull(json, ref index))
+                        {
+                            global::GenJson.GenJsonParser.ParseNull(json, ref index);
+                            _Value = null;
+                        }
+                        else
+                        {
+                            _Value = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
         }
     }
 }
@@ -33,39 +305,95 @@ namespace GenJson.Tests
   
 namespace GenJson.Tests
 {
-    public static class GenJson_StringClass_Extensions
+    partial class StringClass
     {
-        public static string ToJson(this StringClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this StringClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Present\":");
             sb.Append("\"");
-            sb.Append(obj.Present);
+            sb.Append(this.Present);
             sb.Append("\"");
-            if (obj.NullablePresent is not null)
+            if (this.NullablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullablePresent\":");
                 sb.Append("\"");
-                sb.Append(obj.NullablePresent);
+                sb.Append(this.NullablePresent);
                 sb.Append("\"");
             }
-            if (obj.NullableNull is not null)
+            if (this.NullableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableNull\":");
                 sb.Append("\"");
-                sb.Append(obj.NullableNull);
+                sb.Append(this.NullableNull);
                 sb.Append("\"");
             }
             sb.Append("}");
+        }
+
+        public static StringClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static StringClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            string _Present = default;
+            string _NullablePresent = default;
+            string _NullableNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new StringClass
+                    {
+                        Present = _Present,
+                        NullablePresent = _NullablePresent,
+                        NullableNull = _NullableNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Present":
+                        _Present = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                        break;
+                    case "NullablePresent":
+                        _NullablePresent = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                        break;
+                    case "NullableNull":
+                        _NullableNull = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
         }
     }
 }
@@ -73,47 +401,119 @@ namespace GenJson.Tests
   
 namespace GenJson.Tests
 {
-    public static class GenJson_IntClass_Extensions
+    partial class IntClass
     {
-        public static string ToJson(this IntClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this IntClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Present\":");
-            sb.Append(obj.Present);
-            if (obj.NullablePresent is not null)
+            sb.Append(this.Present);
+            if (this.NullablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullablePresent\":");
-                if (obj.NullablePresent is null)
+                if (this.NullablePresent is null)
                 {
                     sb.Append("null");
                 }
                 else
                 {
-                    sb.Append(obj.NullablePresent.Value);
+                    sb.Append(this.NullablePresent.Value);
                 }
             }
-            if (obj.NullableNull is not null)
+            if (this.NullableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableNull\":");
-                if (obj.NullableNull is null)
+                if (this.NullableNull is null)
                 {
                     sb.Append("null");
                 }
                 else
                 {
-                    sb.Append(obj.NullableNull.Value);
+                    sb.Append(this.NullableNull.Value);
                 }
             }
             sb.Append("}");
+        }
+
+        public static IntClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static IntClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            int _Present = default;
+            int? _NullablePresent = default;
+            int? _NullableNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new IntClass
+                    {
+                        Present = _Present,
+                        NullablePresent = _NullablePresent,
+                        NullableNull = _NullableNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Present":
+                        _Present = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        break;
+                    case "NullablePresent":
+                        if (global::GenJson.GenJsonParser.IsNull(json, ref index))
+                        {
+                            global::GenJson.GenJsonParser.ParseNull(json, ref index);
+                            _NullablePresent = null;
+                        }
+                        else
+                        {
+                            _NullablePresent = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        }
+                        break;
+                    case "NullableNull":
+                        if (global::GenJson.GenJsonParser.IsNull(json, ref index))
+                        {
+                            global::GenJson.GenJsonParser.ParseNull(json, ref index);
+                            _NullableNull = null;
+                        }
+                        else
+                        {
+                            _NullableNull = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
         }
     }
 }
@@ -121,98 +521,269 @@ namespace GenJson.Tests
   
 namespace GenJson.Tests
 {
-    public static class GenJson_IntEnumClass_Extensions
+    partial class IntEnumClass
     {
-        public static string ToJson(this IntEnumClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this IntEnumClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"PresentNumber\":");
-            sb.Append((int)obj.PresentNumber);
+            sb.Append((int)this.PresentNumber);
             sb.Append(",");
             sb.Append("\"PresentText\":");
             sb.Append("\"");
-            sb.Append(obj.PresentText.ToString());
+            sb.Append(this.PresentText.ToString());
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"NullablePresentNumber\":");
-            sb.Append((int)obj.NullablePresentNumber);
-            if (obj.NullableNull is not null)
+            sb.Append((int)this.NullablePresentNumber);
+            if (this.NullableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableNull\":");
-                if (obj.NullableNull is null)
+                if (this.NullableNull is null)
                 {
                     sb.Append("null");
                 }
                 else
                 {
-                    sb.Append((int)obj.NullableNull.Value);
+                    sb.Append((int)this.NullableNull.Value);
                 }
             }
             sb.Append("}");
         }
+
+        public static IntEnumClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static IntEnumClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::GenJson.Tests.IntEnum _PresentNumber = default;
+            global::GenJson.Tests.IntEnum _PresentText = default;
+            global::GenJson.Tests.IntEnum _NullablePresentNumber = default;
+            global::GenJson.Tests.IntEnum? _NullableNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new IntEnumClass
+                    {
+                        PresentNumber = _PresentNumber,
+                        PresentText = _PresentText,
+                        NullablePresentNumber = _NullablePresentNumber,
+                        NullableNull = _NullableNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "PresentNumber":
+                        _PresentNumber = (global::GenJson.Tests.IntEnum)global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        break;
+                    case "PresentText":
+                        _PresentText = System.Enum.Parse<global::GenJson.Tests.IntEnum>(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    case "NullablePresentNumber":
+                        _NullablePresentNumber = (global::GenJson.Tests.IntEnum)global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        break;
+                    case "NullableNull":
+                        if (global::GenJson.GenJsonParser.IsNull(json, ref index))
+                        {
+                            global::GenJson.GenJsonParser.ParseNull(json, ref index);
+                            _NullableNull = null;
+                        }
+                        else
+                        {
+                            _NullableNull = (global::GenJson.Tests.IntEnum)global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_ByteEnumClass_Extensions
+    partial class ByteEnumClass
     {
-        public static string ToJson(this ByteEnumClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this ByteEnumClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Present\":");
-            sb.Append((byte)obj.Present);
+            sb.Append((byte)this.Present);
             sb.Append("}");
         }
+
+        public static ByteEnumClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static ByteEnumClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::GenJson.Tests.ByteEnum _Present = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new ByteEnumClass
+                    {
+                        Present = _Present,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Present":
+                        _Present = (global::GenJson.Tests.ByteEnum)global::GenJson.GenJsonParser.ParseByte(json, ref index);
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_ParentClass_Extensions
+    partial class ParentClass
     {
-        public static string ToJson(this ParentClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this ParentClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Present\":");
-            obj.Present.ToJson(sb);
-            if (obj.NullablePresent is not null)
+            this.Present.ToJson(sb);
+            if (this.NullablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullablePresent\":");
-                obj.NullablePresent.ToJson(sb);
+                this.NullablePresent.ToJson(sb);
             }
-            if (obj.NullableNull is not null)
+            if (this.NullableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableNull\":");
-                obj.NullableNull.ToJson(sb);
+                this.NullableNull.ToJson(sb);
             }
             sb.Append("}");
+        }
+
+        public static ParentClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static ParentClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::GenJson.Tests.EmptyClass _Present = default;
+            global::GenJson.Tests.EmptyClass _NullablePresent = default;
+            global::GenJson.Tests.EmptyClass _NullableNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new ParentClass
+                    {
+                        Present = _Present,
+                        NullablePresent = _NullablePresent,
+                        NullableNull = _NullableNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Present":
+                        _Present = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                        break;
+                    case "NullablePresent":
+                        _NullablePresent = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                        break;
+                    case "NullableNull":
+                        _NullableNull = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
         }
     }
 }
@@ -220,23 +791,23 @@ namespace GenJson.Tests
   
 namespace GenJson.Tests
 {
-    public static class GenJson_EnumerableIntClass_Extensions
+    partial class EnumerableIntClass
     {
-        public static string ToJson(this EnumerableIntClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this EnumerableIntClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.EnumerablePresent)
+                foreach (var item0 in this.EnumerablePresent)
                 {
                     if (!firstItem0)
                     {
@@ -252,7 +823,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ArrayPresent)
+                foreach (var item0 in this.ArrayPresent)
                 {
                     if (!firstItem0)
                     {
@@ -268,7 +839,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ListPresent)
+                foreach (var item0 in this.ListPresent)
                 {
                     if (!firstItem0)
                     {
@@ -279,14 +850,14 @@ namespace GenJson.Tests
                 }
                 sb.Append("]");
             }
-            if (obj.NullableEnumerablePresent is not null)
+            if (this.NullableEnumerablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerablePresent)
+                    foreach (var item0 in this.NullableEnumerablePresent)
                     {
                         if (!firstItem0)
                         {
@@ -298,14 +869,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayPresent is not null)
+            if (this.NullableArrayPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayPresent)
+                    foreach (var item0 in this.NullableArrayPresent)
                     {
                         if (!firstItem0)
                         {
@@ -317,14 +888,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListPresent is not null)
+            if (this.NullableListPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListPresent)
+                    foreach (var item0 in this.NullableListPresent)
                     {
                         if (!firstItem0)
                         {
@@ -336,14 +907,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableEnumerableNull is not null)
+            if (this.NullableEnumerableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerableNull)
+                    foreach (var item0 in this.NullableEnumerableNull)
                     {
                         if (!firstItem0)
                         {
@@ -355,14 +926,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayNull is not null)
+            if (this.NullableArrayNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayNull)
+                    foreach (var item0 in this.NullableArrayNull)
                     {
                         if (!firstItem0)
                         {
@@ -374,14 +945,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListNull is not null)
+            if (this.NullableListNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListNull)
+                    foreach (var item0 in this.NullableListNull)
                     {
                         if (!firstItem0)
                         {
@@ -395,29 +966,304 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static EnumerableIntClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static EnumerableIntClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::System.Collections.Generic.IEnumerable<int> _EnumerablePresent = default;
+            int[] _ArrayPresent = default;
+            global::System.Collections.Generic.List<int> _ListPresent = default;
+            global::System.Collections.Generic.IEnumerable<int> _NullableEnumerablePresent = default;
+            int[] _NullableArrayPresent = default;
+            global::System.Collections.Generic.List<int> _NullableListPresent = default;
+            global::System.Collections.Generic.IEnumerable<int> _NullableEnumerableNull = default;
+            int[] _NullableArrayNull = default;
+            global::System.Collections.Generic.List<int> _NullableListNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new EnumerableIntClass
+                    {
+                        EnumerablePresent = _EnumerablePresent,
+                        ArrayPresent = _ArrayPresent,
+                        ListPresent = _ListPresent,
+                        NullableEnumerablePresent = _NullableEnumerablePresent,
+                        NullableArrayPresent = _NullableArrayPresent,
+                        NullableListPresent = _NullableListPresent,
+                        NullableEnumerableNull = _NullableEnumerableNull,
+                        NullableArrayNull = _NullableArrayNull,
+                        NullableListNull = _NullableListNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "EnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _EnumerablePresent = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ListPresent = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerablePresent = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListPresent = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerableNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerableNull = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayNull = list0.ToArray();
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListNull = list0;
+                                    break;
+                                }
+                                int item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_EnumerableStringClass_Extensions
+    partial class EnumerableStringClass
     {
-        public static string ToJson(this EnumerableStringClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this EnumerableStringClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.EnumerablePresent)
+                foreach (var item0 in this.EnumerablePresent)
                 {
                     if (!firstItem0)
                     {
@@ -435,7 +1281,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ArrayPresent)
+                foreach (var item0 in this.ArrayPresent)
                 {
                     if (!firstItem0)
                     {
@@ -453,7 +1299,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ListPresent)
+                foreach (var item0 in this.ListPresent)
                 {
                     if (!firstItem0)
                     {
@@ -466,14 +1312,14 @@ namespace GenJson.Tests
                 }
                 sb.Append("]");
             }
-            if (obj.NullableEnumerablePresent is not null)
+            if (this.NullableEnumerablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerablePresent)
+                    foreach (var item0 in this.NullableEnumerablePresent)
                     {
                         if (!firstItem0)
                         {
@@ -487,14 +1333,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayPresent is not null)
+            if (this.NullableArrayPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayPresent)
+                    foreach (var item0 in this.NullableArrayPresent)
                     {
                         if (!firstItem0)
                         {
@@ -508,14 +1354,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListPresent is not null)
+            if (this.NullableListPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListPresent)
+                    foreach (var item0 in this.NullableListPresent)
                     {
                         if (!firstItem0)
                         {
@@ -529,14 +1375,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableEnumerableNull is not null)
+            if (this.NullableEnumerableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerableNull)
+                    foreach (var item0 in this.NullableEnumerableNull)
                     {
                         if (!firstItem0)
                         {
@@ -550,14 +1396,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayNull is not null)
+            if (this.NullableArrayNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayNull)
+                    foreach (var item0 in this.NullableArrayNull)
                     {
                         if (!firstItem0)
                         {
@@ -571,14 +1417,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListNull is not null)
+            if (this.NullableListNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListNull)
+                    foreach (var item0 in this.NullableListNull)
                     {
                         if (!firstItem0)
                         {
@@ -594,29 +1440,304 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static EnumerableStringClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static EnumerableStringClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::System.Collections.Generic.IEnumerable<string> _EnumerablePresent = default;
+            string[] _ArrayPresent = default;
+            global::System.Collections.Generic.List<string> _ListPresent = default;
+            global::System.Collections.Generic.IEnumerable<string> _NullableEnumerablePresent = default;
+            string[] _NullableArrayPresent = default;
+            global::System.Collections.Generic.List<string> _NullableListPresent = default;
+            global::System.Collections.Generic.IEnumerable<string> _NullableEnumerableNull = default;
+            string[] _NullableArrayNull = default;
+            global::System.Collections.Generic.List<string> _NullableListNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new EnumerableStringClass
+                    {
+                        EnumerablePresent = _EnumerablePresent,
+                        ArrayPresent = _ArrayPresent,
+                        ListPresent = _ListPresent,
+                        NullableEnumerablePresent = _NullableEnumerablePresent,
+                        NullableArrayPresent = _NullableArrayPresent,
+                        NullableListPresent = _NullableListPresent,
+                        NullableEnumerableNull = _NullableEnumerableNull,
+                        NullableArrayNull = _NullableArrayNull,
+                        NullableListNull = _NullableListNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "EnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _EnumerablePresent = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ListPresent = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerablePresent = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListPresent = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerableNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerableNull = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayNull = list0.ToArray();
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListNull = list0;
+                                    break;
+                                }
+                                string item0 = default;
+                                item0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_EnumerableParentClass_Extensions
+    partial class EnumerableParentClass
     {
-        public static string ToJson(this EnumerableParentClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this EnumerableParentClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.EnumerablePresent)
+                foreach (var item0 in this.EnumerablePresent)
                 {
                     if (!firstItem0)
                     {
@@ -632,7 +1753,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ArrayPresent)
+                foreach (var item0 in this.ArrayPresent)
                 {
                     if (!firstItem0)
                     {
@@ -648,7 +1769,7 @@ namespace GenJson.Tests
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.ListPresent)
+                foreach (var item0 in this.ListPresent)
                 {
                     if (!firstItem0)
                     {
@@ -659,14 +1780,14 @@ namespace GenJson.Tests
                 }
                 sb.Append("]");
             }
-            if (obj.NullableEnumerablePresent is not null)
+            if (this.NullableEnumerablePresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerablePresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerablePresent)
+                    foreach (var item0 in this.NullableEnumerablePresent)
                     {
                         if (!firstItem0)
                         {
@@ -678,14 +1799,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayPresent is not null)
+            if (this.NullableArrayPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayPresent)
+                    foreach (var item0 in this.NullableArrayPresent)
                     {
                         if (!firstItem0)
                         {
@@ -697,14 +1818,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListPresent is not null)
+            if (this.NullableListPresent is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListPresent\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListPresent)
+                    foreach (var item0 in this.NullableListPresent)
                     {
                         if (!firstItem0)
                         {
@@ -716,14 +1837,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableEnumerableNull is not null)
+            if (this.NullableEnumerableNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableEnumerableNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableEnumerableNull)
+                    foreach (var item0 in this.NullableEnumerableNull)
                     {
                         if (!firstItem0)
                         {
@@ -735,14 +1856,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableArrayNull is not null)
+            if (this.NullableArrayNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableArrayNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableArrayNull)
+                    foreach (var item0 in this.NullableArrayNull)
                     {
                         if (!firstItem0)
                         {
@@ -754,14 +1875,14 @@ namespace GenJson.Tests
                     sb.Append("]");
                 }
             }
-            if (obj.NullableListNull is not null)
+            if (this.NullableListNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableListNull\":");
                 {
                     sb.Append("[");
                     bool firstItem0 = true;
-                    foreach (var item0 in obj.NullableListNull)
+                    foreach (var item0 in this.NullableListNull)
                     {
                         if (!firstItem0)
                         {
@@ -775,29 +1896,304 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static EnumerableParentClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static EnumerableParentClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::System.Collections.Generic.IEnumerable<global::GenJson.Tests.EmptyClass> _EnumerablePresent = default;
+            global::GenJson.Tests.EmptyClass[] _ArrayPresent = default;
+            global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass> _ListPresent = default;
+            global::System.Collections.Generic.IEnumerable<global::GenJson.Tests.EmptyClass> _NullableEnumerablePresent = default;
+            global::GenJson.Tests.EmptyClass[] _NullableArrayPresent = default;
+            global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass> _NullableListPresent = default;
+            global::System.Collections.Generic.IEnumerable<global::GenJson.Tests.EmptyClass> _NullableEnumerableNull = default;
+            global::GenJson.Tests.EmptyClass[] _NullableArrayNull = default;
+            global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass> _NullableListNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new EnumerableParentClass
+                    {
+                        EnumerablePresent = _EnumerablePresent,
+                        ArrayPresent = _ArrayPresent,
+                        ListPresent = _ListPresent,
+                        NullableEnumerablePresent = _NullableEnumerablePresent,
+                        NullableArrayPresent = _NullableArrayPresent,
+                        NullableListPresent = _NullableListPresent,
+                        NullableEnumerableNull = _NullableEnumerableNull,
+                        NullableArrayNull = _NullableArrayNull,
+                        NullableListNull = _NullableListNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "EnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _EnumerablePresent = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "ListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _ListPresent = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerablePresent = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayPresent = list0.ToArray();
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListPresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListPresent = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableEnumerableNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableEnumerableNull = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableArrayNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableArrayNull = list0.ToArray();
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableListNull":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _NullableListNull = list0;
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass item0 = default;
+                                item0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_NestedEnumerableClass_Extensions
+    partial class NestedEnumerableClass
     {
-        public static string ToJson(this NestedEnumerableClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this NestedEnumerableClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"EnumerablePresent\":");
             {
                 sb.Append("[");
                 bool firstItem0 = true;
-                foreach (var item0 in obj.EnumerablePresent)
+                foreach (var item0 in this.EnumerablePresent)
                 {
                     if (!firstItem0)
                     {
@@ -823,29 +2219,117 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static NestedEnumerableClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static NestedEnumerableClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::GenJson.Tests.EmptyClass[][] _EnumerablePresent = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new NestedEnumerableClass
+                    {
+                        EnumerablePresent = _EnumerablePresent,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "EnumerablePresent":
+                        {
+                            var list0 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass[]>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ']')
+                                {
+                                    index++;
+                                    _EnumerablePresent = list0.ToArray();
+                                    break;
+                                }
+                                global::GenJson.Tests.EmptyClass[] item0 = default;
+                                {
+                                    var list1 = new global::System.Collections.Generic.List<global::GenJson.Tests.EmptyClass>();
+                                    global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                                    while (index < json.Length)
+                                    {
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == ']')
+                                        {
+                                            index++;
+                                            item0 = list1.ToArray();
+                                            break;
+                                        }
+                                        global::GenJson.Tests.EmptyClass item1 = default;
+                                        item1 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                        list1.Add(item1);
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == ',')
+                                        {
+                                            index++;
+                                        }
+                                    }
+                                }
+                                list0.Add(item0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_DictionaryClass_Extensions
+    partial class DictionaryClass
     {
-        public static string ToJson(this DictionaryClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this DictionaryClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"PresentIntInt\":");
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.PresentIntInt)
+                foreach (var kvp0 in this.PresentIntInt)
                 {
                     if (!firstItem0)
                     {
@@ -864,7 +2348,7 @@ namespace GenJson.Tests
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.PresentIntString)
+                foreach (var kvp0 in this.PresentIntString)
                 {
                     if (!firstItem0)
                     {
@@ -885,7 +2369,7 @@ namespace GenJson.Tests
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.PresentStringInt)
+                foreach (var kvp0 in this.PresentStringInt)
                 {
                     if (!firstItem0)
                     {
@@ -904,7 +2388,7 @@ namespace GenJson.Tests
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.PresentIntEnumerableInt)
+                foreach (var kvp0 in this.PresentIntEnumerableInt)
                 {
                     if (!firstItem0)
                     {
@@ -936,7 +2420,7 @@ namespace GenJson.Tests
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.PresentDictionaryIntEmptyClasses)
+                foreach (var kvp0 in this.PresentDictionaryIntEmptyClasses)
                 {
                     if (!firstItem0)
                     {
@@ -950,14 +2434,14 @@ namespace GenJson.Tests
                 }
                 sb.Append("}");
             }
-            if (obj.NullableDictionaryIntIntNull is not null)
+            if (this.NullableDictionaryIntIntNull is not null)
             {
                 sb.Append(",");
                 sb.Append("\"NullableDictionaryIntIntNull\":");
                 {
                     sb.Append("{");
                     bool firstItem0 = true;
-                    foreach (var kvp0 in obj.NullableDictionaryIntIntNull)
+                    foreach (var kvp0 in this.NullableDictionaryIntIntNull)
                     {
                         if (!firstItem0)
                         {
@@ -974,29 +2458,265 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static DictionaryClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static DictionaryClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::System.Collections.Generic.IReadOnlyDictionary<int, int> _PresentIntInt = default;
+            global::System.Collections.Generic.IReadOnlyDictionary<int, string> _PresentIntString = default;
+            global::System.Collections.Generic.IReadOnlyDictionary<string, int> _PresentStringInt = default;
+            global::System.Collections.Generic.IReadOnlyDictionary<int, global::System.Collections.Generic.IEnumerable<int>> _PresentIntEnumerableInt = default;
+            global::System.Collections.Generic.IReadOnlyDictionary<int, global::GenJson.Tests.EmptyClass> _PresentDictionaryIntEmptyClasses = default;
+            global::System.Collections.Generic.IReadOnlyDictionary<int, int> _NullableDictionaryIntIntNull = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new DictionaryClass
+                    {
+                        PresentIntInt = _PresentIntInt,
+                        PresentIntString = _PresentIntString,
+                        PresentStringInt = _PresentStringInt,
+                        PresentIntEnumerableInt = _PresentIntEnumerableInt,
+                        PresentDictionaryIntEmptyClasses = _PresentDictionaryIntEmptyClasses,
+                        NullableDictionaryIntIntNull = _NullableDictionaryIntIntNull,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "PresentIntInt":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _PresentIntInt = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                int val0 = default;
+                                val0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "PresentIntString":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, string>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _PresentIntString = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                string val0 = default;
+                                val0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "PresentStringInt":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<string, int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _PresentStringInt = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                string key0 = keyStr0;
+                                int val0 = default;
+                                val0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "PresentIntEnumerableInt":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, global::System.Collections.Generic.IEnumerable<int>>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _PresentIntEnumerableInt = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                global::System.Collections.Generic.IEnumerable<int> val0 = default;
+                                {
+                                    var list1 = new global::System.Collections.Generic.List<int>();
+                                    global::GenJson.GenJsonParser.Expect(json, ref index, '[');
+                                    while (index < json.Length)
+                                    {
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == ']')
+                                        {
+                                            index++;
+                                            val0 = list1;
+                                            break;
+                                        }
+                                        int item1 = default;
+                                        item1 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                        list1.Add(item1);
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == ',')
+                                        {
+                                            index++;
+                                        }
+                                    }
+                                }
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "PresentDictionaryIntEmptyClasses":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, global::GenJson.Tests.EmptyClass>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _PresentDictionaryIntEmptyClasses = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                global::GenJson.Tests.EmptyClass val0 = default;
+                                val0 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    case "NullableDictionaryIntIntNull":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, int>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _NullableDictionaryIntIntNull = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                int val0 = default;
+                                val0 = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_NestedDictionaryClass_Extensions
+    partial class NestedDictionaryClass
     {
-        public static string ToJson(this NestedDictionaryClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this NestedDictionaryClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Present\":");
             {
                 sb.Append("{");
                 bool firstItem0 = true;
-                foreach (var kvp0 in obj.Present)
+                foreach (var kvp0 in this.Present)
                 {
                     if (!firstItem0)
                     {
@@ -1028,99 +2748,329 @@ namespace GenJson.Tests
             }
             sb.Append("}");
         }
+
+        public static NestedDictionaryClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static NestedDictionaryClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            global::System.Collections.Generic.IReadOnlyDictionary<int, global::System.Collections.Generic.IReadOnlyDictionary<int, global::GenJson.Tests.EmptyClass>> _Present = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new NestedDictionaryClass
+                    {
+                        Present = _Present,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Present":
+                        {
+                            var dict0 = new global::System.Collections.Generic.Dictionary<int, global::System.Collections.Generic.IReadOnlyDictionary<int, global::GenJson.Tests.EmptyClass>>();
+                            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                            while (index < json.Length)
+                            {
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == '}')
+                                {
+                                    index++;
+                                    _Present = dict0;
+                                    break;
+                                }
+                                var keyStr0 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                int key0 = int.Parse(keyStr0);
+                                global::System.Collections.Generic.IReadOnlyDictionary<int, global::GenJson.Tests.EmptyClass> val0 = default;
+                                {
+                                    var dict1 = new global::System.Collections.Generic.Dictionary<int, global::GenJson.Tests.EmptyClass>();
+                                    global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+                                    while (index < json.Length)
+                                    {
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == '}')
+                                        {
+                                            index++;
+                                            val0 = dict1;
+                                            break;
+                                        }
+                                        var keyStr1 = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                                        global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                                        int key1 = int.Parse(keyStr1);
+                                        global::GenJson.Tests.EmptyClass val1 = default;
+                                        val1 = global::GenJson.Tests.EmptyClass.Parse(json, ref index);
+                                        dict1.Add(key1, val1);
+                                        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                        if (json[index] == ',')
+                                        {
+                                            index++;
+                                        }
+                                    }
+                                }
+                                dict0.Add(key0, val0);
+                                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                                if (json[index] == ',')
+                                {
+                                    index++;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
+        }
     }
 }
 
   
 namespace GenJson.Tests
 {
-    public static class GenJson_PrimitiveClass_Extensions
+    partial class PrimitiveClass
     {
-        public static string ToJson(this PrimitiveClass obj)
+        public string ToJson()
         {
             var sb = new System.Text.StringBuilder();
-            obj.ToJson(sb);
+            this.ToJson(sb);
             return sb.ToString();
         }
 
-        public static void ToJson(this PrimitiveClass obj, System.Text.StringBuilder sb)
+        public void ToJson(System.Text.StringBuilder sb)
         {
             sb.Append("{");
             sb.Append("\"Bool\":");
-            sb.Append(obj.Bool ? "true" : "false");
+            sb.Append(this.Bool ? "true" : "false");
             sb.Append(",");
             sb.Append("\"Int\":");
-            sb.Append(obj.Int);
+            sb.Append(this.Int);
             sb.Append(",");
             sb.Append("\"Uint\":");
-            sb.Append(obj.Uint);
+            sb.Append(this.Uint);
             sb.Append(",");
             sb.Append("\"Char\":");
             sb.Append("\"");
-            sb.Append(obj.Char);
+            sb.Append(this.Char);
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"Long\":");
-            sb.Append(obj.Long);
+            sb.Append(this.Long);
             sb.Append(",");
             sb.Append("\"Short\":");
-            sb.Append(obj.Short);
+            sb.Append(this.Short);
             sb.Append(",");
             sb.Append("\"Byte\":");
-            sb.Append(obj.Byte);
+            sb.Append(this.Byte);
             sb.Append(",");
             sb.Append("\"SByte\":");
-            sb.Append(obj.SByte);
+            sb.Append(this.SByte);
             sb.Append(",");
             sb.Append("\"Float\":");
-            sb.Append(obj.Float.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(this.Float.ToString(System.Globalization.CultureInfo.InvariantCulture));
             sb.Append(",");
             sb.Append("\"Double\":");
-            sb.Append(obj.Double.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(this.Double.ToString(System.Globalization.CultureInfo.InvariantCulture));
             sb.Append(",");
             sb.Append("\"Decimal\":");
-            sb.Append(obj.Decimal.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(this.Decimal.ToString(System.Globalization.CultureInfo.InvariantCulture));
             sb.Append(",");
             sb.Append("\"String\":");
             sb.Append("\"");
-            sb.Append(obj.String);
+            sb.Append(this.String);
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"DateTime\":");
             sb.Append("\"");
-            sb.Append(obj.DateTime.ToString("O"));
+            sb.Append(this.DateTime.ToString("O"));
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"TimeSpan\":");
             sb.Append("\"");
-            sb.Append(obj.TimeSpan.ToString());
+            sb.Append(this.TimeSpan.ToString());
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"DateOnly\":");
             sb.Append("\"");
-            sb.Append(obj.DateOnly.ToString("O"));
+            sb.Append(this.DateOnly.ToString("O"));
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"TimeOnly\":");
             sb.Append("\"");
-            sb.Append(obj.TimeOnly.ToString("O"));
+            sb.Append(this.TimeOnly.ToString("O"));
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"DateTimeOffset\":");
             sb.Append("\"");
-            sb.Append(obj.DateTimeOffset.ToString("O"));
+            sb.Append(this.DateTimeOffset.ToString("O"));
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"Guid\":");
             sb.Append("\"");
-            sb.Append(obj.Guid.ToString());
+            sb.Append(this.Guid.ToString());
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"Version\":");
             sb.Append("\"");
-            sb.Append(obj.Version.ToString());
+            sb.Append(this.Version.ToString());
             sb.Append("\"");
             sb.Append("}");
+        }
+
+        public static PrimitiveClass FromJson(string json)
+        {
+            if (json is null) throw new System.ArgumentNullException(nameof(json));
+            var index = 0;
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            var result = Parse(json, ref index);
+            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+            if (index != json.Length) throw new System.ArgumentException("Unexpected extra characters", nameof(json));
+            return result;
+        }
+
+        internal static PrimitiveClass Parse(string json, ref int index)
+        {
+            global::GenJson.GenJsonParser.Expect(json, ref index, '{');
+            bool _Bool = default;
+            int _Int = default;
+            uint _Uint = default;
+            char _Char = default;
+            long _Long = default;
+            short _Short = default;
+            byte _Byte = default;
+            sbyte _SByte = default;
+            float _Float = default;
+            double _Double = default;
+            decimal _Decimal = default;
+            string _String = default;
+            global::System.DateTime _DateTime = default;
+            global::System.TimeSpan _TimeSpan = default;
+            global::System.DateOnly _DateOnly = default;
+            global::System.TimeOnly _TimeOnly = default;
+            global::System.DateTimeOffset _DateTimeOffset = default;
+            global::System.Guid _Guid = default;
+            global::System.Version _Version = default;
+            while (index < json.Length)
+            {
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == '}')
+                {
+                    index++;
+                    return new PrimitiveClass
+                    {
+                        Bool = _Bool,
+                        Int = _Int,
+                        Uint = _Uint,
+                        Char = _Char,
+                        Long = _Long,
+                        Short = _Short,
+                        Byte = _Byte,
+                        SByte = _SByte,
+                        Float = _Float,
+                        Double = _Double,
+                        Decimal = _Decimal,
+                        String = _String,
+                        DateTime = _DateTime,
+                        TimeSpan = _TimeSpan,
+                        DateOnly = _DateOnly,
+                        TimeOnly = _TimeOnly,
+                        DateTimeOffset = _DateTimeOffset,
+                        Guid = _Guid,
+                        Version = _Version,
+                    };
+                }
+                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                global::GenJson.GenJsonParser.Expect(json, ref index, ':');
+                switch (key)
+                {
+                    case "Bool":
+                        _Bool = global::GenJson.GenJsonParser.ParseBoolean(json, ref index);
+                        break;
+                    case "Int":
+                        _Int = global::GenJson.GenJsonParser.ParseInt(json, ref index);
+                        break;
+                    case "Uint":
+                        _Uint = global::GenJson.GenJsonParser.ParseUInt(json, ref index);
+                        break;
+                    case "Char":
+                        _Char = global::GenJson.GenJsonParser.ParseChar(json, ref index);
+                        break;
+                    case "Long":
+                        _Long = global::GenJson.GenJsonParser.ParseLong(json, ref index);
+                        break;
+                    case "Short":
+                        _Short = global::GenJson.GenJsonParser.ParseShort(json, ref index);
+                        break;
+                    case "Byte":
+                        _Byte = global::GenJson.GenJsonParser.ParseByte(json, ref index);
+                        break;
+                    case "SByte":
+                        _SByte = global::GenJson.GenJsonParser.ParseSByte(json, ref index);
+                        break;
+                    case "Float":
+                        _Float = global::GenJson.GenJsonParser.ParseFloat(json, ref index);
+                        break;
+                    case "Double":
+                        _Double = global::GenJson.GenJsonParser.ParseDouble(json, ref index);
+                        break;
+                    case "Decimal":
+                        _Decimal = global::GenJson.GenJsonParser.ParseDecimal(json, ref index);
+                        break;
+                    case "String":
+                        _String = global::GenJson.GenJsonParser.ParseString(json, ref index);
+                        break;
+                    case "DateTime":
+                        _DateTime = System.DateTime.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
+                        break;
+                    case "TimeSpan":
+                        _TimeSpan = System.TimeSpan.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    case "DateOnly":
+                        _DateOnly = System.DateOnly.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    case "TimeOnly":
+                        _TimeOnly = System.TimeOnly.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    case "DateTimeOffset":
+                        _DateTimeOffset = System.DateTimeOffset.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index), System.Globalization.CultureInfo.InvariantCulture);
+                        break;
+                    case "Guid":
+                        _Guid = System.Guid.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    case "Version":
+                        _Version = System.Version.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));
+                        break;
+                    default:
+                        global::GenJson.GenJsonParser.SkipValue(json, ref index);
+                        break;
+                }
+                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);
+                if (json[index] == ',')
+                {
+                    index++;
+                }
+            }
+            throw new System.Exception("Unterminated object at " + index);
         }
     }
 }

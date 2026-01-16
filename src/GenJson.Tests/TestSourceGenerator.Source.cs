@@ -5,13 +5,13 @@ using System.Collections.Generic;
 namespace GenJson.Tests;
 
 [GenJson]
-public class EmptyClass
+public partial class EmptyClass
 {
     public int? Value { get; init; }
 }
 
 [GenJson]
-public class StringClass
+public partial class StringClass
 {
     public string Present { get; init; }
     public string? NullablePresent { get; init; }
@@ -19,7 +19,7 @@ public class StringClass
 }
 
 [GenJson]
-public class IntClass
+public partial class IntClass
 {
     public int Present { get; init; }
     public int? NullablePresent { get; init; }
@@ -39,7 +39,7 @@ public enum ByteEnum : byte
 }
 
 [GenJson]
-public class IntEnumClass
+public partial class IntEnumClass
 {
     public IntEnum PresentNumber { get; init; }
     [GenJson.Enum.AsText] public IntEnum PresentText { get; init; }
@@ -48,13 +48,13 @@ public class IntEnumClass
 }
 
 [GenJson]
-public class ByteEnumClass
+public partial class ByteEnumClass
 {
     public ByteEnum Present { get; init; }
 }
 
 [GenJson]
-public class ParentClass
+public partial class ParentClass
 {
     public EmptyClass Present { get; init; }
     public EmptyClass? NullablePresent { get; init; }
@@ -62,7 +62,7 @@ public class ParentClass
 }
 
 [GenJson]
-public class EnumerableIntClass
+public partial class EnumerableIntClass
 {
     public IEnumerable<int> EnumerablePresent { get; init; }
     public int[] ArrayPresent { get; init; }
@@ -78,7 +78,7 @@ public class EnumerableIntClass
 }
 
 [GenJson]
-public class EnumerableStringClass
+public partial class EnumerableStringClass
 {
     public IEnumerable<string> EnumerablePresent { get; init; }
     public string[] ArrayPresent { get; init; }
@@ -94,7 +94,7 @@ public class EnumerableStringClass
 }
 
 [GenJson]
-public class EnumerableParentClass
+public partial class EnumerableParentClass
 {
     public IEnumerable<EmptyClass> EnumerablePresent { get; init; }
     public EmptyClass[] ArrayPresent { get; init; }
@@ -110,13 +110,13 @@ public class EnumerableParentClass
 }
 
 [GenJson]
-public class NestedEnumerableClass
+public partial class NestedEnumerableClass
 {
     public EmptyClass[][] EnumerablePresent { get; init; }
 }
 
 [GenJson]
-public class DictionaryClass
+public partial class DictionaryClass
 {
     public IReadOnlyDictionary<int, int> PresentIntInt { get; init; }
     public IReadOnlyDictionary<int, string> PresentIntString { get; init; }
@@ -127,13 +127,13 @@ public class DictionaryClass
 }
 
 [GenJson]
-public class NestedDictionaryClass
+public partial class NestedDictionaryClass
 {
     public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
 }
 
 [GenJson]
-public class PrimitiveClass
+public partial class PrimitiveClass
 {
     public bool Bool { get; init; }
     public int Int { get; init; }
