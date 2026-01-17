@@ -1,70 +1,100 @@
 # GenJson
 
-GenJson is a high-performance C# Source Generator library that automatically creates `ToJson()` methods for your classes and structs. By generating serialization logic at compile time, it eliminates the overhead associated with runtime reflection, ensuring fast execution and low memory allocation.
+GenJson is a **zero-allocation**, high-performance C# Source Generator library that automatically creates `ToJson()` and `FromJson()` methods for your classes and structs.
 
 ## Features
 
-- **High Performance**: zero-overhead serialization logic generated at compile-time.
-- **Easy Integration**: simply mark your classes with the `[GenJson]` attribute.
+- **Compile-Time Generation**: No reflection overhead at runtime.
+- **Zero* Allocation Serialization**: Uses `Span` based string creation to write directly into the result string's memory, avoiding `StringBuilder` and intermediate string allocations for primitives.
+- **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` based parsing logic to avoid intermediate string allocations.
+- **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
 - **Rich Type Support**:
-  - Primitives: `int`, `string`, `bool`, `double`, etc.
-  - Collections: `IEnumerable<T>`, `List<T>`, arrays `T[]`.
-  - Dictionaries: `IDictionary<K, V>`, `IReadOnlyDictionary<K, V>`.
-  - Nested Objects: recursive serialization of complex object graphs.
-  - Standard Structs: `DateTime`, `DateOnly`, `TimeOnly`, `TimeSpan`, `Guid`, `Version`.
-- **Flexible Output**: Generates both string-returning methods and `StringBuilder` extensions for efficient appending.
+  - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc.
+  - Standard Structs: `DateTime`, `DateOnly`, `TimeOnly`, `TimeSpan`, `Guid`, `Version`, `DateTimeOffset`.
+  - Dictionaries: `IReadOnlyDictionary<K, V>` 
+  - Collections: `IEnumerable<T>`
+  - Enums: Serialized as backing type (default) or string
+  - Nested Objects: Recursive serialization of complex object graphs.
 
-## Benchmark
+> Zero-allocation* means that no unnecessary memory allocations are performed. Only the resulting strings are allocated.
 
-```
-| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Median [ns] | Gen0   | Allocated [KB] |
-|------------------------ |-----------:|-----------:|------------:|------------:|-------:|---------------:|
-| GenJson_ToJson          |   903.7 ns |   18.07 ns |    29.68 ns |    904.7 ns | 0.0324 |         1.6 KB |
-| MicrosoftJson_ToJson    | 1,211.2 ns |   24.14 ns |    36.87 ns |  1,188.1 ns | 0.0381 |        1.92 KB |
-| NewtonsoftJson_ToJson   | 2,320.1 ns |   45.44 ns |    80.77 ns |  2,305.5 ns | 0.1183 |        5.95 KB |
-| GenJson_FromJson        | 1,647.0 ns |   32.49 ns |    51.54 ns |  1,643.2 ns | 0.0534 |        2.69 KB |
-| MicrosoftJson_FromJson  | 2,410.6 ns |   48.02 ns |    62.44 ns |  2,372.8 ns | 0.0610 |           3 KB |
-| NewtonsoftJson_FromJson | 4,094.4 ns |   79.59 ns |   106.25 ns |  4,049.3 ns | 0.1678 |        8.23 KB |
-```
 ## Usage
 
 ### 1. Mark your class
 
-Add the `[GenJson]` attribute to any class or struct you wish to serialize.
+Add the `[GenJson]` attribute to any class or struct you wish to serialize. The class must be `partial`.
 
 ```csharp
 using GenJson;
 
 [GenJson]
-public class Person
+public partial class Person
 {
     public string Name { get; set; }
     public int Age { get; set; }
+    public Gender Gender { get; set; }
     public List<string> Hobbies { get; set; }
+}
+
+public enum Gender
+{
+    Male,
+    Female
 }
 ```
 
-### 2. Serialize
+### 2 Mark your enum
 
-The generator creates extension methods for your types. You can convert directly to a JSON string or append to a `StringBuilder`.
+Enum properties of classes may be marked with
+- `[GenJson.Enum.AsNumber]` to serialize as a number (default, not required)
+- `[GenJson.Enum.AsText]` to serialize as a string.
+
+```csharp
+    public Gender Gender { get; set; } // <-- Json will be de/serialized using 0 or 1
+```
+
+```csharp
+    [GenJson.Enum.AsNumber] // <-- Json will be de/serialized using 0 or 1
+    public Gender Gender { get; set; }
+```
+
+```csharp
+    [GenJson.Enum.AsText] // <-- Json will be de/serialized using "Male" or "Female"
+    public Gender Gender { get; set; }
+```
+
+### 3. Serialization
+
+The generator creates a `ToJson()` method.
 
 ```csharp
 var person = new Person 
 { 
     Name = "Alice", 
     Age = 30, 
+    Gender = Gender.Female,
     Hobbies = new List<string> { "Coding", "Hiking" } 
 };
 
-// Get JSON string
+// Zero-allocation serialization (allocates only the result string)
 string json = person.ToJson();
-// Output: {"Name":"Alice","Age":30,"Hobbies":["Coding","Hiking"]}
+// Output: {"Name":"Alice","Age":30,"Gender":"Female","Hobbies":["Coding","Hiking"]}
 
-// Append to existing StringBuilder (efficient for large payloads)
-var sb = new StringBuilder();
-person.ToJson(sb);
+```
+
+### 4. Deserialization
+
+The generator creates a static `FromJson` method on your class.
+
+```csharp
+string json = """{"Name":"Alice","Age":30,"Gender":"Female"}""";
+
+var person = Person.FromJson(json);
 ```
 
 ## How It Works
 
-GenJson analyzes your code during compilation and generates specialized `ToJson` extension methods. These methods write JSON directly without inspecting types at runtime, resulting in code that is as fast as hand-written serialization routines.
+GenJson analyzes your code during compilation and generates specialized serialization code.
+
+- **Serialization**: It pre-calculates the exact size needed for the JSON string and uses `string.Create` to fill the content directly via a `Span<char>`. This avoids the "double allocation" problem of `StringBuilder` (buffer resizing + final string) and eliminates allocations for formatting numbers and other primitives.
+- **Deserialization**: It generates a recursive descent parser that operates on `ReadOnlySpan<char>`, avoiding substring allocations during parsing.

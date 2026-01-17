@@ -479,32 +479,7 @@ namespace GenJson
             span[index++] = '"';
         }
 
-        public static void AppendEscapedString(System.Text.StringBuilder sb, string value)
-        {
-            sb.Append('"');
-            foreach (var c in value)
-            {
-                if (c == '"') sb.Append("\\\"");
-                else if (c == '\\') sb.Append("\\\\");
-                else if (c == '\b') sb.Append("\\b");
-                else if (c == '\f') sb.Append("\\f");
-                else if (c == '\n') sb.Append("\\n");
-                else if (c == '\r') sb.Append("\\r");
-                else if (c == '\t') sb.Append("\\t");
-                else if (c < ' ')
-                {
-                    sb.Append("\\u00");
-                    int val = c;
-                    sb.Append(GetHex(val >> 4));
-                    sb.Append(GetHex(val & 0xF));
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-            sb.Append('"');
-        }
+
 
         private static char GetHex(int n) => (char)(n < 10 ? n + '0' : n - 10 + 'a');
     }
@@ -953,91 +928,6 @@ namespace GenJson
         }
 """);
 
-        sb.AppendLine();
-        sb.AppendLine("        public void ToJson(System.Text.StringBuilder sb)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            sb.Append(\"{\");");
-
-        bool needFirst = data.Properties.Value.Count > 1 && data.Properties.Value[0].IsNullable;
-        if (needFirst)
-        {
-            sb.AppendLine("            bool first = true;");
-        }
-
-        var state = 0; // 0: True, 1: False, 2: Unknown
-
-        foreach (var prop in data.Properties.Value)
-        {
-            string indent = "            ";
-
-            if (prop.IsNullable)
-            {
-                sb.Append("            if (this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(" is not null)");
-                sb.AppendLine("            {");
-                indent = "                ";
-            }
-
-            if (state == 0) // True
-            {
-                if (prop.IsNullable)
-                {
-                    if (needFirst)
-                    {
-                        sb.Append(indent);
-                        sb.AppendLine("first = false;");
-                    }
-                    state = 2; // Unknown
-                }
-                else
-                {
-                    state = 1; // False
-                }
-            }
-            else if (state == 1) // False
-            {
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\",\");");
-            }
-            else // Unknown
-            {
-                sb.Append(indent);
-                sb.AppendLine("if (!first)");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    sb.Append(\",\");");
-                sb.Append(indent);
-                sb.AppendLine("}");
-
-                if (prop.IsNullable)
-                {
-                    sb.Append(indent);
-                    sb.AppendLine("first = false;");
-                }
-                else
-                {
-                    state = 1; // False
-                }
-            }
-
-            // Property Key
-            sb.Append(indent);
-            sb.Append("sb.Append(\"\\\"");
-            sb.Append(prop.Name);
-            sb.AppendLine("\\\":\");"); // "Key":
-
-            GenerateValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
-
-            if (prop.IsNullable)
-            {
-                sb.AppendLine("            }");
-            }
-        }
-
-        sb.AppendLine("            sb.Append(\"}\");");
-        sb.AppendLine("        }");
 
         sb.AppendLine();
         sb.AppendLine("        public void WriteJson(System.Span<char> span, ref int index)");
@@ -1208,13 +1098,7 @@ namespace GenJson
     {
         switch (type)
         {
-            case GenJsonDataType.Primitive p:
-                sb.Append(indent);
-                sb.Append(target);
-                sb.Append(" = global::GenJson.GenJsonParser.Parse");
-                sb.Append(GetPrimitiveParserName(p.TypeName));
-                sb.AppendLine("(json, ref index);");
-                break;
+
 
             case GenJsonDataType.Boolean:
                 sb.Append(indent);
@@ -1227,6 +1111,8 @@ namespace GenJson
                 sb.Append(target);
                 sb.AppendLine(" = global::GenJson.GenJsonParser.ParseString(json, ref index);");
                 break;
+
+
 
             case GenJsonDataType.Char:
                 sb.Append(indent);
@@ -1282,6 +1168,14 @@ namespace GenJson
                 sb.Append(indent);
                 sb.Append(target);
                 sb.AppendLine(" = System.Version.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));");
+                break;
+
+            case GenJsonDataType.Primitive p:
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = global::GenJson.GenJsonParser.Parse");
+                sb.Append(GetPrimitiveParserName(p.TypeName));
+                sb.AppendLine("(json, ref index);");
                 break;
 
             case GenJsonDataType.Object o:
@@ -1540,381 +1434,7 @@ namespace GenJson
         return "Int";
     }
 
-    private void GenerateValue(StringBuilder sb, GenJsonDataType type, string valueAccessor, string indent, int depth)
-    {
-        switch (type)
-        {
-            case GenJsonDataType.Primitive:
-                sb.Append(indent);
-                sb.Append("sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(");");
-                break;
 
-            case GenJsonDataType.Boolean:
-                sb.Append(indent);
-                sb.Append("sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(" ? \"true\" : \"false\");");
-                break;
-
-            case GenJsonDataType.Char:
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.Append("sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(");");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                break;
-
-            case GenJsonDataType.FloatingPoint:
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    System.Span<char> buffer = stackalloc char[32];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written, \"R\", System.Globalization.CultureInfo.InvariantCulture))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.AppendLine("        sb.Append(buffer.Slice(0, written));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToString(System.Globalization.CultureInfo.InvariantCulture));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                break;
-
-            case GenJsonDataType.Guid:
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    System.Span<char> buffer = stackalloc char[36];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.AppendLine("        sb.Append(buffer.Slice(0, written));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToString());");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                break;
-
-            case GenJsonDataType.Version:
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    System.Span<char> buffer = stackalloc char[64];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.AppendLine("        sb.Append(buffer.Slice(0, written));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToString());");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                break;
-
-            case GenJsonDataType.TimeSpan:
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    System.Span<char> buffer = stackalloc char[64];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.AppendLine("        sb.Append(buffer.Slice(0, written));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToString());");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                break;
-
-            case GenJsonDataType.DateTime:
-            case GenJsonDataType.DateOnly:
-            case GenJsonDataType.TimeOnly:
-            case GenJsonDataType.DateTimeOffset:
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    System.Span<char> buffer = stackalloc char[64];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written, \"O\", System.Globalization.CultureInfo.InvariantCulture))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.AppendLine("        sb.Append(buffer.Slice(0, written));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        sb.Append(");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToString(\"O\"));");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                break;
-
-            case GenJsonDataType.String:
-                sb.Append(indent);
-                sb.Append("global::GenJson.GenJsonWriter.AppendEscapedString(sb, ");
-                sb.Append(valueAccessor);
-                sb.AppendLine(");");
-                break;
-
-            case GenJsonDataType.Object:
-                sb.Append(indent);
-                sb.Append(valueAccessor);
-                sb.AppendLine(".ToJson(sb);");
-                break;
-
-            case GenJsonDataType.Nullable nullable:
-                sb.Append(indent);
-                sb.Append("if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(" is null)");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    sb.Append(\"null\");");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                sb.Append(indent);
-                sb.AppendLine("else");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                GenerateValue(sb, nullable.Underlying, $"{valueAccessor}.Value", indent + "    ", depth);
-                sb.Append(indent);
-                sb.AppendLine("}");
-                break;
-
-            case GenJsonDataType.Enumerable enumerable:
-                {
-                    sb.Append(indent);
-                    sb.AppendLine("{");
-
-                    string arrayIndent = indent + "    ";
-
-                    sb.Append(arrayIndent);
-                    sb.AppendLine("sb.Append(\"[\");");
-
-                    sb.Append(arrayIndent);
-                    string firstItemVar = $"firstItem{depth}";
-                    sb.Append("bool ");
-                    sb.Append(firstItemVar);
-                    sb.AppendLine(" = true;");
-
-                    string itemVar = $"item{depth}";
-
-                    sb.Append(arrayIndent);
-                    sb.Append("foreach (var ");
-                    sb.Append(itemVar);
-                    sb.Append(" in ");
-                    sb.Append(valueAccessor);
-                    sb.AppendLine(")");
-                    sb.Append(arrayIndent);
-                    sb.AppendLine("{");
-
-                    string loopIndent = arrayIndent + "    ";
-
-                    sb.Append(loopIndent);
-                    sb.Append("if (!");
-                    sb.Append(firstItemVar);
-                    sb.AppendLine(")");
-                    sb.Append(loopIndent);
-                    sb.AppendLine("{");
-                    sb.Append(loopIndent);
-                    sb.AppendLine("    sb.Append(\",\");");
-                    sb.Append(loopIndent);
-                    sb.AppendLine("}");
-                    sb.Append(loopIndent);
-                    sb.Append(firstItemVar);
-                    sb.AppendLine(" = false;");
-
-                    GenerateValue(sb, enumerable.ElementType, itemVar, loopIndent, depth + 1);
-
-                    sb.Append(arrayIndent);
-                    sb.AppendLine("}"); // end foreach
-
-                    sb.Append(arrayIndent);
-                    sb.AppendLine("sb.Append(\"]\");");
-
-                    sb.Append(indent);
-                    sb.AppendLine("}"); // end block
-                }
-                break;
-
-            case GenJsonDataType.Dictionary dictionary:
-                {
-                    // Enclose in a block to scope variables
-                    sb.Append(indent);
-                    sb.AppendLine("{");
-
-                    string dictIndent = indent + "    ";
-
-                    sb.Append(dictIndent);
-                    sb.AppendLine("sb.Append(\"{\");");
-
-                    sb.Append(dictIndent);
-                    string firstItemVarDict = $"firstItem{depth}";
-                    sb.Append("bool ");
-                    sb.Append(firstItemVarDict);
-                    sb.AppendLine(" = true;");
-
-                    string kvpVar = $"kvp{depth}";
-
-                    sb.Append(dictIndent);
-                    sb.Append("foreach (var ");
-                    sb.Append(kvpVar);
-                    sb.Append(" in ");
-                    sb.Append(valueAccessor);
-                    sb.AppendLine(")");
-                    sb.Append(dictIndent);
-                    sb.AppendLine("{");
-
-                    string loopIndentDict = dictIndent + "    ";
-
-                    sb.Append(loopIndentDict);
-                    sb.Append("if (!");
-                    sb.Append(firstItemVarDict);
-                    sb.AppendLine(")");
-                    sb.Append(loopIndentDict);
-                    sb.AppendLine("{");
-                    sb.Append(loopIndentDict);
-                    sb.AppendLine("    sb.Append(\",\");");
-                    sb.Append(loopIndentDict);
-                    sb.AppendLine("}");
-                    sb.Append(loopIndentDict);
-                    sb.Append(firstItemVarDict);
-                    sb.AppendLine(" = false;");
-
-                    // Key
-                    sb.Append(loopIndentDict);
-                    sb.AppendLine("sb.Append(\"\\\"\");");
-
-                    sb.Append(loopIndentDict);
-                    sb.Append("sb.Append(");
-                    sb.Append(kvpVar);
-                    sb.AppendLine(".Key);");
-
-                    sb.Append(loopIndentDict);
-                    sb.AppendLine("sb.Append(\"\\\":\");");
-
-                    // Value
-                    GenerateValue(sb, dictionary.ValueType, $"{kvpVar}.Value", loopIndentDict, depth + 1);
-
-                    sb.Append(dictIndent);
-                    sb.AppendLine("}"); // end foreach
-
-                    sb.Append(dictIndent);
-                    sb.AppendLine("sb.Append(\"}\");");
-
-                    sb.Append(indent);
-                    sb.AppendLine("}"); // end block
-                }
-                break;
-
-            case GenJsonDataType.Enum enumType:
-                sb.Append(indent);
-                if (enumType.AsString)
-                {
-                    sb.AppendLine("sb.Append(\"\\\"\");");
-                    sb.Append(indent);
-                    sb.Append("sb.Append(");
-                    sb.Append(valueAccessor);
-                    sb.AppendLine(".ToString());");
-                    sb.Append(indent);
-                    sb.AppendLine("sb.Append(\"\\\"\");");
-                }
-                else
-                {
-                    sb.Append("sb.Append((");
-                    sb.Append(enumType.UnderlyingType);
-                    sb.Append(")");
-                    sb.Append(valueAccessor);
-                    sb.AppendLine(");");
-                }
-                break;
-        }
-    }
 
     private void GenerateSizeValue(StringBuilder sb, GenJsonDataType type, string valueAccessor, string indent, int depth, bool unquoted = false)
     {
