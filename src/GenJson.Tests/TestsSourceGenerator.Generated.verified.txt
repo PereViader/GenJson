@@ -2903,13 +2903,43 @@ namespace GenJson.Tests
             sb.Append(this.SByte);
             sb.Append(",");
             sb.Append("\"Float\":");
-            sb.Append(this.Float.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            {
+                System.Span<char> buffer = stackalloc char[32];
+                if (this.Float.TryFormat(buffer, out int written, "R", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.Float.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
             sb.Append(",");
             sb.Append("\"Double\":");
-            sb.Append(this.Double.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            {
+                System.Span<char> buffer = stackalloc char[32];
+                if (this.Double.TryFormat(buffer, out int written, "R", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.Double.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
             sb.Append(",");
             sb.Append("\"Decimal\":");
-            sb.Append(this.Decimal.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            {
+                System.Span<char> buffer = stackalloc char[32];
+                if (this.Decimal.TryFormat(buffer, out int written, "R", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.Decimal.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
             sb.Append(",");
             sb.Append("\"String\":");
             sb.Append("\"");
@@ -2918,37 +2948,107 @@ namespace GenJson.Tests
             sb.Append(",");
             sb.Append("\"DateTime\":");
             sb.Append("\"");
-            sb.Append(this.DateTime.ToString("O"));
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.DateTime.TryFormat(buffer, out int written, "O", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.DateTime.ToString("O"));
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"TimeSpan\":");
             sb.Append("\"");
-            sb.Append(this.TimeSpan.ToString());
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.TimeSpan.TryFormat(buffer, out int written))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.TimeSpan.ToString());
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"DateOnly\":");
             sb.Append("\"");
-            sb.Append(this.DateOnly.ToString("O"));
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.DateOnly.TryFormat(buffer, out int written, "O", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.DateOnly.ToString("O"));
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"TimeOnly\":");
             sb.Append("\"");
-            sb.Append(this.TimeOnly.ToString("O"));
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.TimeOnly.TryFormat(buffer, out int written, "O", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.TimeOnly.ToString("O"));
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"DateTimeOffset\":");
             sb.Append("\"");
-            sb.Append(this.DateTimeOffset.ToString("O"));
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.DateTimeOffset.TryFormat(buffer, out int written, "O", System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.DateTimeOffset.ToString("O"));
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"Guid\":");
             sb.Append("\"");
-            sb.Append(this.Guid.ToString());
+            {
+                System.Span<char> buffer = stackalloc char[36];
+                if (this.Guid.TryFormat(buffer, out int written))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.Guid.ToString());
+                }
+            }
             sb.Append("\"");
             sb.Append(",");
             sb.Append("\"Version\":");
             sb.Append("\"");
-            sb.Append(this.Version.ToString());
+            {
+                System.Span<char> buffer = stackalloc char[64];
+                if (this.Version.TryFormat(buffer, out int written))
+                {
+                    sb.Append(buffer.Slice(0, written));
+                }
+                else
+                {
+                    sb.Append(this.Version.ToString());
+                }
+            }
             sb.Append("\"");
             sb.Append("}");
         }

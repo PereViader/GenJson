@@ -256,5 +256,49 @@ public class TestRuntime
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
+
+    [Test]
+    public void TestExtraPropertiesAndSpecialCharacters()
+    {
+        var json = """
+        {
+            "Present" : "1",
+            "NullablePresent": "2"
+            "Extra": {},
+            "Special Characters": "\n \"\r\t \u0041 \u0000 { {\"",
+            "Potato": ["hello", "Hi", "Banana"],
+            "Apple": [1, "2", 33333333, " "],
+            "Empty_Values": {
+            "null_val": null,
+            "empty_str": "",
+            "empty_arr": [],
+            "empty_obj": {}
+            },
+            "Numbers_Stress": {
+            "large_int": 9223372036854775807,
+            "negative": -123.456,
+            "scientific": 1.23e+10,
+            "small_decimal": 0.0000000000001,
+            "zero": 0
+            },
+            "Nesting_Depth": [[[[["Deep"]]]]],
+            "Booleans": {
+            "t": true,
+            "f": false
+            },
+            "Unicode_and_Emojis": "🚀 🍟 中文 日本語",
+            "Whitespace_Chaos":     "trailing space check"    ,
+            "Trailing_Comma_Test": "Some parsers fail if the last item has a comma",
+            "Dictionary" : {
+                "SpecialChars": "{\n  \"key\": \"value\"\n}"
+            }
+        }
+        """;
+        
+        var obj = StringClass.FromJson(json);
+        var result = obj.ToJson();
+        var expected = """{"Present":"1","NullablePresent":"2"}""";
+        Assert.That(result, Is.EqualTo(expected));
+    }
 }
 

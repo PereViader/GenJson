@@ -31,6 +31,11 @@ public partial class RootObject
     public required List<SomeEnum> Value5 { get; init; }
     public required Dictionary<string, NestedObject> Value6 { get; init; }
     public required NestedObject[] Value7 { get; init; }
+    public double Double { get; set; }
+    public float Float { get; set; }
+    public DateTime DateTime { get; set; }
+    public Guid Guid { get; set; }
+    public TimeSpan TimeSpan { get; set; }
 }
 
 [GenJson]
@@ -67,7 +72,7 @@ public class BenchmarkToJson
     {
         return System.Text.Json.JsonSerializer.Serialize(RootObject);
     }
-    
+
     [Benchmark]
     public RootObject GenJson_FromJson()
     {
@@ -79,7 +84,7 @@ public class BenchmarkToJson
     {
         return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
     }
-    
+
     [Benchmark]
     public RootObject MicrosoftJson_FromJson()
     {
@@ -98,6 +103,7 @@ public class BenchmarkToJson
             { "Compiler", "Roslyn Source Generator" },
             { "Status", "Benchmarking" },
             { "Empty", "" },
+            { "SpecialChars", "{\n  \"key\": \"value\"\n}" } // Tests escaping!
         },
         Value5 = [
             SomeEnum.One, SomeEnum.Two, SomeEnum.Three,
@@ -116,9 +122,14 @@ public class BenchmarkToJson
             new NestedObject { Value1 = 3000, Value2 = true },
             new NestedObject { Value1 = 4000, Value2 = false },
             new NestedObject { Value1 = 5000, Value2 = true }
-        ]
+        ],
+        Double = 12345.6789,
+        Float = 12.34f,
+        DateTime = new DateTime(2025, 1, 1, 12, 0, 0),
+        Guid = Guid.NewGuid(),
+        TimeSpan = TimeSpan.FromMinutes(123)
     };
-    
+
     private static readonly string GenJson = RootObject.ToJson();
     private static readonly string NewtonsoftJson = Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
     private static readonly string MicrosoftJson = System.Text.Json.JsonSerializer.Serialize(RootObject);
