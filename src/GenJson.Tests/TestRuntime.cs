@@ -14,8 +14,10 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{}""";
         Assert.That(json, Is.EqualTo(expected));
-
-
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+        
         var obj2 = EmptyClass.FromJson(json);
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
@@ -34,6 +36,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"Present":"1","NullablePresent":"2"}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = StringClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -52,6 +57,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"Present":1,"NullablePresent":2}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = IntClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -72,6 +80,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"Present":{"Value":1},"NullablePresent":{}}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = ParentClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -96,6 +107,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":[1,2],"ArrayPresent":[3],"ListPresent":[4],"NullableEnumerablePresent":[5],"NullableArrayPresent":[6],"NullableListPresent":[7]}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = EnumerableIntClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -120,7 +134,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":["1","2"],"ArrayPresent":["3"],"ListPresent":["4"],"NullableEnumerablePresent":["5"],"NullableArrayPresent":["6"],"NullableListPresent":["7"]}""";
         Assert.That(json, Is.EqualTo(expected));
-
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = EnumerableStringClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -145,6 +161,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":[{"Value":1},{"Value":2}],"ArrayPresent":[{}],"ListPresent":[{}],"NullableEnumerablePresent":[{}],"NullableArrayPresent":[{}],"NullableListPresent":[{}]}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = EnumerableParentClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -161,6 +180,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = NestedEnumerableClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -179,9 +201,13 @@ public class TestRuntime
             PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { { 11, new EmptyClass() { Value = 12 } } },
             NullableDictionaryIntIntNull = null
         };
+        
         var json = obj.ToJson();
         var expected = """{"PresentIntInt":{"1":2,"3":4},"PresentIntString":{"5":"6"},"PresentStringInt":{"7":8},"PresentIntEnumerableInt":{"9":[10]},"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = DictionaryClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -198,6 +224,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = NestedDictionaryClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -232,6 +261,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"Bool":true,"Int":1,"Uint":2,"Char":"c","Long":3,"Short":4,"Byte":5,"SByte":6,"Float":1.1,"Double":2.2,"Decimal":3.3,"String":"string","DateTime":"2000-01-01T12:00:00.0000000Z","TimeSpan":"01:02:03","DateOnly":"2000-01-01","TimeOnly":"12:00:00.0000000","DateTimeOffset":"2000-01-01T12:00:00.0000000+00:00","Guid":"d7f8a9a0-1234-5678-9abc-def012345678","Version":"1.2.3"}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = PrimitiveClass.FromJson(json);
         var json2 = obj2.ToJson();
@@ -251,6 +283,9 @@ public class TestRuntime
         var json = obj.ToJson();
         var expected = """{"PresentNumber":0,"PresentText":"One","NullablePresentNumber":2}""";
         Assert.That(json, Is.EqualTo(expected));
+        
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = IntEnumClass.FromJson(json);
         var json2 = obj2.ToJson();

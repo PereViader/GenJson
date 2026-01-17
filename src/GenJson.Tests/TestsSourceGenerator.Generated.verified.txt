@@ -1,4 +1,5 @@
 ﻿[  
+#nullable enable
 namespace GenJson
 {
     using System;
@@ -219,15 +220,173 @@ namespace GenJson
             }
         }
     }
+    internal static class GenJsonSizeHelper
+    {
+        public static int GetSize(int value)
+        {
+            if (value == 0) return 1;
+            if (value == int.MinValue) return 11;
+            if (value < 0) return 1 + GetSize(-value);
+            if (value < 10) return 1;
+            if (value < 100) return 2;
+            if (value < 1000) return 3;
+            if (value < 10000) return 4;
+            if (value < 100000) return 5;
+            if (value < 1000000) return 6;
+            if (value < 10000000) return 7;
+            if (value < 100000000) return 8;
+            if (value < 1000000000) return 9;
+            return 10;
+        }
+
+        public static int GetSize(long value)
+        {
+            if (value == 0) return 1;
+            if (value == long.MinValue) return 20;
+            if (value < 0) return 1 + GetSize(-value);
+            if (value < 10L) return 1;
+            if (value < 100L) return 2;
+            if (value < 1000L) return 3;
+            if (value < 10000L) return 4;
+            if (value < 100000L) return 5;
+            if (value < 1000000L) return 6;
+            if (value < 10000000L) return 7;
+            if (value < 100000000L) return 8;
+            if (value < 1000000000L) return 9;
+            if (value < 10000000000L) return 10;
+            if (value < 100000000000L) return 11;
+            if (value < 1000000000000L) return 12;
+            if (value < 10000000000000L) return 13;
+            if (value < 100000000000000L) return 14;
+            if (value < 1000000000000000L) return 15;
+            if (value < 10000000000000000L) return 16;
+            if (value < 100000000000000000L) return 17;
+            if (value < 1000000000000000000L) return 18;
+            return 19;
+        }
+        
+        public static int GetSize(bool value) => value ? 4 : 5;
+        public static int GetSize(char value) => 3; // "c"
+        public static int GetSize(string? value) => value is null ? 0 : value.Length + 2;
+
+        public static int GetSize(Guid value) => 38;
+
+        public static int GetSize(double value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(float value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(decimal value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(DateTime value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+        public static int GetSize(DateTimeOffset value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+        public static int GetSize(TimeSpan value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "c", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("c", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+
+
+        public static int GetSize(Version value)
+        {
+#if NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString().Length + 2;
+        }
+    }
 }
   
 namespace GenJson.Tests
 {
     partial class EmptyClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            if (this.Value is not null)
+            {
+                propertyCount++;
+                size += 8;
+                if (this.Value is null)
+                {
+                    size += 4;
+                }
+                else
+                {
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(this.Value.Value);
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -312,9 +471,32 @@ namespace GenJson.Tests
 {
     partial class StringClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 10;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Present);
+            if (this.NullablePresent is not null)
+            {
+                propertyCount++;
+                size += 18;
+                size += global::GenJson.GenJsonSizeHelper.GetSize(this.NullablePresent);
+            }
+            if (this.NullableNull is not null)
+            {
+                propertyCount++;
+                size += 15;
+                size += global::GenJson.GenJsonSizeHelper.GetSize(this.NullableNull);
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -409,9 +591,46 @@ namespace GenJson.Tests
 {
     partial class IntClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 10;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Present);
+            if (this.NullablePresent is not null)
+            {
+                propertyCount++;
+                size += 18;
+                if (this.NullablePresent is null)
+                {
+                    size += 4;
+                }
+                else
+                {
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(this.NullablePresent.Value);
+                }
+            }
+            if (this.NullableNull is not null)
+            {
+                propertyCount++;
+                size += 15;
+                if (this.NullableNull is null)
+                {
+                    size += 4;
+                }
+                else
+                {
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(this.NullableNull.Value);
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -530,9 +749,39 @@ namespace GenJson.Tests
 {
     partial class IntEnumClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 16;
+            size += global::GenJson.GenJsonSizeHelper.GetSize((int)this.PresentNumber);
+            propertyCount++;
+            size += 14;
+            size += this.PresentText.ToString().Length + 2;
+            propertyCount++;
+            size += 24;
+            size += global::GenJson.GenJsonSizeHelper.GetSize((int)this.NullablePresentNumber);
+            if (this.NullableNull is not null)
+            {
+                propertyCount++;
+                size += 15;
+                if (this.NullableNull is null)
+                {
+                    size += 4;
+                }
+                else
+                {
+                    size += global::GenJson.GenJsonSizeHelper.GetSize((int)this.NullableNull.Value);
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -643,9 +892,20 @@ namespace GenJson.Tests
 {
     partial class ByteEnumClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 10;
+            size += global::GenJson.GenJsonSizeHelper.GetSize((byte)this.Present);
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -712,9 +972,32 @@ namespace GenJson.Tests
 {
     partial class ParentClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 10;
+            size += this.Present.CalculateJsonSize();
+            if (this.NullablePresent is not null)
+            {
+                propertyCount++;
+                size += 18;
+                size += this.NullablePresent.CalculateJsonSize();
+            }
+            if (this.NullableNull is not null)
+            {
+                propertyCount++;
+                size += 15;
+                size += this.NullableNull.CalculateJsonSize();
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -803,9 +1086,143 @@ namespace GenJson.Tests
 {
     partial class EnumerableIntClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 20;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.EnumerablePresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 15;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ArrayPresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 14;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ListPresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (this.NullableEnumerablePresent is not null)
+            {
+                propertyCount++;
+                size += 28;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerablePresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayPresent is not null)
+            {
+                propertyCount++;
+                size += 23;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayPresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListPresent is not null)
+            {
+                propertyCount++;
+                size += 22;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListPresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableEnumerableNull is not null)
+            {
+                propertyCount++;
+                size += 25;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerableNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayNull is not null)
+            {
+                propertyCount++;
+                size += 20;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListNull is not null)
+            {
+                propertyCount++;
+                size += 19;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -1260,9 +1677,143 @@ namespace GenJson.Tests
 {
     partial class EnumerableStringClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 20;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.EnumerablePresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 15;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ArrayPresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 14;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ListPresent)
+                {
+                    count0++;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (this.NullableEnumerablePresent is not null)
+            {
+                propertyCount++;
+                size += 28;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerablePresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayPresent is not null)
+            {
+                propertyCount++;
+                size += 23;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayPresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListPresent is not null)
+            {
+                propertyCount++;
+                size += 22;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListPresent)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableEnumerableNull is not null)
+            {
+                propertyCount++;
+                size += 25;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerableNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayNull is not null)
+            {
+                propertyCount++;
+                size += 20;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListNull is not null)
+            {
+                propertyCount++;
+                size += 19;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListNull)
+                    {
+                        count0++;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(item0);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -1735,9 +2286,143 @@ namespace GenJson.Tests
 {
     partial class EnumerableParentClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 20;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.EnumerablePresent)
+                {
+                    count0++;
+                    size += item0.CalculateJsonSize();
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 15;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ArrayPresent)
+                {
+                    count0++;
+                    size += item0.CalculateJsonSize();
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 14;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.ListPresent)
+                {
+                    count0++;
+                    size += item0.CalculateJsonSize();
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (this.NullableEnumerablePresent is not null)
+            {
+                propertyCount++;
+                size += 28;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerablePresent)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayPresent is not null)
+            {
+                propertyCount++;
+                size += 23;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayPresent)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListPresent is not null)
+            {
+                propertyCount++;
+                size += 22;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListPresent)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableEnumerableNull is not null)
+            {
+                propertyCount++;
+                size += 25;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableEnumerableNull)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableArrayNull is not null)
+            {
+                propertyCount++;
+                size += 20;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableArrayNull)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (this.NullableListNull is not null)
+            {
+                propertyCount++;
+                size += 19;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var item0 in this.NullableListNull)
+                    {
+                        count0++;
+                        size += item0.CalculateJsonSize();
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -2192,9 +2877,38 @@ namespace GenJson.Tests
 {
     partial class NestedEnumerableClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 20;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var item0 in this.EnumerablePresent)
+                {
+                    count0++;
+                    {
+                        size += 2;
+                        int count1 = 0;
+                        foreach (var item1 in item0)
+                        {
+                            count1++;
+                            size += item1.CalculateJsonSize();
+                        }
+                        if (count1 > 1) size += count1 - 1;
+                    }
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -2329,9 +3043,113 @@ namespace GenJson.Tests
 {
     partial class DictionaryClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 16;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.PresentIntInt)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Value);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 19;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.PresentIntString)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Value);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 19;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.PresentStringInt)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key) - 2;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Value);
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 26;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.PresentIntEnumerableInt)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                    {
+                        size += 2;
+                        int count1 = 0;
+                        foreach (var item1 in kvp0.Value)
+                        {
+                            count1++;
+                            size += global::GenJson.GenJsonSizeHelper.GetSize(item1);
+                        }
+                        if (count1 > 1) size += count1 - 1;
+                    }
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            propertyCount++;
+            size += 35;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.PresentDictionaryIntEmptyClasses)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                    size += kvp0.Value.CalculateJsonSize();
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (this.NullableDictionaryIntIntNull is not null)
+            {
+                propertyCount++;
+                size += 31;
+                {
+                    size += 2;
+                    int count0 = 0;
+                    foreach (var kvp0 in this.NullableDictionaryIntIntNull)
+                    {
+                        count0++;
+                        size += 3;
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                        size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Value);
+                    }
+                    if (count0 > 1) size += count0 - 1;
+                }
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -2717,9 +3535,42 @@ namespace GenJson.Tests
 {
     partial class NestedDictionaryClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 10;
+            {
+                size += 2;
+                int count0 = 0;
+                foreach (var kvp0 in this.Present)
+                {
+                    count0++;
+                    size += 3;
+                    size += global::GenJson.GenJsonSizeHelper.GetSize(kvp0.Key);
+                    {
+                        size += 2;
+                        int count1 = 0;
+                        foreach (var kvp1 in kvp0.Value)
+                        {
+                            count1++;
+                            size += 3;
+                            size += global::GenJson.GenJsonSizeHelper.GetSize(kvp1.Key);
+                            size += kvp1.Value.CalculateJsonSize();
+                        }
+                        if (count1 > 1) size += count1 - 1;
+                    }
+                }
+                if (count0 > 1) size += count0 - 1;
+            }
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -2866,9 +3717,94 @@ namespace GenJson.Tests
 {
     partial class PrimitiveClass
     {
+        public int CalculateJsonSize()
+        {
+            int size = 2;
+            int propertyCount = 0;
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Bool);
+            propertyCount++;
+            size += 6;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Int);
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Uint);
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Char);
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Long);
+            propertyCount++;
+            size += 8;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Short);
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Byte);
+            propertyCount++;
+            size += 8;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.SByte);
+            propertyCount++;
+            size += 8;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Float);
+            propertyCount++;
+            size += 9;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Double);
+            propertyCount++;
+            size += 10;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Decimal);
+            propertyCount++;
+            size += 9;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.String);
+            propertyCount++;
+            size += 11;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.DateTime);
+            propertyCount++;
+            size += 11;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.TimeSpan);
+            propertyCount++;
+            size += 11;
+            {
+                global::System.Span<char> buffer = stackalloc char[128];
+                if (this.DateOnly.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    size += written + 2;
+                }
+                else
+                {
+                    size += this.DateOnly.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+                }
+            }
+            propertyCount++;
+            size += 11;
+            {
+                global::System.Span<char> buffer = stackalloc char[128];
+                if (this.TimeOnly.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+                {
+                    size += written + 2;
+                }
+                else
+                {
+                    size += this.TimeOnly.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+                }
+            }
+            propertyCount++;
+            size += 17;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.DateTimeOffset);
+            propertyCount++;
+            size += 7;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Guid);
+            propertyCount++;
+            size += 10;
+            size += global::GenJson.GenJsonSizeHelper.GetSize(this.Version);
+            if (propertyCount > 0) size += propertyCount - 1;
+            return size;
+        }
+
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }

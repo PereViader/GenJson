@@ -99,6 +99,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     }
 
     private const string ParserSource = """
+#nullable enable
 namespace GenJson
 {
     using System;
@@ -317,6 +318,143 @@ namespace GenJson
             {
                 index++; // Unknown
             }
+        }
+    }
+    internal static class GenJsonSizeHelper
+    {
+        public static int GetSize(int value)
+        {
+            if (value == 0) return 1;
+            if (value == int.MinValue) return 11;
+            if (value < 0) return 1 + GetSize(-value);
+            if (value < 10) return 1;
+            if (value < 100) return 2;
+            if (value < 1000) return 3;
+            if (value < 10000) return 4;
+            if (value < 100000) return 5;
+            if (value < 1000000) return 6;
+            if (value < 10000000) return 7;
+            if (value < 100000000) return 8;
+            if (value < 1000000000) return 9;
+            return 10;
+        }
+
+        public static int GetSize(long value)
+        {
+            if (value == 0) return 1;
+            if (value == long.MinValue) return 20;
+            if (value < 0) return 1 + GetSize(-value);
+            if (value < 10L) return 1;
+            if (value < 100L) return 2;
+            if (value < 1000L) return 3;
+            if (value < 10000L) return 4;
+            if (value < 100000L) return 5;
+            if (value < 1000000L) return 6;
+            if (value < 10000000L) return 7;
+            if (value < 100000000L) return 8;
+            if (value < 1000000000L) return 9;
+            if (value < 10000000000L) return 10;
+            if (value < 100000000000L) return 11;
+            if (value < 1000000000000L) return 12;
+            if (value < 10000000000000L) return 13;
+            if (value < 100000000000000L) return 14;
+            if (value < 1000000000000000L) return 15;
+            if (value < 10000000000000000L) return 16;
+            if (value < 100000000000000000L) return 17;
+            if (value < 1000000000000000000L) return 18;
+            return 19;
+        }
+        
+        public static int GetSize(bool value) => value ? 4 : 5;
+        public static int GetSize(char value) => 3; // "c"
+        public static int GetSize(string? value) => value is null ? 0 : value.Length + 2;
+
+        public static int GetSize(Guid value) => 38;
+
+        public static int GetSize(double value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(float value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(decimal value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written;
+            }
+#endif
+            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+        }
+
+        public static int GetSize(DateTime value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+        public static int GetSize(DateTimeOffset value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+        public static int GetSize(TimeSpan value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "c", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("c", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+
+
+        public static int GetSize(Version value)
+        {
+#if NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString().Length + 2;
         }
     }
 }
@@ -540,10 +678,49 @@ namespace GenJson
         sb.AppendLine();
         sb.AppendLine("    {");
 
+        sb.AppendLine("        public int CalculateJsonSize()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            int size = 2;");
+        sb.AppendLine("            int propertyCount = 0;");
+
+        foreach (var prop in data.Properties.Value)
+        {
+            string indent = "            ";
+            if (prop.IsNullable)
+            {
+                sb.Append(indent);
+                sb.Append("if (this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(" is not null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                indent = "                ";
+            }
+
+            sb.Append(indent);
+            sb.AppendLine("propertyCount++;");
+            sb.Append(indent);
+            sb.Append("size += ");
+            sb.Append(prop.Name.Length + 3); // "Key":
+            sb.AppendLine(";");
+
+            GenerateSizeValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
+
+            if (prop.IsNullable)
+            {
+                sb.AppendLine("            }");
+            }
+        }
+
+        sb.AppendLine("            if (propertyCount > 0) size += propertyCount - 1;");
+        sb.AppendLine("            return size;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
         sb.AppendLine("""
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder(CalculateJsonSize());
             this.ToJson(sb);
             return sb.ToString();
         }
@@ -1425,6 +1602,206 @@ namespace GenJson
                 else
                 {
                     sb.Append("sb.Append((");
+                    sb.Append(enumType.UnderlyingType);
+                    sb.Append(")");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(");");
+                }
+                break;
+        }
+    }
+
+    private void GenerateSizeValue(StringBuilder sb, GenJsonDataType type, string valueAccessor, string indent, int depth, bool unquoted = false)
+    {
+        switch (type)
+        {
+            case GenJsonDataType.Primitive:
+            case GenJsonDataType.Boolean:
+            case GenJsonDataType.FloatingPoint:
+                sb.Append(indent);
+                sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(");
+                sb.Append(valueAccessor);
+                sb.AppendLine(");");
+                break;
+
+            case GenJsonDataType.Char:
+            case GenJsonDataType.String:
+            case GenJsonDataType.Guid:
+            case GenJsonDataType.DateTime:
+            case GenJsonDataType.DateTimeOffset:
+            case GenJsonDataType.Version:
+            case GenJsonDataType.TimeSpan:
+                sb.Append(indent);
+                sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(");
+                sb.Append(valueAccessor);
+                sb.Append(")");
+                if (unquoted) sb.Append(" - 2");
+                sb.AppendLine(";");
+                break;
+
+            case GenJsonDataType.DateOnly:
+            case GenJsonDataType.TimeOnly:
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    global::System.Span<char> buffer = stackalloc char[128];");
+                sb.Append(indent);
+                sb.Append("    if (");
+                sb.Append(valueAccessor);
+                sb.AppendLine(".TryFormat(buffer, out int written, \"O\", global::System.Globalization.CultureInfo.InvariantCulture))");
+                sb.Append(indent);
+                sb.AppendLine("    {");
+                sb.Append(indent);
+                sb.Append("        size += written");
+                if (!unquoted) sb.Append(" + 2");
+                sb.AppendLine(";");
+                sb.Append(indent);
+                sb.AppendLine("    }");
+                sb.Append(indent);
+                sb.AppendLine("    else");
+                sb.Append(indent);
+                sb.AppendLine("    {");
+                sb.Append(indent);
+                sb.Append("        size += ");
+                sb.Append(valueAccessor);
+                sb.Append(".ToString(\"O\", global::System.Globalization.CultureInfo.InvariantCulture).Length");
+                if (!unquoted) sb.Append(" + 2");
+                sb.AppendLine(";");
+                sb.Append(indent);
+                sb.AppendLine("    }");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Object:
+                sb.Append(indent);
+                sb.Append("size += ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(".CalculateJsonSize();");
+                break;
+
+            case GenJsonDataType.Nullable nullable:
+                sb.Append(indent);
+                sb.Append("if (");
+                sb.Append(valueAccessor);
+                sb.AppendLine(" is null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    size += 4;");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                sb.Append(indent);
+                sb.AppendLine("else");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                GenerateSizeValue(sb, nullable.Underlying, $"{valueAccessor}.Value", indent + "    ", depth, unquoted);
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Enumerable enumerable:
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    string arrayIndent = indent + "    ";
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("size += 2;"); // []
+
+                    string itemVar = $"item{depth}";
+                    string countVar = $"count{depth}";
+                    sb.Append(arrayIndent);
+                    sb.AppendLine($"int {countVar} = 0;");
+
+                    sb.Append(arrayIndent);
+                    sb.Append("foreach (var ");
+                    sb.Append(itemVar);
+                    sb.Append(" in ");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(")");
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("{");
+
+                    string loopIndent = arrayIndent + "    ";
+
+                    sb.Append(loopIndent);
+                    sb.AppendLine($"{countVar}++;");
+
+                    GenerateSizeValue(sb, enumerable.ElementType, itemVar, loopIndent, depth + 1);
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("}"); // end foreach
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine($"if ({countVar} > 1) size += {countVar} - 1;"); // Commas
+
+                    sb.Append(indent);
+                    sb.AppendLine("}"); // end block
+                }
+                break;
+
+            case GenJsonDataType.Dictionary dictionary:
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    string dictIndent = indent + "    ";
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine("size += 2;"); // {}
+
+                    string kvpVar = $"kvp{depth}";
+                    string countVar = $"count{depth}";
+                    sb.Append(dictIndent);
+                    sb.AppendLine($"int {countVar} = 0;");
+
+                    sb.Append(dictIndent);
+                    sb.Append("foreach (var ");
+                    sb.Append(kvpVar);
+                    sb.Append(" in ");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(")");
+                    sb.Append(dictIndent);
+                    sb.AppendLine("{");
+
+                    string loopIndent = dictIndent + "    ";
+
+                    sb.Append(loopIndent);
+                    sb.AppendLine($"{countVar}++;");
+
+                    // Key
+                    sb.Append(loopIndent);
+                    sb.AppendLine("size += 3;"); // "":
+                    GenerateSizeValue(sb, dictionary.KeyType, $"{kvpVar}.Key", loopIndent, depth + 1, true);
+
+                    // Value
+                    GenerateSizeValue(sb, dictionary.ValueType, $"{kvpVar}.Value", loopIndent, depth + 1);
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine("}"); // end foreach
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine($"if ({countVar} > 1) size += {countVar} - 1;"); // Commas
+
+                    sb.Append(indent);
+                    sb.AppendLine("}"); // end block
+                }
+                break;
+
+            case GenJsonDataType.Enum enumType:
+                if (enumType.AsString)
+                {
+                    sb.Append(indent);
+                    sb.Append("size += ");
+                    sb.Append(valueAccessor);
+                    sb.Append(".ToString().Length");
+                    if (!unquoted) sb.Append(" + 2");
+                    sb.AppendLine(";");
+                }
+                else
+                {
+                    sb.Append(indent);
+                    sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize((");
                     sb.Append(enumType.UnderlyingType);
                     sb.Append(")");
                     sb.Append(valueAccessor);
