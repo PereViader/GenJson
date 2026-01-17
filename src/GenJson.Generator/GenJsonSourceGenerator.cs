@@ -104,7 +104,6 @@ namespace GenJson
 {
     using System;
     using System.Globalization;
-    using System.Text;
 
     internal static class GenJsonParser
     {
@@ -129,42 +128,170 @@ namespace GenJson
         public static string ParseString(ReadOnlySpan<char> json, ref int index)
         {
             Expect(json, ref index, '"');
-            var sb = new StringBuilder();
+            int start = index;
+            bool escaped = false;
             while (index < json.Length)
             {
                 var c = json[index++];
-                if (c == '"') return sb.ToString();
+                if (c == '"')
+                {
+                    if (!escaped)
+                        return new string(json.Slice(start, index - start - 1));
+
+                    var content = json.Slice(start, index - start - 1);
+                    return UnescapeString(content);
+                }
+                
                 if (c == '\\')
                 {
+                    escaped = true;
                     if (index >= json.Length) throw new Exception("Unexpected end of json string at " + index);
                     c = json[index++];
-                    switch (c)
-                    {
-                        case '"': sb.Append('"'); break;
-                        case '\\': sb.Append('\\'); break;
-                        case '/': sb.Append('/'); break;
-                        case 'b': sb.Append('\b'); break;
-                        case 'f': sb.Append('\f'); break;
-                        case 'n': sb.Append('\n'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case 't': sb.Append('\t'); break;
-                        case 'u': // Unicode escape
-                            if (index + 4 > json.Length) throw new Exception("Invalid unicode escape at " + index);
-                            var hexSequence = json.Slice(index, 4);
-                            index += 4;
-                            sb.Append((char)int.Parse(hexSequence, NumberStyles.HexNumber));
-                            break;
-                        default: sb.Append(c); break;
-                    }
-                }
-                else
-                {
-                    sb.Append(c);
+                    if (c == 'u') index += 4;
                 }
             }
             throw new Exception("Unterminated string at " + index);
         }
 
+        private static string UnescapeString(ReadOnlySpan<char> input)
+        {
+            int maxLen = input.Length;
+            if (maxLen <= 128)
+            {
+                Span<char> buffer = stackalloc char[maxLen];
+                int written = UnescapeInto(input, buffer);
+                return new string(buffer.Slice(0, written));
+            }
+            else
+            {
+                char[] rented = System.Buffers.ArrayPool<char>.Shared.Rent(maxLen);
+                try
+                {
+                    int written = UnescapeInto(input, rented);
+                    return new string(rented, 0, written);
+                }
+                finally
+                {
+                    System.Buffers.ArrayPool<char>.Shared.Return(rented);
+                }
+            }
+        }
+
+        private static int UnescapeInto(ReadOnlySpan<char> input, Span<char> output)
+        {
+            int readIdx = 0;
+            int writeIdx = 0;
+            while (readIdx < input.Length)
+            {
+                var c = input[readIdx++];
+                if (c == '\\')
+                {
+                    c = input[readIdx++];
+                    switch (c)
+                    {
+                        case '"': output[writeIdx++] = '"'; break;
+                        case '\\': output[writeIdx++] = '\\'; break;
+                        case '/': output[writeIdx++] = '/'; break;
+                        case 'b': output[writeIdx++] = '\b'; break;
+                        case 'f': output[writeIdx++] = '\f'; break;
+                        case 'n': output[writeIdx++] = '\n'; break;
+                        case 'r': output[writeIdx++] = '\r'; break;
+                        case 't': output[writeIdx++] = '\t'; break;
+                        case 'u':
+                            var hexSequence = input.Slice(readIdx, 4);
+                            readIdx += 4;
+                            output[writeIdx++] = (char)int.Parse(hexSequence, NumberStyles.HexNumber);
+                            break;
+                        default: output[writeIdx++] = c; break;
+                    }
+                }
+                else
+                {
+                    output[writeIdx++] = c;
+                }
+            }
+            return writeIdx;
+        }
+
+        public static void SkipString(ReadOnlySpan<char> json, ref int index)
+        {
+            Expect(json, ref index, '"');
+            while (index < json.Length)
+            {
+                var c = json[index++];
+                if (c == '"') return;
+                if (c == '\\')
+                {
+                    if (index >= json.Length) throw new Exception("Unexpected end of json string at " + index);
+                    index++;
+                }
+            }
+            throw new Exception("Unterminated string at " + index);
+        }
+        
+        public static bool MatchesKey(ReadOnlySpan<char> json, ref int index, string expected)
+        {
+            int originalIndex = index;
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length || json[index] != '"')
+            {
+                index = originalIndex;
+                return false;
+            }
+            index++; // '"'
+
+            int expectedIndex = 0;
+            while (index < json.Length)
+            {
+                var c = json[index++];
+                if (c == '"')
+                {
+                    if (expectedIndex == expected.Length) return true;
+                    index = originalIndex;
+                    return false;
+                }
+                
+                if (c == '\\')
+                {
+                    if (index >= json.Length) throw new Exception("Unexpected end of json string at " + index);
+                    c = json[index++];
+                    char unescaped;
+                     switch (c)
+                    {
+                        case '"': unescaped = '"'; break;
+                        case '\\': unescaped = '\\'; break;
+                        case '/': unescaped = '/'; break;
+                        case 'b': unescaped = '\b'; break;
+                        case 'f': unescaped = '\f'; break;
+                        case 'n': unescaped = '\n'; break;
+                        case 'r': unescaped = '\r'; break;
+                        case 't': unescaped = '\t'; break;
+                        case 'u': 
+                            var hexSequence = json.Slice(index, 4);
+                            index += 4;
+                            unescaped = (char)int.Parse(hexSequence, NumberStyles.HexNumber);
+                            break;
+                        default: unescaped = c; break;
+                    }
+                    if (expectedIndex >= expected.Length || expected[expectedIndex++] != unescaped)
+                    {
+                        index = originalIndex;
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (expectedIndex >= expected.Length || expected[expectedIndex++] != c)
+                    {
+                        index = originalIndex;
+                        return false;
+                    }
+                }
+            }
+            index = originalIndex;
+            return false;
+        }
+        
         public static char ParseChar(ReadOnlySpan<char> json, ref int index)
         {
             var s = ParseString(json, ref index);
@@ -260,7 +387,7 @@ namespace GenJson
             char c = json[index];
             if (c == '"')
             {
-                ParseString(json, ref index);
+                SkipString(json, ref index);
             }
             else if (c == '{')
             {
@@ -1037,22 +1164,25 @@ namespace GenJson
         sb.AppendLine("                    };");
         sb.AppendLine("                }");
 
-        sb.AppendLine("                var key = global::GenJson.GenJsonParser.ParseString(json, ref index);");
-        sb.AppendLine("                global::GenJson.GenJsonParser.Expect(json, ref index, ':');");
-
-        sb.AppendLine("                switch (key)");
-        sb.AppendLine("                {");
+        sb.AppendLine("                bool matched = false;");
+        sb.AppendLine("                if (false) { }"); // This is a dummy block to start the else if chain
         foreach (var prop in data.Properties.Value)
         {
-            sb.Append("                    case \"");
+            sb.Append("                else if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
             sb.Append(prop.Name);
-            sb.AppendLine("\":");
-            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                        ", 0);
-            sb.AppendLine("                        break;");
+            sb.AppendLine("\"))");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    global::GenJson.GenJsonParser.Expect(json, ref index, ':');");
+            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0);
+            sb.AppendLine("                    matched = true;");
+            sb.AppendLine("                }");
         }
-        sb.AppendLine("                    default:");
-        sb.AppendLine("                        global::GenJson.GenJsonParser.SkipValue(json, ref index);");
-        sb.AppendLine("                        break;");
+
+        sb.AppendLine("                if (!matched)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    global::GenJson.GenJsonParser.SkipString(json, ref index);");
+        sb.AppendLine("                    global::GenJson.GenJsonParser.Expect(json, ref index, ':');");
+        sb.AppendLine("                    global::GenJson.GenJsonParser.SkipValue(json, ref index);");
         sb.AppendLine("                }");
 
         sb.AppendLine("                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
