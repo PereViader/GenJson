@@ -320,6 +320,68 @@ namespace GenJson
             }
         }
     }
+    internal static class GenJsonWriter
+    {
+        public static void WriteString(System.Span<char> span, ref int index, string value)
+        {
+            span[index++] = '"';
+            foreach (var c in value)
+            {
+                if (c == '"') { span[index++] = '\\'; span[index++] = '"'; }
+                else if (c == '\\') { span[index++] = '\\'; span[index++] = '\\'; }
+                else if (c == '\b') { span[index++] = '\\'; span[index++] = 'b'; }
+                else if (c == '\f') { span[index++] = '\\'; span[index++] = 'f'; }
+                else if (c == '\n') { span[index++] = '\\'; span[index++] = 'n'; }
+                else if (c == '\r') { span[index++] = '\\'; span[index++] = 'r'; }
+                else if (c == '\t') { span[index++] = '\\'; span[index++] = 't'; }
+                else if (c < ' ')
+                {
+                    span[index++] = '\\';
+                    span[index++] = 'u';
+                    span[index++] = '0';
+                    span[index++] = '0';
+                    int val = c;
+                    span[index++] = GetHex(val >> 4);
+                    span[index++] = GetHex(val & 0xF);
+                }
+                else
+                {
+                    span[index++] = c;
+                }
+            }
+            span[index++] = '"';
+        }
+
+        public static void AppendEscapedString(System.Text.StringBuilder sb, string value)
+        {
+            sb.Append('"');
+            foreach (var c in value)
+            {
+                if (c == '"') sb.Append("\\\"");
+                else if (c == '\\') sb.Append("\\\\");
+                else if (c == '\b') sb.Append("\\b");
+                else if (c == '\f') sb.Append("\\f");
+                else if (c == '\n') sb.Append("\\n");
+                else if (c == '\r') sb.Append("\\r");
+                else if (c == '\t') sb.Append("\\t");
+                else if (c < ' ')
+                {
+                    sb.Append("\\u00");
+                    int val = c;
+                    sb.Append(GetHex(val >> 4));
+                    sb.Append(GetHex(val & 0xF));
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            sb.Append('"');
+        }
+
+        private static char GetHex(int n) => (char)(n < 10 ? n + '0' : n - 10 + 'a');
+    }
+
     internal static class GenJsonSizeHelper
     {
         public static int GetSize(int value)
@@ -367,7 +429,19 @@ namespace GenJson
         
         public static int GetSize(bool value) => value ? 4 : 5;
         public static int GetSize(char value) => 3; // "c"
-        public static int GetSize(string? value) => value is null ? 0 : value.Length + 2;
+        
+        public static int GetSize(string? value)
+        {
+            if (value is null) return 0;
+            int size = 2;
+            foreach (var c in value)
+            {
+                if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') size += 2;
+                else if (c < ' ') size += 6;
+                else size++;
+            }
+            return size;
+        }
 
         public static int GetSize(Guid value) => 38;
 
@@ -375,36 +449,36 @@ namespace GenJson
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            if (value.TryFormat(buffer, out int written, "R", global::System.Globalization.CultureInfo.InvariantCulture))
             {
                 return written;
             }
 #endif
-            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+            return value.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture).Length;
         }
 
         public static int GetSize(float value)
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            if (value.TryFormat(buffer, out int written, "R", global::System.Globalization.CultureInfo.InvariantCulture))
             {
                 return written;
             }
 #endif
-            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+            return value.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture).Length;
         }
 
         public static int GetSize(decimal value)
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, default, global::System.Globalization.CultureInfo.InvariantCulture))
+            if (value.TryFormat(buffer, out int written, "G", global::System.Globalization.CultureInfo.InvariantCulture))
             {
                 return written;
             }
 #endif
-            return value.ToString(global::System.Globalization.CultureInfo.InvariantCulture).Length;
+            return value.ToString("G", global::System.Globalization.CultureInfo.InvariantCulture).Length;
         }
 
         public static int GetSize(DateTime value)
@@ -444,6 +518,30 @@ namespace GenJson
         }
 
 
+
+        public static int GetSize(DateOnly value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
+
+        public static int GetSize(TimeOnly value)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> buffer = stackalloc char[128];
+            if (value.TryFormat(buffer, out int written, "O", global::System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return written + 2;
+            }
+#endif
+            return value.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture).Length + 2;
+        }
 
         public static int GetSize(Version value)
         {
@@ -720,9 +818,11 @@ namespace GenJson
         sb.AppendLine("""
         public string ToJson()
         {
-            var sb = new System.Text.StringBuilder(CalculateJsonSize());
-            this.ToJson(sb);
-            return sb.ToString();
+            return string.Create(CalculateJsonSize(), this, (span, state) =>
+            {
+                int index = 0;
+                state.WriteJson(span, ref index);
+            });
         }
 """);
 
@@ -810,6 +910,85 @@ namespace GenJson
         }
 
         sb.AppendLine("            sb.Append(\"}\");");
+        sb.AppendLine("        }");
+
+        sb.AppendLine();
+        sb.AppendLine("        public void WriteJson(System.Span<char> span, ref int index)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            span[index++] = '{';");
+
+        bool needFirstSpan = data.Properties.Value.Count > 1 && data.Properties.Value[0].IsNullable;
+        if (needFirstSpan)
+        {
+            sb.AppendLine("            bool first = true;");
+        }
+        var stateSpan = 0;
+
+        foreach (var prop in data.Properties.Value)
+        {
+            string indent = "            ";
+            if (prop.IsNullable)
+            {
+                sb.Append(indent);
+                sb.Append("if (this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(" is not null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                indent = "                ";
+            }
+
+            if (stateSpan == 0) // True
+            {
+                if (prop.IsNullable)
+                {
+                    if (needFirstSpan)
+                    {
+                        sb.Append(indent);
+                        sb.AppendLine("first = false;");
+                    }
+                    stateSpan = 2;
+                }
+                else stateSpan = 1;
+            }
+            else if (stateSpan == 1) // False
+            {
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = ',';");
+            }
+            else // Unknown
+            {
+                sb.Append(indent);
+                sb.AppendLine("if (!first)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    span[index++] = ',';");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                if (prop.IsNullable)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("first = false;");
+                }
+                else stateSpan = 1;
+            }
+
+            sb.Append(indent);
+            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
+            sb.Append(prop.Name);
+            sb.AppendLine("\");");
+            sb.Append(indent);
+            sb.AppendLine("span[index++] = ':';");
+
+            GenerateWriteJsonValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
+
+            if (prop.IsNullable)
+            {
+                sb.AppendLine("            }");
+            }
+        }
+        sb.AppendLine("            span[index++] = '}';");
         sb.AppendLine("        }");
 
         sb.AppendLine();
@@ -1426,13 +1605,9 @@ namespace GenJson
 
             case GenJsonDataType.String:
                 sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
-                sb.Append(indent);
-                sb.Append("sb.Append(");
+                sb.Append("global::GenJson.GenJsonWriter.AppendEscapedString(sb, ");
                 sb.Append(valueAccessor);
                 sb.AppendLine(");");
-                sb.Append(indent);
-                sb.AppendLine("sb.Append(\"\\\"\");");
                 break;
 
             case GenJsonDataType.Object:
@@ -1806,6 +1981,267 @@ namespace GenJson
                     sb.Append(")");
                     sb.Append(valueAccessor);
                     sb.AppendLine(");");
+                }
+                break;
+        }
+    }
+
+    private void GenerateWriteJsonValue(StringBuilder sb, GenJsonDataType type, string valueAccessor, string indent, int depth)
+    {
+        switch (type)
+        {
+            case GenJsonDataType.Primitive:
+                sb.Append(indent);
+                sb.Append("{ ");
+                if (valueAccessor.Contains("this."))
+                {
+                    // Primitive writing
+                }
+                sb.Append("if (!");
+                sb.Append(valueAccessor);
+                sb.AppendLine(".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                sb.Append(indent);
+                sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Primitive)\"); }");
+                sb.Append(indent);
+                sb.AppendLine("index += written;");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Boolean:
+                sb.Append(indent);
+                sb.Append("if (");
+                sb.Append(valueAccessor);
+                sb.AppendLine(") { span[index++] = 't'; span[index++] = 'r'; span[index++] = 'u'; span[index++] = 'e'; }");
+                sb.Append(indent);
+                sb.AppendLine("else { span[index++] = 'f'; span[index++] = 'a'; span[index++] = 'l'; span[index++] = 's'; span[index++] = 'e'; }");
+                break;
+
+            case GenJsonDataType.Char:
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = '\"';");
+                sb.Append(indent);
+                sb.Append("span[index++] = ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(";");
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = '\"';");
+                break;
+
+            case GenJsonDataType.String:
+                sb.Append(indent);
+                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(");");
+                break;
+
+            case GenJsonDataType.FloatingPoint fp:
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.Append("    if (!");
+                sb.Append(valueAccessor);
+                string fmt = !fp.TypeName.EndsWith("Decimal") ? "R" : "G";
+                sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmt}\", System.Globalization.CultureInfo.InvariantCulture))");
+                sb.Append(indent);
+                sb.AppendLine("    { throw new System.Exception(\"Buffer too small (FloatingPoint)\"); }");
+                sb.Append(indent);
+                sb.AppendLine("    index += written;");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Guid:
+            case GenJsonDataType.Version:
+            case GenJsonDataType.TimeSpan:
+            case GenJsonDataType.DateTime:
+            case GenJsonDataType.DateOnly:
+            case GenJsonDataType.TimeOnly:
+            case GenJsonDataType.DateTimeOffset:
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    span[index++] = '\"';");
+                sb.Append(indent);
+                sb.Append("    if (!");
+                sb.Append(valueAccessor);
+                string? fmt2 = (type is GenJsonDataType.DateTime || type is GenJsonDataType.DateTimeOffset || type is GenJsonDataType.DateOnly || type is GenJsonDataType.TimeOnly) ? "O" :
+                             (type is GenJsonDataType.TimeSpan) ? "c" : default;
+                if (fmt2 != null)
+                    sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmt2}\", System.Globalization.CultureInfo.InvariantCulture))");
+                else
+                    sb.Append($".TryFormat(span.Slice(index), out int written))");
+
+                sb.Append(indent);
+                sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Formatted)\"); }");
+                sb.Append(indent);
+                sb.AppendLine("    index += written;");
+                sb.Append(indent);
+                sb.AppendLine("    span[index++] = '\"';");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Object:
+                sb.Append(indent);
+                sb.Append(valueAccessor);
+                sb.AppendLine(".WriteJson(span, ref index);");
+                break;
+
+            case GenJsonDataType.Nullable nullable:
+                sb.Append(indent);
+                sb.Append("if (");
+                sb.Append(valueAccessor);
+                sb.AppendLine(" is null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    span[index++] = 'n'; span[index++] = 'u'; span[index++] = 'l'; span[index++] = 'l';");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                sb.Append(indent);
+                sb.AppendLine("else");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                GenerateWriteJsonValue(sb, nullable.Underlying, $"{valueAccessor}.Value", indent + "    ", depth);
+                sb.Append(indent);
+                sb.AppendLine("}");
+                break;
+
+            case GenJsonDataType.Enumerable enumerable:
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+
+                    string arrayIndent = indent + "    ";
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("span[index++] = '[';");
+
+                    sb.Append(arrayIndent);
+                    string firstItemVar = $"firstItem{depth}";
+                    sb.Append("bool ");
+                    sb.Append(firstItemVar);
+                    sb.AppendLine(" = true;");
+
+                    string itemVar = $"item{depth}";
+
+                    sb.Append(arrayIndent);
+                    sb.Append("foreach (var ");
+                    sb.Append(itemVar);
+                    sb.Append(" in ");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(")");
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("{");
+
+                    string loopIndent = arrayIndent + "    ";
+
+                    sb.Append(loopIndent);
+                    sb.Append("if (!");
+                    sb.Append(firstItemVar);
+                    sb.AppendLine(")");
+                    sb.Append(loopIndent);
+                    sb.AppendLine("{");
+                    sb.Append(loopIndent);
+                    sb.AppendLine("    span[index++] = ',';");
+                    sb.Append(loopIndent);
+                    sb.AppendLine("}");
+                    sb.Append(loopIndent);
+                    sb.Append(firstItemVar);
+                    sb.AppendLine(" = false;");
+
+                    GenerateWriteJsonValue(sb, enumerable.ElementType, itemVar, loopIndent, depth + 1);
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("}"); // end foreach
+
+                    sb.Append(arrayIndent);
+                    sb.AppendLine("span[index++] = ']';");
+
+                    sb.Append(indent);
+                    sb.AppendLine("}"); // end block
+                }
+                break;
+
+            case GenJsonDataType.Dictionary dictionary:
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+
+                    string dictIndent = indent + "    ";
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine("span[index++] = '{';");
+
+                    sb.Append(dictIndent);
+                    string firstItemVarDict = $"firstItem{depth}";
+                    sb.Append("bool ");
+                    sb.Append(firstItemVarDict);
+                    sb.AppendLine(" = true;");
+
+                    string kvpVar = $"kvp{depth}";
+
+                    sb.Append(dictIndent);
+                    sb.Append("foreach (var ");
+                    sb.Append(kvpVar);
+                    sb.Append(" in ");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(")");
+                    sb.Append(dictIndent);
+                    sb.AppendLine("{");
+
+                    string loopIndentDict = dictIndent + "    ";
+
+                    sb.Append(loopIndentDict);
+                    sb.Append("if (!");
+                    sb.Append(firstItemVarDict);
+                    sb.AppendLine(")");
+                    sb.Append(loopIndentDict);
+                    sb.AppendLine("{");
+                    sb.Append(loopIndentDict);
+                    sb.AppendLine("    span[index++] = ',';");
+                    sb.Append(loopIndentDict);
+                    sb.AppendLine("}");
+                    sb.Append(loopIndentDict);
+                    sb.Append(firstItemVarDict);
+                    sb.AppendLine(" = false;");
+
+                    // Key
+                    sb.Append(loopIndentDict);
+                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                    sb.Append(kvpVar);
+                    sb.AppendLine(".Key.ToString());");
+                    sb.Append(loopIndentDict);
+                    sb.AppendLine("span[index++] = ':';");
+
+                    // Value
+                    GenerateWriteJsonValue(sb, dictionary.ValueType, $"{kvpVar}.Value", loopIndentDict, depth + 1);
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine("}"); // end foreach
+
+                    sb.Append(dictIndent);
+                    sb.AppendLine("span[index++] = '}';");
+
+                    sb.Append(indent);
+                    sb.AppendLine("}"); // end block
+                }
+                break;
+
+            case GenJsonDataType.Enum enumType:
+                sb.Append(indent);
+                if (enumType.AsString)
+                {
+                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(".ToString());");
+                }
+                else
+                {
+                    sb.Append("{ if (!");
+                    sb.Append($"(({enumType.UnderlyingType}){valueAccessor}).TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture)");
+                    sb.AppendLine(") throw new System.Exception(\"Buffer too small\"); index += written; }");
                 }
                 break;
         }

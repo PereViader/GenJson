@@ -61,35 +61,35 @@ public class BenchmarkToJson
         return RootObject.ToJson();
     }
 
-    // [Benchmark]
-    // public string NewtonsoftJson_ToJson()
-    // {
-    //     return Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
-    // }
-    //
-    // [Benchmark]
-    // public string MicrosoftJson_ToJson()
-    // {
-    //     return System.Text.Json.JsonSerializer.Serialize(RootObject);
-    // }
-    //
-    // [Benchmark]
-    // public RootObject GenJson_FromJson()
-    // {
-    //     return RootObject.FromJson(GenJson);
-    // }
-    //
-    // [Benchmark]
-    // public RootObject NewtonsoftJson_FromJson()
-    // {
-    //     return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
-    // }
-    //
-    // [Benchmark]
-    // public RootObject MicrosoftJson_FromJson()
-    // {
-    //     return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJson)!;
-    // }
+    [Benchmark]
+    public string NewtonsoftJson_ToJson()
+    {
+        return Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
+    }
+    
+    [Benchmark]
+    public string MicrosoftJson_ToJson()
+    {
+        return System.Text.Json.JsonSerializer.Serialize(RootObject);
+    }
+    
+    [Benchmark]
+    public RootObject GenJson_FromJson()
+    {
+        return RootObject.FromJson(GenJson);
+    }
+    
+    [Benchmark]
+    public RootObject NewtonsoftJson_FromJson()
+    {
+        return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
+    }
+    
+    [Benchmark]
+    public RootObject MicrosoftJson_FromJson()
+    {
+        return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJson)!;
+    }
 
     private static readonly RootObject RootObject = new()
     {
