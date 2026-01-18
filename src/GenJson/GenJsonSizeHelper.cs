@@ -133,28 +133,6 @@ namespace GenJson
             return value.ToString("c", CultureInfo.InvariantCulture).Length + 2;
         }
 
-        public static int GetSize(DateOnly value)
-        {
-            Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture))
-            {
-                return written + 2;
-            }
-
-            return value.ToString("O", CultureInfo.InvariantCulture).Length + 2;
-        }
-
-        public static int GetSize(TimeOnly value)
-        {
-            Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture))
-            {
-                return written + 2;
-            }
-
-            return value.ToString("O", CultureInfo.InvariantCulture).Length + 2;
-        }
-
         public static int GetSize(Version value)
         {
             Span<char> buffer = stackalloc char[128];

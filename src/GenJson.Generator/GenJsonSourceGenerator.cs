@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -44,18 +45,6 @@ public abstract record GenJsonDataType
         private DateTime() { }
     }
 
-    public sealed record DateOnly : GenJsonDataType
-    {
-        public static readonly DateOnly Instance = new();
-        private DateOnly() { }
-    }
-
-    public sealed record TimeOnly : GenJsonDataType
-    {
-        public static readonly TimeOnly Instance = new();
-        private TimeOnly() { }
-    }
-
     public sealed record TimeSpan : GenJsonDataType
     {
         public static readonly TimeSpan Instance = new();
@@ -83,7 +72,13 @@ public abstract record GenJsonDataType
 }
 
 public record PropertyData(string Name, string TypeName, bool IsNullable, GenJsonDataType Type);
-public record ClassData(string ClassName, string Namespace, EquatableList<PropertyData> Properties, bool IsPartial);
+
+public record ClassData(
+    string ClassName,
+    string Namespace,
+    EquatableList<PropertyData> ConstructorArgs,
+    EquatableList<PropertyData> Properties,
+    string Keyword);
 
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
@@ -99,41 +94,42 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
     private static bool IsSyntaxNodeValid(SyntaxNode node, CancellationToken ct)
     {
-        if (node is not ClassDeclarationSyntax classDeclarationSyntax)
+        if (node is not TypeDeclarationSyntax typeDecl)
+        {
+            return false;
+        }
+        
+        if (typeDecl.Modifiers.Any(SyntaxKind.StaticKeyword))
         {
             return false;
         }
 
-        if (classDeclarationSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
-        {
-            return false;
-        }
-
-        return classDeclarationSyntax.AttributeLists.Count > 0;
+        return typeDecl.AttributeLists.Count > 0;
     }
 
     private static ClassData? GetClassData(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        var classDeclaration = (ClassDeclarationSyntax)context.Node;
-        var classSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclaration);
-
-        if (classSymbol is null)
+        var typeDeclaration = (TypeDeclarationSyntax)context.Node;
+        if (!typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
             return null;
         }
-
-        if (!classSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
+        
+        var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration);
+        if (typeSymbol is null)
         {
             return null;
         }
-
-        var ns = classSymbol.ContainingNamespace.IsGlobalNamespace
-            ? ""
-            : classSymbol.ContainingNamespace.ToDisplayString();
-
+        
+        if (!typeSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
+        {
+            return null;
+        }
+        
         var properties = new List<PropertyData>();
+        var propertiesMap = new Dictionary<string, PropertyData>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var member in classSymbol.GetMembers())
+        foreach (var member in typeSymbol.GetMembers())
         {
             if (member is IPropertySymbol propertySymbol &&
                 propertySymbol.DeclaredAccessibility == Accessibility.Public &&
@@ -144,12 +140,42 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                 var type = GetGenJsonDataType(propertySymbol, propertySymbol.Type);
 
-                properties.Add(new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, type));
+                var propData = new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, type);
+                properties.Add(propData);
+                propertiesMap[propertySymbol.Name] = propData;
             }
         }
 
-        bool isPartial = classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword);
-        return new ClassData(classSymbol.Name, ns, new EquatableList<PropertyData>(properties), isPartial);
+        var constructorArgs = new List<PropertyData>();
+        if (typeDeclaration is RecordDeclarationSyntax)
+        {
+            var ctor = typeSymbol.Constructors
+                .OrderByDescending(c => c.Parameters.Length)
+                .FirstOrDefault();
+            if (ctor is { Parameters.Length: > 0 })
+            {
+                foreach (var param in ctor.Parameters)
+                {
+                    if (propertiesMap.TryGetValue(param.Name, out var prop))
+                    {
+                        constructorArgs.Add(prop);
+                        properties.Remove(prop); // Remove from property list as it will be set via constructor
+                    }
+                }
+            }
+        }
+
+        var keyword = typeDeclaration switch
+        {
+            RecordDeclarationSyntax recordDeclarationSyntax => recordDeclarationSyntax.ClassOrStructKeyword.Text == "struct"
+                ? "record struct"
+                : "record class",
+            _ => typeDeclaration.Keyword.Text
+        };
+        
+        var typeNameSpace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? "";
+        
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(properties), keyword);
     }
 
     private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, ITypeSymbol type)
@@ -190,8 +216,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (typeName == "global::System.Guid" || typeName == "System.Guid") return GenJsonDataType.Guid.Instance;
         if (typeName == "global::System.DateTime" || typeName == "System.DateTime") return GenJsonDataType.DateTime.Instance;
-        if (typeName == "global::System.DateOnly" || typeName == "System.DateOnly") return GenJsonDataType.DateOnly.Instance;
-        if (typeName == "global::System.TimeOnly" || typeName == "System.TimeOnly") return GenJsonDataType.TimeOnly.Instance;
         if (typeName == "global::System.TimeSpan" || typeName == "System.TimeSpan") return GenJsonDataType.TimeSpan.Instance;
         if (typeName == "global::System.DateTimeOffset" || typeName == "System.DateTimeOffset") return GenJsonDataType.DateTimeOffset.Instance;
         if (typeName == "global::System.Version" || typeName == "System.Version") return GenJsonDataType.Version.Instance;
@@ -297,11 +321,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     {
         var sb = new StringBuilder();
 
-        if (!data.IsPartial)
-        {
-            return;
-        }
-
         if (!string.IsNullOrEmpty(data.Namespace))
         {
             sb.Append("namespace ");
@@ -310,7 +329,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("{");
         }
 
-        sb.Append("    partial class ");
+        sb.Append("    partial ");
+        sb.Append(data.Keyword);
+        sb.Append(" ");
         sb.Append(data.ClassName);
         sb.AppendLine();
         sb.AppendLine("    {");
@@ -320,7 +341,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("            int size = 2;");
         sb.AppendLine("            int propertyCount = 0;");
 
-        foreach (var prop in data.Properties.Value)
+        var allProperties = new List<PropertyData>();
+        allProperties.AddRange(data.ConstructorArgs.Value);
+        allProperties.AddRange(data.Properties.Value);
+
+        foreach (var prop in allProperties)
         {
             string indent = "            ";
             if (prop.IsNullable)
@@ -371,14 +396,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         sb.AppendLine("            span[index++] = '{';");
 
-        bool needFirstSpan = data.Properties.Value.Count > 1 && data.Properties.Value[0].IsNullable;
+        bool needFirstSpan = allProperties.Count > 1 && allProperties[0].IsNullable;
         if (needFirstSpan)
         {
             sb.AppendLine("            bool first = true;");
         }
         var stateSpan = 0;
 
-        foreach (var prop in data.Properties.Value)
+        foreach (var prop in allProperties)
         {
             string indent = "            ";
             if (prop.IsNullable)
@@ -463,7 +488,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         sb.AppendLine("            global::GenJson.GenJsonParser.Expect(json, ref index, '{');");
 
-        foreach (var prop in data.Properties.Value)
+        foreach (var prop in allProperties)
         {
             sb.Append("            ");
             sb.Append(prop.TypeName);
@@ -478,22 +503,40 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("                if (json[index] == '}')");
         sb.AppendLine("                {");
         sb.AppendLine("                    index++;");
-        sb.AppendLine("                    return new " + data.ClassName);
-        sb.AppendLine("                    {");
-        foreach (var prop in data.Properties.Value)
+        sb.Append("                    return new ");
+        sb.Append(data.ClassName);
+        sb.Append("(");
+
+        bool firstArg = true;
+        foreach (var arg in data.ConstructorArgs.Value)
         {
-            sb.Append("                        ");
-            sb.Append(prop.Name);
-            sb.Append(" = _");
-            sb.Append(prop.Name);
-            sb.AppendLine(",");
+            if (!firstArg) sb.Append(", ");
+            sb.Append("_");
+            sb.Append(arg.Name);
+            firstArg = false;
         }
-        sb.AppendLine("                    };");
+
+        sb.AppendLine(")");
+        if (data.Properties.Value.Count > 0)
+        {
+            sb.AppendLine("                    {");
+            foreach (var prop in data.Properties.Value)
+            {
+                sb.Append("                        ");
+                sb.Append(prop.Name);
+                sb.Append(" = _");
+                sb.Append(prop.Name);
+                sb.AppendLine(",");
+            }
+            sb.Append("                    }");
+        }
+
+        sb.AppendLine(";");
         sb.AppendLine("                }");
 
         sb.AppendLine("                bool matched = false;");
         sb.AppendLine("                if (false) { }"); // This is a dummy block to start the else if chain
-        foreach (var prop in data.Properties.Value)
+        foreach (var prop in allProperties)
         {
             sb.Append("                else if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
             sb.Append(prop.Name);
@@ -575,18 +618,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.Append(target);
                 sb.AppendLine(" = System.DateTime.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);");
-                break;
-
-            case GenJsonDataType.DateOnly:
-                sb.Append(indent);
-                sb.Append(target);
-                sb.AppendLine(" = System.DateOnly.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));");
-                break;
-
-            case GenJsonDataType.TimeOnly:
-                sb.Append(indent);
-                sb.Append(target);
-                sb.AppendLine(" = System.TimeOnly.Parse(global::GenJson.GenJsonParser.ParseString(json, ref index));");
                 break;
 
             case GenJsonDataType.TimeSpan:
@@ -775,7 +806,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     {
                         sb.AppendLine($"{d.KeyTypeName} {keyVar} = {keyStrVar};");
                     }
-                    else if (d.KeyType is GenJsonDataType.Primitive || d.KeyType is GenJsonDataType.FloatingPoint || d.KeyType is GenJsonDataType.Guid || d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.DateOnly || d.KeyType is GenJsonDataType.TimeOnly || d.KeyType is GenJsonDataType.TimeSpan || d.KeyType is GenJsonDataType.DateTimeOffset)
+                    else if (d.KeyType is GenJsonDataType.Primitive || d.KeyType is GenJsonDataType.FloatingPoint || d.KeyType is GenJsonDataType.Guid || d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.TimeSpan || d.KeyType is GenJsonDataType.DateTimeOffset)
                     {
                         // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
                         if (d.KeyType is GenJsonDataType.FloatingPoint)
@@ -899,40 +930,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(")");
                 if (unquoted) sb.Append(" - 2");
                 sb.AppendLine(";");
-                break;
-
-            case GenJsonDataType.DateOnly:
-            case GenJsonDataType.TimeOnly:
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    global::System.Span<char> buffer = stackalloc char[128];");
-                sb.Append(indent);
-                sb.Append("    if (");
-                sb.Append(valueAccessor);
-                sb.AppendLine(".TryFormat(buffer, out int written, \"O\", global::System.Globalization.CultureInfo.InvariantCulture))");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        size += written");
-                if (!unquoted) sb.Append(" + 2");
-                sb.AppendLine(";");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("    else");
-                sb.Append(indent);
-                sb.AppendLine("    {");
-                sb.Append(indent);
-                sb.Append("        size += ");
-                sb.Append(valueAccessor);
-                sb.Append(".ToString(\"O\", global::System.Globalization.CultureInfo.InvariantCulture).Length");
-                if (!unquoted) sb.Append(" + 2");
-                sb.AppendLine(";");
-                sb.Append(indent);
-                sb.AppendLine("    }");
-                sb.Append(indent);
-                sb.AppendLine("}");
                 break;
 
             case GenJsonDataType.Object:
@@ -1142,8 +1139,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.Version:
             case GenJsonDataType.TimeSpan:
             case GenJsonDataType.DateTime:
-            case GenJsonDataType.DateOnly:
-            case GenJsonDataType.TimeOnly:
             case GenJsonDataType.DateTimeOffset:
                 sb.Append(indent);
                 sb.AppendLine("{");
@@ -1152,7 +1147,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.Append("    if (!");
                 sb.Append(valueAccessor);
-                string? fmt2 = (type is GenJsonDataType.DateTime || type is GenJsonDataType.DateTimeOffset || type is GenJsonDataType.DateOnly || type is GenJsonDataType.TimeOnly) ? "O" :
+                string? fmt2 = (type is GenJsonDataType.DateTime || type is GenJsonDataType.DateTimeOffset) ? "O" :
                              (type is GenJsonDataType.TimeSpan) ? "c" : default;
                 if (fmt2 != null)
                     sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmt2}\", System.Globalization.CultureInfo.InvariantCulture))");

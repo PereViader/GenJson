@@ -9,37 +9,42 @@ GenJson is a **zero-allocation**, high-performance C# Source Generator library t
 - **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` based parsing logic to avoid intermediate string allocations.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
 - **Rich Type Support**:
-  - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc.
-  - Standard Structs: `DateTime`, `DateOnly`, `TimeOnly`, `TimeSpan`, `Guid`, `Version`, `DateTimeOffset`.
+  - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
+  - Standard Structs: `Guid`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
   - Dictionaries: `IReadOnlyDictionary<K, V>` 
   - Collections: `IEnumerable<T>`
   - Enums: Serialized as backing type (default) or string
-  - Nested Objects: Recursive serialization of complex object graphs.
+  - Nested Objects: Recursive serialization of complex object graphs
 
 > Zero-allocation* means that no unnecessary memory allocations are performed. Only the resulting strings are allocated.
 
 ## Usage
 
-### 1. Mark your class
+### 1. Mark your class, record or struct
 
-Add the `[GenJson]` attribute to any class or struct you wish to serialize. The class must be `partial`.
+Add the `[GenJson]` attribute to any class, record, or struct you wish to serialize. The type must be `partial` and have a parameterless constructor (implicit or explicit).
 
 ```csharp
 using GenJson;
 
 [GenJson]
-public partial class Person
+public partial class Product
 {
     public string Name { get; set; }
-    public int Age { get; set; }
-    public Gender Gender { get; set; }
-    public List<string> Hobbies { get; set; }
+    public ProductSku[] ProductSkus { get; set; }
 }
 
-public enum Gender
+[GenJson]
+public partial record ProductSku(
+    Guid Id, 
+    int Price, 
+    ProductSize ProductSize
+    );
+
+public enum ProductSize : byte
 {
-    Male,
-    Female
+    Small = 0,
+    Large = 1
 }
 ```
 
@@ -50,17 +55,17 @@ Enum properties of classes may be marked with
 - `[GenJson.Enum.AsText]` to serialize as a string.
 
 ```csharp
-    public Gender Gender { get; set; } // <-- Json will be de/serialized using 0 or 1
+    public ProductSizeType ProductSize { get; set; } // <-- Json will be de/serialized using 0, 1
 ```
 
 ```csharp
     [GenJson.Enum.AsNumber] // <-- Json will be de/serialized using 0 or 1
-    public Gender Gender { get; set; }
+    public ProductSize ProductSize { get; set; }
 ```
 
 ```csharp
-    [GenJson.Enum.AsText] // <-- Json will be de/serialized using "Male" or "Female"
-    public Gender Gender { get; set; }
+    [GenJson.Enum.AsText] // <-- Json will be de/serialized using "Small" or "Large"
+    public ProductSize ProductSize { get; set; }
 ```
 
 ### 3. Serialization
@@ -68,18 +73,17 @@ Enum properties of classes may be marked with
 The generator creates a `ToJson()` method.
 
 ```csharp
-var person = new Person 
+var product = new Product
 { 
-    Name = "Alice", 
-    Age = 30, 
-    Gender = Gender.Female,
-    Hobbies = new List<string> { "Coding", "Hiking" } 
+    Name = "Shoes", 
+    ProductSkus = [
+        new ProductSku(Guid.NewGuid(), 20, ProductSize.Small),
+        new ProductSku(Guid.NewGuid(), 30, ProductSize.Large)
+    ]
 };
 
 // Zero-allocation serialization (allocates only the result string)
-string json = person.ToJson();
-// Output: {"Name":"Alice","Age":30,"Gender":"Female","Hobbies":["Coding","Hiking"]}
-
+string json = product.ToJson();
 ```
 
 ### 4. Deserialization
@@ -87,9 +91,7 @@ string json = person.ToJson();
 The generator creates a static `FromJson` method on your class.
 
 ```csharp
-string json = """{"Name":"Alice","Age":30,"Gender":"Female"}""";
-
-var person = Person.FromJson(json);
+Product product = Product.FromJson(json);
 ```
 
 ## How It Works

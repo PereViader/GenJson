@@ -149,9 +149,16 @@ public partial class PrimitiveClass
     public string String { get; init; }
     public DateTime DateTime { get; init; }
     public TimeSpan TimeSpan { get; init; }
-    public DateOnly DateOnly { get; init; }
-    public TimeOnly TimeOnly { get; init; }
     public DateTimeOffset DateTimeOffset { get; init; }
     public Guid Guid { get; init; }
     public Version Version { get; init; }
 }
+
+[GenJson]
+public partial record ParentRecordDefault(EmptyClass Child);
+
+[GenJson]
+public partial record class ParentRecordClass(EmptyClass Child);
+
+[GenJson]
+public partial record struct ParentRecordStruct(EmptyClass Child);
