@@ -76,7 +76,7 @@ public class BenchmarkToJson
     [Benchmark]
     public RootObject GenJson_FromJson()
     {
-        return RootObject.FromJson(GenJson);
+        return RootObject.FromJson(GenJson)!;
     }
 
     [Benchmark]

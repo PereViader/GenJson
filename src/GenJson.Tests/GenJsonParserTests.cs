@@ -7,52 +7,59 @@ namespace GenJson.Tests
     public class GenJsonParserTests
     {
         [Test]
-        public void ParseString_ParsesSimpleString()
+        public void TryParseString_ParsesSimpleString()
         {
             var json = "\"hello\"".AsSpan();
             int index = 0;
-            var result = GenJsonParser.ParseString(json, ref index);
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+            Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo("hello"));
             Assert.That(index, Is.EqualTo(json.Length));
         }
 
         [Test]
-        public void ParseString_ParsesEscapedString()
+        public void TryParseString_ParsesEscapedString()
         {
             var json = "\"hello \\\"world\\\"\"".AsSpan();
             int index = 0;
-            var result = GenJsonParser.ParseString(json, ref index);
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+            Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo("hello \"world\""));
         }
 
         [Test]
-        public void ParseString_ParsesUnicodeEscape()
+        public void TryParseString_ParsesUnicodeEscape()
         {
             var json = "\"\\u0041\"".AsSpan(); // 'A'
             int index = 0;
-            var result = GenJsonParser.ParseString(json, ref index);
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+            Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo("A"));
         }
 
         [Test]
-        public void ParseInt_ParsesIntegers()
+        public void TryParseInt_ParsesIntegers()
         {
             var cases = new[] { ("123", 123), ("-123", -123), ("0", 0), ("2147483647", int.MaxValue), ("-2147483648", int.MinValue) };
             foreach (var (input, expected) in cases)
             {
                 int index = 0;
-                var result = GenJsonParser.ParseInt(input.AsSpan(), ref index);
+                var success = GenJsonParser.TryParseInt(input.AsSpan(), ref index, out int result);
+                Assert.That(success, Is.True);
                 Assert.That(result, Is.EqualTo(expected));
             }
         }
 
         [Test]
-        public void ParseBoolean_ParsesBooleans()
+        public void TryParseBoolean_ParsesBooleans()
         {
             int index = 0;
-            Assert.That(GenJsonParser.ParseBoolean("true".AsSpan(), ref index), Is.True);
+            Assert.That(GenJsonParser.TryParseBoolean("true".AsSpan(), ref index, out var t), Is.True);
+            Assert.That(t, Is.True);
+
             index = 0;
-            Assert.That(GenJsonParser.ParseBoolean("false".AsSpan(), ref index), Is.False);
+            Assert.That(GenJsonParser.TryParseBoolean("false".AsSpan(), ref index, out var f), Is.True);
+            Assert.That(f, Is.False);
         }
 
         [Test]
@@ -61,11 +68,7 @@ namespace GenJson.Tests
             var json = "\"key\": 123".AsSpan();
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.True);
-            // MatchesKey consumes the string if it matches
-            Assert.That(json[index], Is.EqualTo(':')); // Should point to colon (impl skipped whitespace?)
-            // Actually MatchesKey implementation: 
-            // Parses string, if matches expected, returns true. 
-            // It advances index past the string.
+            Assert.That(json[index], Is.EqualTo(':'));
         }
 
         [Test]
@@ -86,11 +89,12 @@ namespace GenJson.Tests
         }
 
         [Test]
-        public void SkipValue_SkipsObject()
+        public void TrySkipValue_SkipsObject()
         {
             var json = "{\"a\": 1, \"b\": [2, 3]} next".AsSpan();
             int index = 0;
-            GenJsonParser.SkipValue(json, ref index);
+            var success = GenJsonParser.TrySkipValue(json, ref index);
+            Assert.That(success, Is.True);
             GenJsonParser.SkipWhitespace(json, ref index);
 
             // Should be at "next"
@@ -98,54 +102,57 @@ namespace GenJson.Tests
         }
 
         [Test]
-        public void SkipValue_SkipsArray()
+        public void TrySkipValue_SkipsArray()
         {
             var json = "[1, {\"a\": 2}, [3]] next".AsSpan();
             int index = 0;
-            GenJsonParser.SkipValue(json, ref index);
+            var success = GenJsonParser.TrySkipValue(json, ref index);
+            Assert.That(success, Is.True);
             GenJsonParser.SkipWhitespace(json, ref index);
             Assert.That(json[index], Is.EqualTo('n'));
         }
 
         [Test]
-        public void ParseDouble_ParsesExponents()
+        public void TryParseDouble_ParsesExponents()
         {
             var cases = new[] { ("1e2", 100.0), ("1E2", 100.0), ("1.5e2", 150.0), ("1e-1", 0.1) };
             foreach (var (input, expected) in cases)
             {
                 int index = 0;
-                var result = GenJsonParser.ParseDouble(input.AsSpan(), ref index);
+                var success = GenJsonParser.TryParseDouble(input.AsSpan(), ref index, out var result);
+                Assert.That(success, Is.True);
                 Assert.That(result, Is.EqualTo(expected).Within(0.000001));
             }
         }
 
         [Test]
-        public void ParseBoolean_ThrowsOnInvalid()
+        public void TryParseBoolean_ReturnsFalseOnInvalid()
         {
             var cases = new[] { "truee", "tru", "TRUE", "False" };
             foreach (var input in cases)
             {
                 int index = 0;
-                Assert.Throws<Exception>(() => GenJsonParser.ParseBoolean(input.AsSpan(), ref index), $"Faield to throw on {input}");
+                Assert.That(GenJsonParser.TryParseBoolean(input.AsSpan(), ref index, out _), Is.False, $"Should return false for {input}");
             }
         }
 
         [Test]
-        public void ParseNull_ParsesNull()
+        public void TryParseNull_ParsesNull()
         {
             int index = 0;
-            GenJsonParser.ParseNull("null".AsSpan(), ref index);
+            var success = GenJsonParser.TryParseNull("null".AsSpan(), ref index);
+            Assert.That(success, Is.True);
             Assert.That(index, Is.EqualTo(4));
         }
 
         [Test]
-        public void ParseNull_ThrowsOnInvalid()
+        public void TryParseNull_ReturnsFalseOnInvalid()
         {
             var cases = new[] { "nul", "NULL", "none" };
             foreach (var input in cases)
             {
                 int index = 0;
-                Assert.Throws<Exception>(() => GenJsonParser.ParseNull(input.AsSpan(), ref index));
+                Assert.That(GenJsonParser.TryParseNull(input.AsSpan(), ref index), Is.False);
             }
         }
     }

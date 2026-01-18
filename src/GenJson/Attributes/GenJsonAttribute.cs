@@ -14,12 +14,12 @@ namespace GenJson
     {
         public static class Enum
         {
-            [AttributeUsage(AttributeTargets.Property)]
+            [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
             public sealed class AsText : Attribute
             {
             }
 
-            [AttributeUsage(AttributeTargets.Property)]
+            [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
             public sealed class AsNumber : Attribute
             {
             }

@@ -162,3 +162,24 @@ public partial record class ParentRecordClass(EmptyClass Child);
 
 [GenJson]
 public partial record struct ParentRecordStruct(EmptyClass Child);
+
+[GenJson]
+public partial class StrictClass
+{
+    public string Required { get; init; }
+    public string? Optional { get; init; }
+}
+
+[GenJson]
+public partial record StrictRecordReference(string Required, string? Optional);
+
+[GenJson]
+public partial record StrictRecordValue(int Required, int? Optional);
+
+#nullable disable
+[GenJson]
+public partial class LegacyClass
+{
+    public string ProbablyNull { get; init; }
+}
+#nullable restore

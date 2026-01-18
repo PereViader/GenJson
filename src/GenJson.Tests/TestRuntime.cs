@@ -18,7 +18,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EmptyClass.FromJson(json);
+        var obj2 = EmptyClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -40,7 +40,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = StringClass.FromJson(json);
+        var obj2 = StringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -61,7 +61,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = IntClass.FromJson(json);
+        var obj2 = IntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -84,7 +84,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = ParentClass.FromJson(json);
+        var obj2 = ParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -111,7 +111,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableIntClass.FromJson(json);
+        var obj2 = EnumerableIntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -138,7 +138,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableStringClass.FromJson(json);
+        var obj2 = EnumerableStringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -165,7 +165,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableParentClass.FromJson(json);
+        var obj2 = EnumerableParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -184,7 +184,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = NestedEnumerableClass.FromJson(json);
+        var obj2 = NestedEnumerableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -209,7 +209,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = DictionaryClass.FromJson(json);
+        var obj2 = DictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -228,7 +228,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = NestedDictionaryClass.FromJson(json);
+        var obj2 = NestedDictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -263,7 +263,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = PrimitiveClass.FromJson(json);
+        var obj2 = PrimitiveClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -285,7 +285,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = IntEnumClass.FromJson(json);
+        var obj2 = IntEnumClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -301,7 +301,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = ParentRecordClass.FromJson(json);
+        var obj2 = ParentRecordClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -317,7 +317,7 @@ public class TestRuntime
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = ParentRecordStruct.FromJson(json);
+        var obj2 = ParentRecordStruct.FromJson(json)!.Value;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -360,10 +360,82 @@ public class TestRuntime
         }
         """;
 
-        var obj = StringClass.FromJson(json);
+        var obj = StringClass.FromJson(json)!;
         var result = obj.ToJson();
         var expected = """{"Present":"1","NullablePresent":"2"}""";
         Assert.That(result, Is.EqualTo(expected));
+    }
+    [Test]
+    public void TestStrictClass()
+    {
+        var jsonFull = """{"Required": "needed", "Optional": "maybe"}""";
+        var objFull = StrictClass.FromJson(jsonFull);
+        Assert.That(objFull, Is.Not.Null);
+        Assert.That(objFull!.Required, Is.EqualTo("needed"));
+        Assert.That(objFull!.Optional, Is.EqualTo("maybe"));
+
+        var jsonMissingOptional = """{"Required": "needed"}""";
+        var objMissingOptional = StrictClass.FromJson(jsonMissingOptional);
+        Assert.That(objMissingOptional, Is.Not.Null);
+        Assert.That(objMissingOptional!.Required, Is.EqualTo("needed"));
+        Assert.That(objMissingOptional!.Optional, Is.Null);
+
+        var jsonMissingRequired = """{"Optional": "maybe"}""";
+        var objMissingRequired = StrictClass.FromJson(jsonMissingRequired);
+        Assert.That(objMissingRequired, Is.Null, "Should return null when required property is missing in nullable context");
+    }
+
+    [Test]
+    public void TestStrictRecordReference()
+    {
+        var jsonFull = """{"Required": "needed", "Optional": "maybe"}""";
+        var objFull = StrictRecordReference.FromJson(jsonFull);
+        Assert.That(objFull, Is.Not.Null);
+        Assert.That(objFull!.Required, Is.EqualTo("needed"));
+        Assert.That(objFull!.Optional, Is.EqualTo("maybe"));
+
+        var jsonMissingRequired = """{"Optional": "maybe"}""";
+        var objMissingRequired = StrictRecordReference.FromJson(jsonMissingRequired);
+        Assert.That(objMissingRequired, Is.Null, "Should return null when required constructor parameter is missing");
+    }
+
+    [Test]
+    public void TestStrictRecordValue()
+    {
+        var jsonFull = """{"Required": 1, "Optional": 2}""";
+        var objFull = StrictRecordValue.FromJson(jsonFull);
+        Assert.That(objFull, Is.Not.Null);
+        Assert.That(objFull!.Required, Is.EqualTo(1));
+        Assert.That(objFull!.Optional, Is.EqualTo(2));
+
+        var jsonMissingRequired = """{}""";
+        var objMissingRequired = StrictRecordValue.FromJson(jsonMissingRequired);
+        Assert.That(objMissingRequired, Is.Null, "Should return null when required constructor parameter is missing");
+    }
+
+    [Test]
+    public void TestLegacyClass()
+    {
+        // In legacy (nullable disable) context, missing fields should just be null, not cause the whole object to be null (or throw)
+        var jsonEmpty = "{}";
+        var obj = LegacyClass.FromJson(jsonEmpty)!;
+        Assert.That(obj, Is.Not.Null);
+        Assert.That(obj!.ProbablyNull, Is.Null);
+    }
+
+    [Test]
+    public void IncorrectJson()
+    {
+        Assert.That(PrimitiveClass.FromJson(""), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("{"), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("}"), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1"), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1 b}"), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1, \"MyBool\": tru}"), Is.Null);
+        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1} extra"), Is.Null);
+
+        Assert.That(StringClass.FromJson("{\"Present\": \"val\""), Is.Null);
+        Assert.That(StringClass.FromJson("{\"Present\": \"val\", "), Is.Null);
     }
 }
 
