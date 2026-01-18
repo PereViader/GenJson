@@ -98,7 +98,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             return false;
         }
-        
+
         if (typeDecl.Modifiers.Any(SyntaxKind.StaticKeyword))
         {
             return false;
@@ -114,18 +114,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             return null;
         }
-        
+
         var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration);
         if (typeSymbol is null)
         {
             return null;
         }
-        
+
         if (!typeSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
         {
             return null;
         }
-        
+
         var properties = new List<PropertyData>();
         var propertiesMap = new Dictionary<string, PropertyData>(StringComparer.OrdinalIgnoreCase);
 
@@ -172,9 +172,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 : "record class",
             _ => typeDeclaration.Keyword.Text
         };
-        
-        var typeNameSpace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? "";
-        
+
+        var typeNameSpace = typeSymbol.ContainingNamespace is { IsGlobalNamespace: false } ns
+            ? ns.ToDisplayString()
+            : "";
+
         return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(properties), keyword);
     }
 
