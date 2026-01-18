@@ -97,6 +97,32 @@ The generator creates a static `FromJson` method on your class.
 Product product = Product.FromJson(json);
 ```
 
+GenJson will will generate slightly different code depending on the status of the nullable C# feature.
+
+Given the class below with the nullable feature disabled, both Name and Description may be deserialized as null when they are not available in the JSON.
+
+```csharp
+#nullable disable
+
+public partial class Product
+{
+    public string Name { get; set; } // <-- Nullable
+    public string Description { get; set; } // <-- Nullable
+}
+```
+
+Given the class below with the nullable feature enabled, Description may still be null like before, but the object will fail to be deserialized if Name is missing.
+
+```csharp
+#nullable enable
+
+public partial class Product
+{
+    public string Name { get; set; } // <-- Required
+    public string? Description { get; set; } // <-- Nullable
+}
+```
+
 ## How It Works
 
 GenJson analyzes your code during compilation and generates specialized serialization code.
