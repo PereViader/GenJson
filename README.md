@@ -20,9 +20,12 @@ GenJson is a **zero-allocation**, high-performance C# Source Generator library t
 
 ## Usage
 
-### 1. Mark your class, record or struct
+### 1. Mark your class, record, or struct
 
-Add the `[GenJson]` attribute to any class, record, or struct you wish to serialize. The type must be `partial` and have a parameterless constructor (implicit or explicit).
+- Add the `[GenJson]` attribute to any class, record, or struct you wish to serialize. 
+- The type must be `partial`.
+- Non-record types must have a parameterless constructor (implicit or explicit).
+- Record types support primary constructors.
 
 ```csharp
 using GenJson;
