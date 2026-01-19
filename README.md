@@ -18,6 +18,17 @@ GenJson is a **zero-allocation**, high-performance C# Source Generator library t
 
 > Zero-allocation* means that no unnecessary memory allocations are performed. Only the resulting strings are allocated.
 
+## [Benchmark](https://github.com/PereViader/GenJson/blob/main/src/GenJson.Benchmark/Program.cs)
+
+| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
+|------------------------ |-----------:|-----------:|------------:|-------:|---------------:|
+| GenJson_ToJson          |   955.3 ns |   18.49 ns |    19.78 ns | 0.0324 |         1.6 KB |
+| MicrosoftJson_ToJson    | 1,219.7 ns |   23.88 ns |    29.32 ns | 0.0381 |        1.92 KB |
+| NewtonsoftJson_ToJson   | 2,391.1 ns |   43.50 ns |    40.69 ns | 0.1183 |        5.95 KB |
+| GenJson_FromJson        | 1,700.2 ns |   32.93 ns |    40.44 ns | 0.0534 |        2.69 KB |
+| MicrosoftJson_FromJson  | 2,450.4 ns |   48.04 ns |    60.75 ns | 0.0610 |           3 KB |
+| NewtonsoftJson_FromJson | 4,000.7 ns |   78.60 ns |    96.53 ns | 0.1678 |        8.23 KB |
+
 ## Usage
 
 ### 1. Mark your class, record, or struct
