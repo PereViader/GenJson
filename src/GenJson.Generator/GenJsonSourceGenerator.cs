@@ -137,7 +137,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 !propertySymbol.IsStatic)
             {
                 bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
-                                  propertySymbol.NullableAnnotation == NullableAnnotation.Annotated;
+                                  propertySymbol.NullableAnnotation == NullableAnnotation.Annotated ||
+                                  (!propertySymbol.Type.IsValueType && propertySymbol.NullableAnnotation == NullableAnnotation.None);
 
                 var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
                 bool isValueType = propertySymbol.Type.IsValueType;
