@@ -1,10 +1,10 @@
 #nullable enable
+using System;
+using System.Globalization;
+using System.Buffers;
+
 namespace GenJson
 {
-    using System;
-    using System.Globalization;
-    using System.Buffers;
-
     public static class GenJsonParser
     {
         public static void SkipWhitespace(ReadOnlySpan<char> json, ref int index)

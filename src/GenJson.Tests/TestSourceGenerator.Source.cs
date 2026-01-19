@@ -29,6 +29,14 @@ public partial class UIntClass
 }
 
 [GenJson]
+public partial class ULongClass
+{
+    public ulong Present { get; init; }
+    public ulong? NullablePresent { get; init; }
+    public ulong? NullableNull { get; init; }
+}
+
+[GenJson]
 public partial class BoolClass
 {
     public bool Present { get; init; }
@@ -250,30 +258,6 @@ public partial class DictionaryClass
 public partial class NestedDictionaryClass
 {
     public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
-}
-
-
-
-[GenJson]
-public partial class PrimitiveClass
-{
-    public bool Bool { get; init; }
-    public int Int { get; init; }
-    public uint Uint { get; init; }
-    public char Char { get; init; }
-    public long Long { get; init; }
-    public short Short { get; init; }
-    public byte Byte { get; init; }
-    public sbyte SByte { get; init; }
-    public float Float { get; init; }
-    public double Double { get; init; }
-    public decimal Decimal { get; init; }
-    public string String { get; init; }
-    public DateTime DateTime { get; init; }
-    public TimeSpan TimeSpan { get; init; }
-    public DateTimeOffset DateTimeOffset { get; init; }
-    public Guid Guid { get; init; }
-    public Version Version { get; init; }
 }
 
 [GenJson]

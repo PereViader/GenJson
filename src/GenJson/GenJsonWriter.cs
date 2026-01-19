@@ -1,8 +1,8 @@
 #nullable enable
+using System;
+
 namespace GenJson
 {
-    using System;
-
     public static class GenJsonWriter
     {
         public static void WriteString(Span<char> span, ref int index, string value)

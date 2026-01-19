@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using NUnit.Framework;
 
 namespace GenJson.Tests;
@@ -234,41 +233,6 @@ public class TestRuntime
     }
 
     [Test]
-    public void TestPrimitiveClass()
-    {
-        var obj = new PrimitiveClass()
-        {
-            Bool = true,
-            Int = 1,
-            Uint = 2,
-            Char = 'c',
-            Long = 3,
-            Short = 4,
-            Byte = 5,
-            SByte = 6,
-            Float = 1.1f,
-            Double = 2.2,
-            Decimal = 3.3m,
-            String = "string",
-            DateTime = new DateTime(2000, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-            TimeSpan = new TimeSpan(1, 2, 3),
-            DateTimeOffset = new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero),
-            Guid = Guid.Parse("d7f8a9a0-1234-5678-9abc-def012345678"),
-            Version = new Version(1, 2, 3)
-        };
-        var json = obj.ToJson();
-        var expected = """{"Bool":true,"Int":1,"Uint":2,"Char":"c","Long":3,"Short":4,"Byte":5,"SByte":6,"Float":1.1,"Double":2.2,"Decimal":3.3,"String":"string","DateTime":"2000-01-01T12:00:00.0000000Z","TimeSpan":"01:02:03","DateTimeOffset":"2000-01-01T12:00:00.0000000+00:00","Guid":"d7f8a9a0-1234-5678-9abc-def012345678","Version":"1.2.3"}""";
-        Assert.That(json, Is.EqualTo(expected));
-
-        var size = obj.CalculateJsonSize();
-        Assert.That(size, Is.EqualTo(expected.Length));
-
-        var obj2 = PrimitiveClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
-        Assert.That(json, Is.EqualTo(json2));
-    }
-
-    [Test]
     public void TestIntEnumClass()
     {
         var obj = new IntEnumClass()
@@ -339,6 +303,27 @@ public class TestRuntime
         Assert.That(size, Is.EqualTo(expected.Length));
 
         var obj2 = UIntClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestULongClass()
+    {
+        var obj = new ULongClass()
+        {
+            Present = 1UL,
+            NullablePresent = 2UL,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = ULongClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
@@ -760,16 +745,16 @@ public class TestRuntime
     [Test]
     public void IncorrectJson()
     {
-        Assert.That(PrimitiveClass.FromJson(""), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("{"), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("}"), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1"), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1 b}"), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1, \"MyBool\": tru}"), Is.Null);
-        Assert.That(PrimitiveClass.FromJson("{\"MyInt\": 1} extra"), Is.Null);
+        Assert.That(IntClass.FromJson(""), Is.Null);
+        Assert.That(IntClass.FromJson("{"), Is.Null);
+        Assert.That(IntClass.FromJson("}"), Is.Null);
+        Assert.That(IntClass.FromJson("""{"Present": 1"""), Is.Null);
+        Assert.That(IntClass.FromJson("""{"Present": 1 b}"""), Is.Null);
+        Assert.That(IntClass.FromJson("""{"Present": 1, "NullablePresent": true}"""), Is.Null);
+        Assert.That(IntClass.FromJson("""{"Present": 1} extra"""), Is.Null);
 
-        Assert.That(StringClass.FromJson("{\"Present\": \"val\""), Is.Null);
-        Assert.That(StringClass.FromJson("{\"Present\": \"val\", "), Is.Null);
+        Assert.That(StringClass.FromJson("""{"Present": "val" """), Is.Null);
+        Assert.That(StringClass.FromJson("""{"Present": "val", """), Is.Null);
     }
 }
 

@@ -1,9 +1,9 @@
 #nullable enable
+using System;
+using System.Globalization;
+
 namespace GenJson
 {
-    using System;
-    using System.Globalization;
-
     public static class GenJsonSizeHelper
     {
         public static int GetSize(int value)
@@ -47,6 +47,31 @@ namespace GenJson
             if (value < 100000000000000000L) return 17;
             if (value < 1000000000000000000L) return 18;
             return 19;
+        }
+
+        public static int GetSize(ulong value)
+        {
+            if (value == 0) return 1;
+            if (value < 10UL) return 1;
+            if (value < 100UL) return 2;
+            if (value < 1000UL) return 3;
+            if (value < 10000UL) return 4;
+            if (value < 100000UL) return 5;
+            if (value < 1000000UL) return 6;
+            if (value < 10000000UL) return 7;
+            if (value < 100000000UL) return 8;
+            if (value < 1000000000UL) return 9;
+            if (value < 10000000000UL) return 10;
+            if (value < 100000000000UL) return 11;
+            if (value < 1000000000000UL) return 12;
+            if (value < 10000000000000UL) return 13;
+            if (value < 100000000000000UL) return 14;
+            if (value < 1000000000000000UL) return 15;
+            if (value < 10000000000000000UL) return 16;
+            if (value < 100000000000000000UL) return 17;
+            if (value < 1000000000000000000UL) return 18;
+            if (value < 10000000000000000000UL) return 19;
+            return 20;
         }
 
         public static int GetSize(bool value) => value ? 4 : 5;
