@@ -284,8 +284,34 @@ public partial record StrictRecordValue(int Required, int? Optional);
 
 #nullable disable
 [GenJson]
-public partial class LegacyClass
+public partial class StringNullableDisableClass
 {
-    public string ProbablyNull { get; init; }
+    public string Present { get; init; }
+    public string Null { get; init; }
 }
+
+[GenJson]
+public partial class DateTimeNullableDisableClass
+{
+    public DateTime Present { get; init; }
+    public DateTime? NullablePresent { get; init; }
+    public DateTime? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class ByteNullableDisableClass
+{
+    public byte Present { get; init; }
+    public byte? NullablePresent { get; init; }
+    public byte? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial record ParentNullableDisableClass(
+    ChildNullableDisableClass Present,
+    ChildNullableDisableClass Null
+    );
+
+[GenJson]
+public partial record ChildNullableDisableClass(int Value);
 #nullable restore

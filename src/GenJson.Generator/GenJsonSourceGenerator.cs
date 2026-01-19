@@ -128,7 +128,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         var properties = new List<PropertyData>();
-        var propertiesMap = new Dictionary<string, PropertyData>(StringComparer.OrdinalIgnoreCase);
+        var propertiesMap = new Dictionary<string, (PropertyData, IPropertySymbol)>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var member in typeSymbol.GetMembers())
         {
@@ -139,12 +139,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
                                   propertySymbol.NullableAnnotation == NullableAnnotation.Annotated;
 
-                var type = GetGenJsonDataType(propertySymbol, propertySymbol.Type);
+                var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
                 bool isValueType = propertySymbol.Type.IsValueType;
 
                 var propData = new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, isValueType, type);
                 properties.Add(propData);
-                propertiesMap[propertySymbol.Name] = propData;
+                propertiesMap[propertySymbol.Name] = (propData, propertySymbol);
             }
         }
 
@@ -160,8 +160,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 {
                     if (propertiesMap.TryGetValue(param.Name, out var prop))
                     {
-                        constructorArgs.Add(prop);
-                        properties.Remove(prop); // Remove from property list as it will be set via constructor
+                        var newType = GetGenJsonDataType(prop.Item2, param, prop.Item2.Type);
+                        properties.Remove(prop.Item1); // Remove from property list as it will be set via constructor
+                        constructorArgs.Add(prop.Item1 with { Type = newType });
                     }
                 }
             }
@@ -186,11 +187,17 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(properties), keyword, isNullableContext);
     }
 
-    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, ITypeSymbol type)
+    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type)
     {
         if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
         {
-            var asString = propertySymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText");
+            var propertyHasAsText = propertySymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText") ||
+                                    (parameterSymbol?.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText") ?? false);
+            var propertyHasAsNumber = propertySymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsNumber") ||
+                                      (parameterSymbol?.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsNumber") ?? false);
+            var typeHasAsText = type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText");
+
+            var asString = propertyHasAsText || (!propertyHasAsNumber && typeHasAsText);
             var underlyingType = enumType.EnumUnderlyingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "int";
             return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType);
         }
@@ -198,7 +205,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol namedRaw && namedRaw.TypeArguments.Length > 0)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, namedRaw.TypeArguments[0]));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0]));
         }
 
         if (type.SpecialType == SpecialType.System_String)
@@ -235,8 +242,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetGenJsonDataType(propertySymbol, keyType!);
-            var valueGenType = GetGenJsonDataType(propertySymbol, valueType!);
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!);
             var constructionTypeName = $"global::System.Collections.Generic.Dictionary<{keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, {valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
             return new GenJsonDataType.Dictionary(keyGenType, valueGenType, constructionTypeName, keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), valueType!.IsValueType);
         }
@@ -248,7 +255,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             var constructionTypeName = isArray
                ? null // Not used for array
                : $"global::System.Collections.Generic.List<{resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
-            return new GenJsonDataType.Enumerable(GetGenJsonDataType(propertySymbol, resolvedElementType), isArray, constructionTypeName!, resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), resolvedElementType.IsValueType);
+            return new GenJsonDataType.Enumerable(GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType), isArray, constructionTypeName!, resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), resolvedElementType.IsValueType);
         }
 
         return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
@@ -503,7 +510,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(prop.Name);
             sb.AppendLine(" = default;");
 
-            if (prop.IsValueType && !prop.IsNullable)
+            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
             {
                 sb.Append("            bool _");
                 sb.Append(prop.Name);
@@ -580,7 +587,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("                {");
             sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
             GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0);
-            if (prop.IsValueType && !prop.IsNullable)
+            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
             {
                 sb.Append("                    _");
                 sb.Append(prop.Name);
