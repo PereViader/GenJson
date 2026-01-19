@@ -323,6 +323,340 @@ public class TestRuntime
     }
 
     [Test]
+    public void TestUIntClass()
+    {
+        var obj = new UIntClass()
+        {
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = UIntClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestBoolClass()
+    {
+        var obj = new BoolClass()
+        {
+            Present = true,
+            NullablePresent = false,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":true,"NullablePresent":false}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = BoolClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestCharClass()
+    {
+        var obj = new CharClass()
+        {
+            Present = 'a',
+            NullablePresent = 'b',
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"a","NullablePresent":"b"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = CharClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestFloatClass()
+    {
+        var obj = new FloatClass()
+        {
+            Present = 1.1f,
+            NullablePresent = 2.2f,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1.1,"NullablePresent":2.2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = FloatClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestDoubleClass()
+    {
+        var obj = new DoubleClass()
+        {
+            Present = 1.1,
+            NullablePresent = 2.2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1.1,"NullablePresent":2.2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = DoubleClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestDecimalClass()
+    {
+        var obj = new DecimalClass()
+        {
+            Present = 1.1m,
+            NullablePresent = 2.2m,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1.1,"NullablePresent":2.2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = DecimalClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestDateTimeClass()
+    {
+        var obj = new DateTimeClass()
+        {
+            Present = new DateTime(2000, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+            NullablePresent = new DateTime(2001, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"2000-01-01T12:00:00.0000000Z","NullablePresent":"2001-01-01T12:00:00.0000000Z"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = DateTimeClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestByteClass()
+    {
+        var obj = new ByteClass()
+        {
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = ByteClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestSByteClass()
+    {
+        var obj = new SByteClass()
+        {
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = SByteClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestShortClass()
+    {
+        var obj = new ShortClass()
+        {
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = ShortClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestUShortClass()
+    {
+        var obj = new UShortClass()
+        {
+            Present = 1,
+            NullablePresent = 2,
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1,"NullablePresent":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = UShortClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestDateTimeOffsetClass()
+    {
+        var obj = new DateTimeOffsetClass()
+        {
+            Present = new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero),
+            NullablePresent = new DateTimeOffset(2001, 1, 1, 12, 0, 0, TimeSpan.Zero),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"2000-01-01T12:00:00.0000000+00:00","NullablePresent":"2001-01-01T12:00:00.0000000+00:00"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = DateTimeOffsetClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestTimeSpanClass()
+    {
+        var obj = new TimeSpanClass()
+        {
+            Present = new TimeSpan(1, 2, 3),
+            NullablePresent = new TimeSpan(4, 5, 6),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"01:02:03","NullablePresent":"04:05:06"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = TimeSpanClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestGuidClass()
+    {
+        var obj = new GuidClass()
+        {
+            Present = Guid.Parse("d7f8a9a0-1234-5678-9abc-def012345678"),
+            NullablePresent = Guid.Parse("d7f8a9a0-1234-5678-9abc-def012345679"),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"d7f8a9a0-1234-5678-9abc-def012345678","NullablePresent":"d7f8a9a0-1234-5678-9abc-def012345679"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = GuidClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestVersionClass()
+    {
+        var obj = new VersionClass()
+        {
+            Present = new Version(1, 2, 3),
+            NullablePresent = new Version(4, 5, 6),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"1.2.3","NullablePresent":"4.5.6"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = VersionClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
+    public void TestByteEnumClass()
+    {
+        var obj = new ByteEnumClass()
+        {
+            Present = ByteEnum.One
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":1}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = ByteEnumClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+    }
+
+    [Test]
     public void TestExtraPropertiesAndSpecialCharacters()
     {
         var json = """

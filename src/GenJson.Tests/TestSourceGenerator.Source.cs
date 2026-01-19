@@ -5,12 +5,6 @@ using System.Collections.Generic;
 namespace GenJson.Tests;
 
 [GenJson]
-public partial class EmptyClass
-{
-    public int? Value { get; init; }
-}
-
-[GenJson]
 public partial class StringClass
 {
     public string Present { get; init; }
@@ -24,6 +18,126 @@ public partial class IntClass
     public int Present { get; init; }
     public int? NullablePresent { get; init; }
     public int? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class UIntClass
+{
+    public uint Present { get; init; }
+    public uint? NullablePresent { get; init; }
+    public uint? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class BoolClass
+{
+    public bool Present { get; init; }
+    public bool? NullablePresent { get; init; }
+    public bool? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class CharClass
+{
+    public char Present { get; init; }
+    public char? NullablePresent { get; init; }
+    public char? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class FloatClass
+{
+    public float Present { get; init; }
+    public float? NullablePresent { get; init; }
+    public float? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class DoubleClass
+{
+    public double Present { get; init; }
+    public double? NullablePresent { get; init; }
+    public double? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class DecimalClass
+{
+    public decimal Present { get; init; }
+    public decimal? NullablePresent { get; init; }
+    public decimal? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class DateTimeClass
+{
+    public DateTime Present { get; init; }
+    public DateTime? NullablePresent { get; init; }
+    public DateTime? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class ByteClass
+{
+    public byte Present { get; init; }
+    public byte? NullablePresent { get; init; }
+    public byte? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class SByteClass
+{
+    public sbyte Present { get; init; }
+    public sbyte? NullablePresent { get; init; }
+    public sbyte? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class ShortClass
+{
+    public short Present { get; init; }
+    public short? NullablePresent { get; init; }
+    public short? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class UShortClass
+{
+    public ushort Present { get; init; }
+    public ushort? NullablePresent { get; init; }
+    public ushort? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class DateTimeOffsetClass
+{
+    public DateTimeOffset Present { get; init; }
+    public DateTimeOffset? NullablePresent { get; init; }
+    public DateTimeOffset? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class TimeSpanClass
+{
+    public TimeSpan Present { get; init; }
+    public TimeSpan? NullablePresent { get; init; }
+    public TimeSpan? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class GuidClass
+{
+    public Guid Present { get; init; }
+    public Guid? NullablePresent { get; init; }
+    public Guid? NullableNull { get; init; }
+}
+
+[GenJson]
+public partial class VersionClass
+{
+    public Version Present { get; init; }
+    public Version? NullablePresent { get; init; }
+    public Version? NullableNull { get; init; }
 }
 
 public enum IntEnum
@@ -51,6 +165,12 @@ public partial class IntEnumClass
 public partial class ByteEnumClass
 {
     public ByteEnum Present { get; init; }
+}
+
+[GenJson]
+public partial class EmptyClass
+{
+    public int? Value { get; init; }
 }
 
 [GenJson]
@@ -131,6 +251,8 @@ public partial class NestedDictionaryClass
 {
     public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
 }
+
+
 
 [GenJson]
 public partial class PrimitiveClass

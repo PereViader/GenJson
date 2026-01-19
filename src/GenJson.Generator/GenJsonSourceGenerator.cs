@@ -624,9 +624,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             case GenJsonDataType.Boolean:
                 sb.Append(indent);
-                sb.Append("if (!global::GenJson.GenJsonParser.TryParseBoolean(json, ref index, out ");
+                sb.Append("if (!global::GenJson.GenJsonParser.TryParseBoolean(json, ref index, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.String:
@@ -636,22 +641,30 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine(")) return null;");
                 break;
 
-
-
             case GenJsonDataType.Char:
                 sb.Append(indent);
-                sb.Append("if (!global::GenJson.GenJsonParser.TryParseChar(json, ref index, out ");
+                sb.Append("if (!global::GenJson.GenJsonParser.TryParseChar(json, ref index, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.FloatingPoint p:
                 sb.Append(indent);
                 sb.Append("if (!global::GenJson.GenJsonParser.TryParse");
                 sb.Append(GetPrimitiveParserName(p.TypeName));
-                sb.Append("(json, ref index, out ");
+                sb.Append("(json, ref index, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.Guid:
@@ -660,9 +673,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(target);
                 sb.Append("_str) || !System.Guid.TryParse(");
                 sb.Append(target);
-                sb.Append("_str, out ");
+                sb.Append("_str, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.DateTime:
@@ -671,9 +689,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(target);
                 sb.Append("_str) || !System.DateTime.TryParse(");
                 sb.Append(target);
-                sb.Append("_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out ");
+                sb.Append("_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.TimeSpan:
@@ -682,9 +705,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(target);
                 sb.Append("_str) || !System.TimeSpan.TryParse(");
                 sb.Append(target);
-                sb.Append("_str, out ");
+                sb.Append("_str, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.DateTimeOffset:
@@ -693,9 +721,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(target);
                 sb.Append("_str) || !System.DateTimeOffset.TryParse(");
                 sb.Append(target);
-                sb.Append("_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out ");
+                sb.Append("_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.Version:
@@ -704,9 +737,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(target);
                 sb.Append("_str) || !System.Version.TryParse(");
                 sb.Append(target);
-                sb.Append("_str, out ");
+                sb.Append("_str, out var ");
                 sb.Append(target);
-                sb.AppendLine(")) return null;");
+                sb.AppendLine("_val)) return null;");
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(target);
+                sb.AppendLine("_val;");
                 break;
 
             case GenJsonDataType.Enum en:
