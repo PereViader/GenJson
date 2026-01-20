@@ -1587,9 +1587,20 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     // Key
                     sb.Append(loopIndentDict);
-                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
-                    sb.Append(kvpVar);
-                    sb.AppendLine(".Key.ToString());");
+                    if (dictionary.KeyType is GenJsonDataType.Enum en && !en.AsString)
+                    {
+                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ((");
+                        sb.Append(en.UnderlyingType);
+                        sb.Append(")");
+                        sb.Append(kvpVar);
+                        sb.AppendLine(".Key).ToString());");
+                    }
+                    else
+                    {
+                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                        sb.Append(kvpVar);
+                        sb.AppendLine(".Key.ToString());");
+                    }
                     sb.Append(loopIndentDict);
                     sb.AppendLine("span[index++] = ':';");
 
