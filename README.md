@@ -82,7 +82,48 @@ Enum properties of classes may be marked with
     public ProductSize ProductSize { get; set; }
 ```
 
-### 3. Serialization
+### 3. Enum Fallback
+
+When deserializing enums, you can specify a fallback value to use if the JSON contains a value that doesn't match any enum member. This is useful for handling unknown values from external APIs (e.g., future enum values).
+
+Use the `[GenJson.Enum.Fallback]` attribute on the enum type definition.
+
+```csharp
+[GenJson.Enum.Fallback(Unknown)]
+public enum Status
+{
+    Unknown = 0,
+    Active = 1,
+    Inactive = 2
+}
+
+// If JSON contains "Pending", it will deserialize to Status.Unknown
+```
+
+### 4. Custom Conversion
+
+You can define custom logic for serializing and deserializing specific properties using the `[GenJson.Converter]` attribute.
+
+1.  Define a class with static methods `GetSize`, `WriteJson`, and `FromJson`.
+2.  Apply `[GenJson.Converter(typeof(YourConverter))]` to the property.
+
+```csharp
+public static class MyCustomConverter
+{
+    public static int GetSize(int value) => ... // Calculate size
+    public static void WriteJson(Span<char> span, ref int index, int value) => ... // Write to span
+    public static int FromJson(ReadOnlySpan<char> span, ref int index) => ... // Read from span
+}
+
+[GenJson]
+public partial class MyClass
+{
+    [GenJson.Converter(typeof(MyCustomConverter))]
+    public int MyProperty { get; set; }
+}
+```
+
+### 5. Serialization
 
 The generator creates a `ToJson()` method.
 
@@ -100,7 +141,7 @@ var product = new Product
 string json = product.ToJson();
 ```
 
-### 4. Deserialization
+### 6. Deserialization
 
 The generator creates a static `FromJson` method on your class.
 
