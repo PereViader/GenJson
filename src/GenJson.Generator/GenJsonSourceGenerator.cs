@@ -68,7 +68,7 @@ public abstract record GenJsonDataType
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
     public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType) : GenJsonDataType;
-    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType) : GenJsonDataType;
+    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue) : GenJsonDataType;
 }
 
 public record PropertyData(string Name, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type);
@@ -198,9 +198,20 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                       (parameterSymbol?.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsNumber") ?? false);
             var typeHasAsText = type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText");
 
+            var fallbackAttr = type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.Fallback");
+            string? fallbackValue = null;
+            if (fallbackAttr != null && fallbackAttr.ConstructorArguments.Length > 0)
+            {
+                var arg = fallbackAttr.ConstructorArguments[0];
+                if (arg.Value != null && arg.Type != null)
+                {
+                    fallbackValue = $"({arg.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})({arg.Value})";
+                }
+            }
+
             var asString = propertyHasAsText || (!propertyHasAsNumber && typeHasAsText);
             var underlyingType = enumType.EnumUnderlyingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "int";
-            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType);
+            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType, fallbackValue);
         }
 
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
@@ -758,38 +769,163 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.Enum en:
                 if (en.AsString)
                 {
-                    sb.Append(indent);
-                    sb.Append("if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var ");
-                    sb.Append(target);
-                    sb.Append("_str) || !System.Enum.TryParse<");
-                    sb.Append(en.TypeName);
-                    sb.Append(">(");
-                    sb.Append(target);
-                    sb.Append("_str, out var ");
-                    sb.Append(target);
-                    sb.AppendLine("_val)) return null;");
-                    sb.Append(indent);
-                    sb.Append(target);
-                    sb.Append(" = ");
-                    sb.Append(target);
-                    sb.AppendLine("_val;");
+                    if (en.FallbackValue != null)
+                    {
+                        sb.Append(indent);
+                        sb.Append("if (global::GenJson.GenJsonParser.TryParseString(json, ref index, out var ");
+                        sb.Append(target);
+                        sb.AppendLine("_str))");
+                        sb.Append(indent);
+                        sb.AppendLine("{");
+                        sb.Append(indent);
+                        sb.Append("    if (System.Enum.TryParse<");
+                        sb.Append(en.TypeName);
+                        sb.Append(">(");
+                        sb.Append(target);
+                        sb.Append("_str, out var ");
+                        sb.Append(target);
+                        sb.Append("_val) && System.Enum.IsDefined(typeof(");
+                        sb.Append(en.TypeName);
+                        sb.Append("), ");
+                        sb.Append(target);
+                        sb.AppendLine("_val))");
+                        sb.Append(indent);
+                        sb.AppendLine("    {");
+                        sb.Append(indent);
+                        sb.Append("        ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(target);
+                        sb.AppendLine("_val;");
+                        sb.Append(indent);
+                        sb.AppendLine("    }");
+                        sb.Append(indent);
+                        sb.AppendLine("    else");
+                        sb.Append(indent);
+                        sb.AppendLine("    {");
+                        sb.Append(indent);
+                        sb.Append("        ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(en.FallbackValue);
+                        sb.AppendLine(";");
+                        sb.Append(indent);
+                        sb.AppendLine("    }");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
+                        sb.Append(indent);
+                        sb.AppendLine("else");
+                        sb.Append(indent);
+                        sb.AppendLine("{");
+                        sb.Append(indent);
+                        sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                        sb.Append(indent);
+                        sb.Append("    ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(en.FallbackValue);
+                        sb.AppendLine(";");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
+                    }
+                    else
+                    {
+                        sb.Append(indent);
+                        sb.Append("if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var ");
+                        sb.Append(target);
+                        sb.Append("_str) || !System.Enum.TryParse<");
+                        sb.Append(en.TypeName);
+                        sb.Append(">(");
+                        sb.Append(target);
+                        sb.Append("_str, out var ");
+                        sb.Append(target);
+                        sb.AppendLine("_val)) return null;");
+                        sb.Append(indent);
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(target);
+                        sb.AppendLine("_val;");
+                    }
                 }
                 else
                 {
                     var parserName = GetPrimitiveParserName(en.UnderlyingType);
-                    sb.Append(indent);
-                    sb.Append("if (!global::GenJson.GenJsonParser.TryParse");
-                    sb.Append(parserName);
-                    sb.Append("(json, ref index, out var ");
-                    sb.Append(target);
-                    sb.AppendLine("_val)) return null;");
-                    sb.Append(indent);
-                    sb.Append(target);
-                    sb.Append(" = (");
-                    sb.Append(en.TypeName);
-                    sb.Append(")");
-                    sb.Append(target);
-                    sb.AppendLine("_val;");
+
+                    if (en.FallbackValue != null)
+                    {
+                        sb.Append(indent);
+                        sb.Append("if (global::GenJson.GenJsonParser.TryParse");
+                        sb.Append(parserName);
+                        sb.Append("(json, ref index, out var ");
+                        sb.Append(target);
+                        sb.AppendLine("_val))");
+                        sb.Append(indent);
+                        sb.AppendLine("{");
+                        sb.Append(indent);
+                        sb.Append("    if (System.Enum.IsDefined(typeof(");
+                        sb.Append(en.TypeName);
+                        sb.Append("), (");
+                        sb.Append(en.TypeName);
+                        sb.Append(")");
+                        sb.Append(target);
+                        sb.AppendLine("_val))");
+                        sb.Append(indent);
+                        sb.AppendLine("    {");
+                        sb.Append(indent);
+                        sb.Append("        ");
+                        sb.Append(target);
+                        sb.Append(" = (");
+                        sb.Append(en.TypeName);
+                        sb.Append(")");
+                        sb.Append(target);
+                        sb.AppendLine("_val;");
+                        sb.Append(indent);
+                        sb.AppendLine("    }");
+                        sb.Append(indent);
+                        sb.AppendLine("    else");
+                        sb.Append(indent);
+                        sb.AppendLine("    {");
+                        sb.Append(indent);
+                        sb.Append("        ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(en.FallbackValue);
+                        sb.AppendLine(";");
+                        sb.Append(indent);
+                        sb.AppendLine("    }");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
+                        sb.Append(indent);
+                        sb.AppendLine("else");
+                        sb.Append(indent);
+                        sb.AppendLine("{");
+                        sb.Append(indent);
+                        sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                        sb.Append(indent);
+                        sb.Append("    ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(en.FallbackValue);
+                        sb.AppendLine(";");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
+                    }
+                    else
+                    {
+                        sb.Append(indent);
+                        sb.Append("if (!global::GenJson.GenJsonParser.TryParse");
+                        sb.Append(parserName);
+                        sb.Append("(json, ref index, out var ");
+                        sb.Append(target);
+                        sb.AppendLine("_val)) return null;");
+                        sb.Append(indent);
+                        sb.Append(target);
+                        sb.Append(" = (");
+                        sb.Append(en.TypeName);
+                        sb.Append(")");
+                        sb.Append(target);
+                        sb.AppendLine("_val;");
+                    }
                 }
                 break;
 

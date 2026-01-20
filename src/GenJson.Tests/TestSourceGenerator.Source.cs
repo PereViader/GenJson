@@ -282,6 +282,21 @@ public partial record StrictRecordReference(string Required, string? Optional);
 [GenJson]
 public partial record StrictRecordValue(int Required, int? Optional);
 
+[GenJson.Enum.Fallback(Unknown)]
+public enum FallbackEnum
+{
+    Unknown,
+    One,
+    Two,
+}
+
+[GenJson]
+public partial class FallbackEnumClass
+{
+    public FallbackEnum Value { get; init; }
+    public FallbackEnum? NullableValue { get; init; }
+}
+
 #nullable disable
 [GenJson]
 public partial class StringNullableDisableClass

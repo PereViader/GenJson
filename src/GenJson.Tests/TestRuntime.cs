@@ -30,7 +30,7 @@ public class TestRuntime
         Assert.That(obj3.Present, Is.Null);
         Assert.That(obj3.Null, Is.Null);
     }
-    
+
     [Test]
     public void TestStringNullableDisableClass()
     {
@@ -56,7 +56,7 @@ public class TestRuntime
         Assert.That(obj3.Present, Is.Null);
         Assert.That(obj3.Null, Is.Null);
     }
-    
+
     [Test]
     public void TestDateTimeNullableDisableClass()
     {
@@ -84,7 +84,7 @@ public class TestRuntime
         Assert.That(obj3.NullablePresent.HasValue, Is.False);
         Assert.That(obj3.NullableNull.HasValue, Is.False);
     }
-    
+
     [Test]
     public void TestByteNullableDisableClass()
     {
@@ -112,7 +112,7 @@ public class TestRuntime
         Assert.That(obj3.NullablePresent.HasValue, Is.False);
         Assert.That(obj3.NullableNull.HasValue, Is.False);
     }
-    
+
     [Test]
     public void TestStringClass()
     {
@@ -133,7 +133,7 @@ public class TestRuntime
         var obj2 = StringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(StringClass.FromJson("{}"), Is.Null);
     }
 
@@ -156,7 +156,7 @@ public class TestRuntime
         var obj2 = IntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(IntClass.FromJson("{}"), Is.Null);
     }
 
@@ -180,11 +180,11 @@ public class TestRuntime
         var obj2 = IntEnumClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(IntEnumClass.FromJson("{}"), Is.Null);
     }
-    
-    
+
+
     [Test]
     public void TestUIntClass()
     {
@@ -204,7 +204,7 @@ public class TestRuntime
         var obj2 = UIntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(UIntClass.FromJson("{}"), Is.Null);
     }
 
@@ -227,7 +227,7 @@ public class TestRuntime
         var obj2 = ULongClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ULongClass.FromJson("{}"), Is.Null);
     }
 
@@ -250,7 +250,7 @@ public class TestRuntime
         var obj2 = BoolClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(BoolClass.FromJson("{}"), Is.Null);
     }
 
@@ -273,7 +273,7 @@ public class TestRuntime
         var obj2 = CharClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(CharClass.FromJson("{}"), Is.Null);
     }
 
@@ -296,7 +296,7 @@ public class TestRuntime
         var obj2 = FloatClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(FloatClass.FromJson("{}"), Is.Null);
     }
 
@@ -319,7 +319,7 @@ public class TestRuntime
         var obj2 = DoubleClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(DoubleClass.FromJson("{}"), Is.Null);
     }
 
@@ -342,7 +342,7 @@ public class TestRuntime
         var obj2 = DecimalClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(DecimalClass.FromJson("{}"), Is.Null);
     }
 
@@ -365,7 +365,7 @@ public class TestRuntime
         var obj2 = DateTimeClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(DateTimeClass.FromJson("{}"), Is.Null);
     }
 
@@ -388,7 +388,7 @@ public class TestRuntime
         var obj2 = ByteClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ByteClass.FromJson("{}"), Is.Null);
     }
 
@@ -411,7 +411,7 @@ public class TestRuntime
         var obj2 = SByteClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(SByteClass.FromJson("{}"), Is.Null);
     }
 
@@ -434,7 +434,7 @@ public class TestRuntime
         var obj2 = ShortClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ShortClass.FromJson("{}"), Is.Null);
     }
 
@@ -457,7 +457,7 @@ public class TestRuntime
         var obj2 = UShortClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(UShortClass.FromJson("{}"), Is.Null);
     }
 
@@ -480,7 +480,7 @@ public class TestRuntime
         var obj2 = DateTimeOffsetClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(DateTimeClass.FromJson("{}"), Is.Null);
     }
 
@@ -503,7 +503,7 @@ public class TestRuntime
         var obj2 = TimeSpanClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(TimeSpanClass.FromJson("{}"), Is.Null);
     }
 
@@ -526,7 +526,7 @@ public class TestRuntime
         var obj2 = GuidClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(GuidClass.FromJson("{}"), Is.Null);
     }
 
@@ -549,7 +549,7 @@ public class TestRuntime
         var obj2 = VersionClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(VersionClass.FromJson("{}"), Is.Null);
     }
 
@@ -570,7 +570,7 @@ public class TestRuntime
         var obj2 = ByteEnumClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ByteEnumClass.FromJson("{}"), Is.Null);
     }
 
@@ -589,8 +589,8 @@ public class TestRuntime
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
     }
-    
-    
+
+
     [Test]
     public void TestParentClass()
     {
@@ -612,7 +612,7 @@ public class TestRuntime
         var obj2 = ParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ParentClass.FromJson("{}"), Is.Null);
     }
 
@@ -641,7 +641,7 @@ public class TestRuntime
         var obj2 = EnumerableIntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
     }
 
@@ -670,7 +670,7 @@ public class TestRuntime
         var obj2 = EnumerableStringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
     }
 
@@ -699,7 +699,7 @@ public class TestRuntime
         var obj2 = EnumerableParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(EnumerableParentClass.FromJson("{}"), Is.Null);
     }
 
@@ -720,7 +720,7 @@ public class TestRuntime
         var obj2 = NestedEnumerableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(NestedEnumerableClass.FromJson("{}"), Is.Null);
     }
 
@@ -747,7 +747,7 @@ public class TestRuntime
         var obj2 = DictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(DictionaryClass.FromJson("{}"), Is.Null);
     }
 
@@ -768,11 +768,11 @@ public class TestRuntime
         var obj2 = NestedDictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(NestedDictionaryClass.FromJson("{}"), Is.Null);
     }
-    
-    
+
+
     [Test]
     public void TestParentRecordClass()
     {
@@ -787,8 +787,38 @@ public class TestRuntime
         var obj2 = ParentRecordClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ParentRecordClass.FromJson("{}"), Is.Null);
+    }
+
+    [Test]
+    public void TestFallbackEnumClass()
+    {
+        var obj = new FallbackEnumClass()
+        {
+            Value = FallbackEnum.One,
+            NullableValue = FallbackEnum.Two
+        };
+        var json = obj.ToJson();
+        var expected = """{"Value":1,"NullableValue":2}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var obj2 = FallbackEnumClass.FromJson(json)!;
+        Assert.That(obj2.Value, Is.EqualTo(FallbackEnum.One));
+        Assert.That(obj2.NullableValue, Is.EqualTo(FallbackEnum.Two));
+
+        // Test fallback for invalid number
+        // 99 is not defined in FallbackEnum
+        var jsonInvalidNumber = """{"Value":99,"NullableValue":99}""";
+        var obj3 = FallbackEnumClass.FromJson(jsonInvalidNumber)!;
+        Assert.That(obj3.Value, Is.EqualTo(FallbackEnum.Unknown));
+        Assert.That(obj3.NullableValue, Is.EqualTo(FallbackEnum.Unknown));
+
+        // Test fallback for invalid type (string instead of int)
+        var jsonInvalidType = """{"Value":"NotANumber","NullableValue":"NotANumber"}""";
+        var obj4 = FallbackEnumClass.FromJson(jsonInvalidType)!;
+        Assert.That(obj4.Value, Is.EqualTo(FallbackEnum.Unknown));
+        Assert.That(obj4.NullableValue, Is.EqualTo(FallbackEnum.Unknown));
     }
 
     [Test]
@@ -805,7 +835,7 @@ public class TestRuntime
         var obj2 = ParentRecordStruct.FromJson(json)!.Value;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
-        
+
         Assert.That(ParentRecordStruct.FromJson("{}"), Is.Null);
     }
 
