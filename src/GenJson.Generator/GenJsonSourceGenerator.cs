@@ -69,6 +69,7 @@ public abstract record GenJsonDataType
     public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType) : GenJsonDataType;
     public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue) : GenJsonDataType;
+    public sealed record CustomConverter(string ConverterTypeName) : GenJsonDataType;
 }
 
 public record PropertyData(string Name, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type);
@@ -190,6 +191,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
     private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type)
     {
+        var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Converter") ??
+                            parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Converter");
+
+        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol converterType)
+        {
+            return new GenJsonDataType.CustomConverter(converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        }
+
         if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
         {
             var propertyHasAsText = propertySymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.Enum.AsText") ||
@@ -639,6 +648,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     {
         switch (type)
         {
+            case GenJsonDataType.CustomConverter customConverter:
+                sb.Append(indent);
+                sb.Append(target);
+                sb.Append(" = ");
+                sb.Append(customConverter.ConverterTypeName);
+                sb.AppendLine(".FromJson(json, ref index);");
+                break;
 
 
             case GenJsonDataType.Boolean:
@@ -1363,6 +1379,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine(");");
                 }
                 break;
+
+            case GenJsonDataType.CustomConverter customConverter:
+                sb.Append(indent);
+                sb.Append("size += ");
+                sb.Append(customConverter.ConverterTypeName);
+                sb.Append(".GetSize(");
+                sb.Append(valueAccessor);
+                sb.AppendLine(");");
+                break;
         }
     }
 
@@ -1632,6 +1657,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append($"(({enumType.UnderlyingType}){valueAccessor}).TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture)");
                     sb.AppendLine(") throw new System.Exception(\"Buffer too small\"); index += written; }");
                 }
+                break;
+
+            case GenJsonDataType.CustomConverter customConverter:
+                sb.Append(indent);
+                sb.Append(customConverter.ConverterTypeName);
+                sb.Append(".WriteJson(span, ref index, ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(");");
                 break;
         }
     }

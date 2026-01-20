@@ -12,6 +12,22 @@ namespace GenJson
 
     public static class GenJson
     {
+        /// <summary>
+        /// This attribute can be used to implement special logic to map from/back json to instance
+        /// Instead of using whatever default logic the generator would have used, it is going to use
+        /// the static methods on the static class provided as a parameter
+        /// </summary>
+        [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+        public sealed class Converter : Attribute
+        {
+            public Converter(Type type)
+            {
+                Type = type;
+            }
+
+            public Type Type { get; set; }
+        }
+        
         public static class Enum
         {
             /// <summary>
