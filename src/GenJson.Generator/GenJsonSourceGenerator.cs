@@ -68,7 +68,7 @@ public abstract record GenJsonDataType
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
     public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType) : GenJsonDataType;
-    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue) : GenJsonDataType;
+    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members) : GenJsonDataType;
     public sealed record CustomConverter(string ConverterTypeName) : GenJsonDataType;
 }
 
@@ -220,7 +220,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             var asString = propertyHasAsText || (!propertyHasAsNumber && typeHasAsText);
             var underlyingType = enumType.EnumUnderlyingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "int";
-            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType, fallbackValue);
+            var members = new List<string>();
+            foreach (var member in enumType.GetMembers())
+            {
+                if (member is IFieldSymbol field && field.ConstantValue != null)
+                {
+                    members.Add(member.Name);
+                }
+            }
+            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType, fallbackValue, new EquatableList<string>(members));
         }
 
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
@@ -1365,9 +1373,28 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(indent);
                     sb.Append("size += ");
                     sb.Append(valueAccessor);
+                    sb.AppendLine(" switch");
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    foreach (var member in enumType.Members.Value)
+                    {
+                        sb.Append(indent);
+                        sb.Append("    ");
+                        sb.Append(enumType.TypeName);
+                        sb.Append(".");
+                        sb.Append(member);
+                        sb.Append(" => ");
+                        sb.Append(member.Length + (unquoted ? 0 : 2));
+                        sb.AppendLine(",");
+                    }
+                    sb.Append(indent);
+                    sb.Append("    _ => ");
+                    sb.Append(valueAccessor);
                     sb.Append(".ToString().Length");
                     if (!unquoted) sb.Append(" + 2");
-                    sb.AppendLine(";");
+                    sb.AppendLine(",");
+                    sb.Append(indent);
+                    sb.AppendLine("};");
                 }
                 else
                 {
@@ -1612,13 +1639,93 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     // Key
                     sb.Append(loopIndentDict);
-                    if (dictionary.KeyType is GenJsonDataType.Enum en && !en.AsString)
+                    if (dictionary.KeyType is GenJsonDataType.Enum en)
                     {
-                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ((");
-                        sb.Append(en.UnderlyingType);
-                        sb.Append(")");
+                        if (!en.AsString)
+                        {
+                            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ((");
+                            sb.Append(en.UnderlyingType);
+                            sb.Append(")");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key).ToString());");
+                        }
+                        else
+                        {
+                            // Enum AsString Key
+                            sb.Append("switch (");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key)");
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("{");
+
+                            foreach (var member in en.Members.Value)
+                            {
+                                sb.Append(loopIndentDict);
+                                sb.Append("    case ");
+                                sb.Append(en.TypeName);
+                                sb.Append(".");
+                                sb.Append(member);
+                                sb.AppendLine(":");
+                                sb.Append(loopIndentDict);
+                                sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
+                                sb.Append(member);
+                                sb.AppendLine("\");");
+                                sb.Append(loopIndentDict);
+                                sb.AppendLine("        break;");
+                            }
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("    default:");
+                            sb.Append(loopIndentDict);
+                            sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key.ToString());");
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("        break;");
+                            sb.Append(loopIndentDict);
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("}");
+                        }
+                    }
+                    else if (dictionary.KeyType is GenJsonDataType.Primitive || dictionary.KeyType is GenJsonDataType.FloatingPoint || dictionary.KeyType is GenJsonDataType.Guid || dictionary.KeyType is GenJsonDataType.DateTime || dictionary.KeyType is GenJsonDataType.TimeSpan || dictionary.KeyType is GenJsonDataType.DateTimeOffset)
+                    {
+                        sb.AppendLine("span[index++] = '\"';");
+                        sb.Append(loopIndentDict);
+
+                        string keyVal = $"{kvpVar}.Key";
+                        string? fmtKey = null;
+
+                        if (dictionary.KeyType is GenJsonDataType.FloatingPoint fp)
+                        {
+                            fmtKey = !fp.TypeName.EndsWith("Decimal") ? "R" : "G";
+                        }
+                        else if (dictionary.KeyType is GenJsonDataType.DateTime || dictionary.KeyType is GenJsonDataType.DateTimeOffset)
+                        {
+                            fmtKey = "O";
+                        }
+                        else if (dictionary.KeyType is GenJsonDataType.TimeSpan)
+                        {
+                            fmtKey = "c";
+                        }
+
+                        sb.Append("{ if (!");
+                        sb.Append(keyVal);
+                        if (fmtKey != null)
+                            sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmtKey}\", System.Globalization.CultureInfo.InvariantCulture))");
+                        else
+                            sb.Append($".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+
+                        sb.Append(loopIndentDict);
+                        sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Key)\"); }");
+                        sb.Append(loopIndentDict);
+                        sb.AppendLine("index += written; }");
+                        sb.Append(loopIndentDict);
+                        sb.AppendLine("span[index++] = '\"';");
+                    }
+                    else if (dictionary.KeyType is GenJsonDataType.String)
+                    {
+                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
                         sb.Append(kvpVar);
-                        sb.AppendLine(".Key).ToString());");
+                        sb.AppendLine(".Key);");
                     }
                     else
                     {
@@ -1647,9 +1754,40 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 if (enumType.AsString)
                 {
-                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                    // To optimize this, I need enum members. 
+                    // Since I don't have them in `enumType` record yet, I will use ToString() for now 
+                    // and then add a separate step to collect members.
+                    // THIS IS A PARTIAL FIX.
+                    sb.Append("switch (");
+                    sb.Append(valueAccessor);
+                    sb.AppendLine(")");
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    foreach (var member in enumType.Members.Value)
+                    {
+                        sb.Append(indent);
+                        sb.Append("    case ");
+                        sb.Append(enumType.TypeName);
+                        sb.Append(".");
+                        sb.Append(member);
+                        sb.AppendLine(":");
+                        sb.Append(indent);
+                        sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
+                        sb.Append(member);
+                        sb.AppendLine("\");");
+                        sb.Append(indent);
+                        sb.AppendLine("        break;");
+                    }
+                    sb.Append(indent);
+                    sb.AppendLine("    default:");
+                    sb.Append(indent);
+                    sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
                     sb.Append(valueAccessor);
                     sb.AppendLine(".ToString());");
+                    sb.Append(indent);
+                    sb.AppendLine("        break;");
+                    sb.Append(indent);
+                    sb.AppendLine("}");
                 }
                 else
                 {
