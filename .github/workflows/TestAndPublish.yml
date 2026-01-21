@@ -1,0 +1,83 @@
+name: Test and publish
+on: 
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  TestAndPublish:
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4.1.4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - run: dotnet test src
+
+      - id: get-version
+        run: |
+          source .env.shared
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" == *preview* ]]; then
+            echo "isPrerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "isPrerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if release exists
+        id: release-exists
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          release_exists=$(gh release view "v${{ steps.get-version.outputs.version }}" &> /dev/null && echo "true" || echo "false")
+          echo "Release exists $release_exists"
+          echo "exists=$release_exists" >> $GITHUB_OUTPUT
+
+      - name: Get changelog
+        id: get-changelog
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: |
+          payload=$(git log $(git describe --tags --abbrev=0 main)..main --pretty=format:"%s%n%b")
+          echo "changelog<<EOF"$'\n'"$payload"$'\n'EOF >> "$GITHUB_OUTPUT"
+
+      - name: Publish GenJson Nuget
+        if: ${{ steps.release-exists.outputs.exists == 'false' && steps.get-version.outputs.isPrerelease == 'false' }}
+        run: |
+          dotnet build src --configuration Release
+          dotnet pack src --configuration Release --output GenJson.Nuget -p:PackageVersion=${{ steps.get-version.outputs.version }}
+          
+          set +e  # Disable immediate exit on error
+          dotnet nuget push "GenJson.Nuget/*.nupkg" --source "https://api.nuget.org/v3/index.json" --api-key "${{secrets.NUGET_API_KEY}}"
+          push_result=$?
+          set -e  # Enable immediate exit on error
+
+          if [ $push_result -ne 0 ]; then
+            echo "GenJson package could not be pushed, assuming a package with that version is already present"
+            exit 0
+          fi
+          echo "GenJson NuGet package pushed successfully"
+
+      - name: Create Sync Package
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: |
+          bash ./build/Unity3d.Package/GeneratePackage.sh
+
+      - name: Create github release
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get-version.outputs.version }}
+          name: GenJson Unity3d v${{ steps.get-version.outputs.version }}
+          body: ${{ steps.get-changelog.outputs.changelog }}
+          prerelease: ${{ steps.get-version.outputs.isPrerelease }}
+          files: |
+            GenJson.Unity3d.Package/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
