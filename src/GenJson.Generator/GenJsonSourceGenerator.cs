@@ -1422,8 +1422,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     }
                     sb.Append(indent);
                     sb.Append("    _ => ");
+                    sb.Append("global::GenJson.GenJsonSizeHelper.GetSize((");
+                    sb.Append(enumType.UnderlyingType);
+                    sb.Append(")");
                     sb.Append(valueAccessor);
-                    sb.Append(".ToString().Length");
+                    sb.Append(")");
                     if (!unquoted) sb.Append(" + 2");
                     sb.AppendLine(",");
                     sb.Append(indent);
