@@ -64,7 +64,7 @@ public class TestCustomConverter
         var size = obj.CalculateJsonSize();
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = CustomConverterClass.FromJson(json);
+        var obj2 = CustomConverterClass.FromJson(json)!;
         Assert.That(obj2, Is.Not.Null);
         Assert.That(obj2.Value, Is.EqualTo(123));
     }
