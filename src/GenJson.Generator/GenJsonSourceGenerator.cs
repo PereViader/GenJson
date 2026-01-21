@@ -72,7 +72,7 @@ public abstract record GenJsonDataType
     public sealed record CustomConverter(string ConverterTypeName) : GenJsonDataType;
 }
 
-public record PropertyData(string Name, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type);
+public record PropertyData(string Name, string JsonName, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type);
 
 public record ClassData(
     string ClassName,
@@ -144,7 +144,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
                 bool isValueType = propertySymbol.Type.IsValueType;
 
-                var propData = new PropertyData(propertySymbol.Name, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, isValueType, type);
+                var propName = GetJsonName(propertySymbol, null);
+                var propData = new PropertyData(propertySymbol.Name, propName, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, isValueType, type);
                 properties.Add(propData);
                 propertiesMap[propertySymbol.Name] = (propData, propertySymbol);
             }
@@ -163,8 +164,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     if (propertiesMap.TryGetValue(param.Name, out var prop))
                     {
                         var newType = GetGenJsonDataType(prop.Item2, param, prop.Item2.Type);
+                        var newJsonName = GetJsonName(prop.Item2, param);
                         properties.Remove(prop.Item1); // Remove from property list as it will be set via constructor
-                        constructorArgs.Add(prop.Item1 with { Type = newType });
+                        constructorArgs.Add(prop.Item1 with { Type = newType, JsonName = newJsonName });
                     }
                 }
             }
@@ -361,6 +363,19 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
+    private static string GetJsonName(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol)
+    {
+        var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.PropertyName") ??
+                            parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJson.PropertyName");
+
+        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is string name)
+        {
+            return name;
+        }
+
+        return propertySymbol.Name;
+    }
+
     private void Generate(SourceProductionContext context, ClassData data)
     {
         var sb = new StringBuilder();
@@ -408,7 +423,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("propertyCount++;");
             sb.Append(indent);
             sb.Append("size += ");
-            sb.Append(prop.Name.Length + 3); // "Key":
+            sb.Append(prop.JsonName.Length + 3); // "Key":
             sb.AppendLine(";");
 
             GenerateSizeValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
@@ -500,7 +515,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             sb.Append(indent);
             sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
-            sb.Append(prop.Name);
+            sb.Append(prop.JsonName);
             sb.AppendLine("\");");
             sb.Append(indent);
             sb.AppendLine("span[index++] = ':';");
@@ -611,7 +626,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         foreach (var prop in allProperties)
         {
             sb.Append("                else if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
-            sb.Append(prop.Name);
+            sb.Append(prop.JsonName);
             sb.AppendLine("\"))");
             sb.AppendLine("                {");
             sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");

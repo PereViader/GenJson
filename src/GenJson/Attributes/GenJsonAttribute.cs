@@ -27,7 +27,22 @@ namespace GenJson
 
             public Type Type { get; set; }
         }
-        
+
+
+        /// <summary>
+        /// This attribute can be used to specify the name of the property in the generated json.
+        /// </summary>
+        [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+        public sealed class PropertyName : Attribute
+        {
+            public PropertyName(string name)
+            {
+                Name = name;
+            }
+
+            public string Name { get; }
+        }
+
         public static class Enum
         {
             /// <summary>
