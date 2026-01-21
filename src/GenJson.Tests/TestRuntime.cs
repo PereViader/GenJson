@@ -165,13 +165,13 @@ public class TestRuntime
     {
         var obj = new IntEnumClass()
         {
-            PresentNumber = (IntEnum)0,
+            PresentNumber = IntEnum.One,
             PresentText = IntEnum.One,
             NullablePresentNumber = IntEnum.Two,
             NullableNull = null
         };
         var json = obj.ToJson();
-        var expected = """{"PresentNumber":0,"PresentText":"One","NullablePresentNumber":2}""";
+        var expected = """{"PresentNumber":1,"PresentText":"One","NullablePresentNumber":2}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();

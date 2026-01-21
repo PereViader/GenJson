@@ -879,6 +879,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         sb.Append("_str, out var ");
                         sb.Append(target);
                         sb.AppendLine("_val)) return null;");
+
+                        sb.Append(indent);
+                        sb.Append("if (!System.Enum.IsDefined(typeof(");
+                        sb.Append(en.TypeName);
+                        sb.Append("), ");
+                        sb.Append(target);
+                        sb.AppendLine("_val)) return null;");
+
                         sb.Append(indent);
                         sb.Append(target);
                         sb.Append(" = ");
@@ -957,6 +965,16 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         sb.Append("(json, ref index, out var ");
                         sb.Append(target);
                         sb.AppendLine("_val)) return null;");
+
+                        sb.Append(indent);
+                        sb.Append("if (!System.Enum.IsDefined(typeof(");
+                        sb.Append(en.TypeName);
+                        sb.Append("), (");
+                        sb.Append(en.TypeName);
+                        sb.Append(")");
+                        sb.Append(target);
+                        sb.AppendLine("_val)) return null;");
+
                         sb.Append(indent);
                         sb.Append(target);
                         sb.Append(" = (");
