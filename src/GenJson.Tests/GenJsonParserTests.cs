@@ -155,5 +155,83 @@ namespace GenJson.Tests
                 Assert.That(GenJsonParser.TryParseNull(input.AsSpan(), ref index), Is.False);
             }
         }
+        [Test]
+        public void TryParseDecimal_ParsesValidDecimals()
+        {
+            var cases = new[]
+            {
+                ("0", 0m),
+                ("123", 123m),
+                ("-123", -123m),
+                ("0.0", 0.0m),
+                ("123.456", 123.456m),
+                ("-123.456", -123.456m),
+                ("0.0000001", 0.0000001m),
+                ("79228162514264337593543950335", decimal.MaxValue),
+                ("-79228162514264337593543950335", decimal.MinValue)
+            };
+
+            foreach (var (input, expected) in cases)
+            {
+                int index = 0;
+                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out var result);
+                Assert.That(success, Is.True, $"Failed to parse {input}");
+                Assert.That(result, Is.EqualTo(expected), $"Incorrect value for {input}");
+            }
+        }
+
+        [Test]
+        public void TryParseDecimal_ParsesScientificNotation()
+        {
+            var cases = new[]
+            {
+                ("1e2", 100m),
+                ("1E2", 100m),
+                ("1.5e2", 150m),
+                ("1e-2", 0.01m),
+                ("-1e2", -100m),
+                ("1.2345e+3", 1234.5m)
+            };
+
+            foreach (var (input, expected) in cases)
+            {
+                int index = 0;
+                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out var result);
+                Assert.That(success, Is.True, $"Failed to parse {input}");
+                Assert.That(result, Is.EqualTo(expected), $"Incorrect value for {input}");
+            }
+        }
+
+        [Test]
+        public void TryParseDecimal_Edges()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseDecimal("+123".AsSpan(), ref index, out var res), Is.True);
+            Assert.That(res, Is.EqualTo(123m));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseDecimal(".5".AsSpan(), ref index, out res), Is.True);
+            Assert.That(res, Is.EqualTo(0.5m));
+        }
+
+        [Test]
+        public void TryParseDecimal_ReturnsFalseOnInvalid()
+        {
+            var cases = new[]
+            {
+                "1.2.3",
+                "1-2",
+                "e5",
+                "abc",
+                ""
+            };
+
+            foreach (var input in cases)
+            {
+                int index = 0;
+                bool result = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out _);
+                Assert.That(result, Is.False, $"Should fail for {input}");
+            }
+        }
     }
 }
