@@ -1509,7 +1509,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.Append("    if (!");
                 sb.Append(valueAccessor);
-                string fmt = !fp.TypeName.EndsWith("Decimal") ? "R" : "G";
+                string fmt = (!fp.TypeName.EndsWith("Decimal") && !fp.TypeName.EndsWith("decimal")) ? "R" : "G";
                 sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmt}\", System.Globalization.CultureInfo.InvariantCulture))");
                 sb.Append(indent);
                 sb.AppendLine("    { throw new System.Exception(\"Buffer too small (FloatingPoint)\"); }");

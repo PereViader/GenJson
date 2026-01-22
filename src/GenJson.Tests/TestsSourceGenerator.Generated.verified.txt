@@ -1477,7 +1477,7 @@ namespace GenJson.Tests
             global::GenJson.GenJsonWriter.WriteString(span, ref index, "Present");
             span[index++] = ':';
             {
-                if (!this.Present.TryFormat(span.Slice(index), out int written, "R", System.Globalization.CultureInfo.InvariantCulture))                { throw new System.Exception("Buffer too small (FloatingPoint)"); }
+                if (!this.Present.TryFormat(span.Slice(index), out int written, "G", System.Globalization.CultureInfo.InvariantCulture))                { throw new System.Exception("Buffer too small (FloatingPoint)"); }
                 index += written;
             }
             if (this.NullablePresent is not null)
@@ -1492,7 +1492,7 @@ namespace GenJson.Tests
                 else
                 {
                     {
-                        if (!this.NullablePresent.Value.TryFormat(span.Slice(index), out int written, "R", System.Globalization.CultureInfo.InvariantCulture))                        { throw new System.Exception("Buffer too small (FloatingPoint)"); }
+                        if (!this.NullablePresent.Value.TryFormat(span.Slice(index), out int written, "G", System.Globalization.CultureInfo.InvariantCulture))                        { throw new System.Exception("Buffer too small (FloatingPoint)"); }
                         index += written;
                     }
                 }
@@ -1509,7 +1509,7 @@ namespace GenJson.Tests
                 else
                 {
                     {
-                        if (!this.NullableNull.Value.TryFormat(span.Slice(index), out int written, "R", System.Globalization.CultureInfo.InvariantCulture))                        { throw new System.Exception("Buffer too small (FloatingPoint)"); }
+                        if (!this.NullableNull.Value.TryFormat(span.Slice(index), out int written, "G", System.Globalization.CultureInfo.InvariantCulture))                        { throw new System.Exception("Buffer too small (FloatingPoint)"); }
                         index += written;
                     }
                 }
@@ -3282,7 +3282,7 @@ namespace GenJson.Tests
             {
                 global::GenJson.Tests.IntEnum.One => 5,
                 global::GenJson.Tests.IntEnum.Two => 5,
-                _ => this.PresentText.ToString().Length + 2,
+                _ => global::GenJson.GenJsonSizeHelper.GetSize((int)this.PresentText) + 2,
             };
             propertyCount++;
             size += 24;
@@ -3331,7 +3331,11 @@ namespace GenJson.Tests
                     global::GenJson.GenJsonWriter.WriteString(span, ref index, "Two");
                     break;
                 default:
-                    global::GenJson.GenJsonWriter.WriteString(span, ref index, this.PresentText.ToString());
+                    span[index++] = '"';
+                    if (!((int)this.PresentText).TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))
+                    { throw new System.Exception("Buffer too small"); }
+                    index += written;
+                    span[index++] = '"';
                     break;
             }
             span[index++] = ',';
@@ -3398,6 +3402,7 @@ namespace GenJson.Tests
                 {
                     if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;
                     if (!global::GenJson.GenJsonParser.TryParseInt(json, ref index, out var _PresentNumber_val)) return null;
+                    if (!System.Enum.IsDefined(typeof(global::GenJson.Tests.IntEnum), (global::GenJson.Tests.IntEnum)_PresentNumber_val)) return null;
                     _PresentNumber = (global::GenJson.Tests.IntEnum)_PresentNumber_val;
                     _PresentNumber_set = true;
                     matched = true;
@@ -3406,6 +3411,7 @@ namespace GenJson.Tests
                 {
                     if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;
                     if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var _PresentText_str) || !System.Enum.TryParse<global::GenJson.Tests.IntEnum>(_PresentText_str, out var _PresentText_val)) return null;
+                    if (!System.Enum.IsDefined(typeof(global::GenJson.Tests.IntEnum), _PresentText_val)) return null;
                     _PresentText = _PresentText_val;
                     _PresentText_set = true;
                     matched = true;
@@ -3414,6 +3420,7 @@ namespace GenJson.Tests
                 {
                     if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;
                     if (!global::GenJson.GenJsonParser.TryParseInt(json, ref index, out var _NullablePresentNumber_val)) return null;
+                    if (!System.Enum.IsDefined(typeof(global::GenJson.Tests.IntEnum), (global::GenJson.Tests.IntEnum)_NullablePresentNumber_val)) return null;
                     _NullablePresentNumber = (global::GenJson.Tests.IntEnum)_NullablePresentNumber_val;
                     _NullablePresentNumber_set = true;
                     matched = true;
@@ -3429,6 +3436,7 @@ namespace GenJson.Tests
                     else
                     {
                         if (!global::GenJson.GenJsonParser.TryParseInt(json, ref index, out var _NullableNull_val)) return null;
+                        if (!System.Enum.IsDefined(typeof(global::GenJson.Tests.IntEnum), (global::GenJson.Tests.IntEnum)_NullableNull_val)) return null;
                         _NullableNull = (global::GenJson.Tests.IntEnum)_NullableNull_val;
                     }
                     matched = true;
@@ -3518,6 +3526,7 @@ namespace GenJson.Tests
                 {
                     if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;
                     if (!global::GenJson.GenJsonParser.TryParseByte(json, ref index, out var _Present_val)) return null;
+                    if (!System.Enum.IsDefined(typeof(global::GenJson.Tests.ByteEnum), (global::GenJson.Tests.ByteEnum)_Present_val)) return null;
                     _Present = (global::GenJson.Tests.ByteEnum)_Present_val;
                     _Present_set = true;
                     matched = true;
