@@ -808,56 +808,40 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.Enum en:
                 if (en.AsString)
                 {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+
+                    bool first = true;
+                    foreach (var member in en.Members.Value)
+                    {
+                        sb.Append(indent);
+                        if (!first) sb.Append("else ");
+                        sb.Append("if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
+                        sb.Append(member);
+                        sb.AppendLine("\"))");
+                        sb.Append(indent);
+                        sb.AppendLine("{");
+                        sb.Append(indent);
+                        sb.Append("    ");
+                        sb.Append(target);
+                        sb.Append(" = ");
+                        sb.Append(en.TypeName);
+                        sb.Append(".");
+                        sb.Append(member);
+                        sb.AppendLine(";");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
+                        first = false;
+                    }
+
                     if (en.FallbackValue != null)
                     {
                         sb.Append(indent);
-                        sb.Append("if (global::GenJson.GenJsonParser.TryParseString(json, ref index, out var ");
-                        sb.Append(target);
-                        sb.AppendLine("_str))");
+                        if (!first) sb.AppendLine("else");
                         sb.Append(indent);
                         sb.AppendLine("{");
                         sb.Append(indent);
-                        sb.Append("    if (System.Enum.TryParse<");
-                        sb.Append(en.TypeName);
-                        sb.Append(">(");
-                        sb.Append(target);
-                        sb.Append("_str, out var ");
-                        sb.Append(target);
-                        sb.Append("_val) && System.Enum.IsDefined(typeof(");
-                        sb.Append(en.TypeName);
-                        sb.Append("), ");
-                        sb.Append(target);
-                        sb.AppendLine("_val))");
-                        sb.Append(indent);
-                        sb.AppendLine("    {");
-                        sb.Append(indent);
-                        sb.Append("        ");
-                        sb.Append(target);
-                        sb.Append(" = ");
-                        sb.Append(target);
-                        sb.AppendLine("_val;");
-                        sb.Append(indent);
-                        sb.AppendLine("    }");
-                        sb.Append(indent);
-                        sb.AppendLine("    else");
-                        sb.Append(indent);
-                        sb.AppendLine("    {");
-                        sb.Append(indent);
-                        sb.Append("        ");
-                        sb.Append(target);
-                        sb.Append(" = ");
-                        sb.Append(en.FallbackValue);
-                        sb.AppendLine(";");
-                        sb.Append(indent);
-                        sb.AppendLine("    }");
-                        sb.Append(indent);
-                        sb.AppendLine("}");
-                        sb.Append(indent);
-                        sb.AppendLine("else");
-                        sb.Append(indent);
-                        sb.AppendLine("{");
-                        sb.Append(indent);
-                        sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                        sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
                         sb.Append(indent);
                         sb.Append("    ");
                         sb.Append(target);
@@ -870,29 +854,17 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     else
                     {
                         sb.Append(indent);
-                        sb.Append("if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var ");
-                        sb.Append(target);
-                        sb.Append("_str) || !System.Enum.TryParse<");
-                        sb.Append(en.TypeName);
-                        sb.Append(">(");
-                        sb.Append(target);
-                        sb.Append("_str, out var ");
-                        sb.Append(target);
-                        sb.AppendLine("_val)) return null;");
-
+                        if (!first) sb.AppendLine("else");
                         sb.Append(indent);
-                        sb.Append("if (!System.Enum.IsDefined(typeof(");
-                        sb.Append(en.TypeName);
-                        sb.Append("), ");
-                        sb.Append(target);
-                        sb.AppendLine("_val)) return null;");
-
+                        sb.AppendLine("{");
                         sb.Append(indent);
-                        sb.Append(target);
-                        sb.Append(" = ");
-                        sb.Append(target);
-                        sb.AppendLine("_val;");
+                        sb.AppendLine("    return null;");
+                        sb.Append(indent);
+                        sb.AppendLine("}");
                     }
+
+                    sb.Append(indent);
+                    sb.AppendLine("}");
                 }
                 else
                 {

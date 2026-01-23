@@ -30,6 +30,21 @@ namespace GenJson.Tests
         public TextEnum Value { get; set; }
     }
 
+    [GenJson.Enum.AsText]
+    [GenJson.Enum.Fallback(Unknown)]
+    public enum InvalidFallbackEnum
+    {
+        Unknown = -1,
+        One = 1,
+        Two = 2,
+    }
+    
+    [GenJson]
+    public partial class InvalidFallbackEnumClass
+    {
+        public InvalidFallbackEnum Value { get; set; }
+    }
+
     public class TestEnumInvalidValues
     {
         [Test]
@@ -59,6 +74,15 @@ namespace GenJson.Tests
             var result = TextEnumClass.FromJson(json);
 
             Assert.That(result, Is.Null, "Should return null for undefined enum value '3' in text mode");
+        }
+
+        [Test]
+        public void TestInvalidEnumValue_AsTextFallback()
+        {
+            var json = """{"Value": "3"}""";
+            var result = InvalidFallbackEnumClass.FromJson(json);
+
+            Assert.That(result!.Value, Is.EqualTo(InvalidFallbackEnum.Unknown));
         }
     }
 }
