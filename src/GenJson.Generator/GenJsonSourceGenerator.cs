@@ -1014,17 +1014,21 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     var listVar = $"list{depth}";
                     sb.Append(scopedIndent);
+                    sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '[')) return null;");
+
+                    string countVar = $"count{depth}";
+                    sb.Append(scopedIndent);
+                    sb.AppendLine($"int {countVar} = global::GenJson.GenJsonParser.CountListItems(json, index);");
+
+                    sb.Append(scopedIndent);
                     if (e.IsArray)
                     {
-                        sb.AppendLine($"var {listVar} = new global::System.Collections.Generic.List<{e.ElementTypeName}>();");
+                        sb.AppendLine($"var {listVar} = new global::System.Collections.Generic.List<{e.ElementTypeName}>({countVar});");
                     }
                     else
                     {
-                        sb.AppendLine($"var {listVar} = new {e.ConstructionTypeName}();");
+                        sb.AppendLine($"var {listVar} = new {e.ConstructionTypeName}({countVar});");
                     }
-
-                    sb.Append(scopedIndent);
-                    sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '[')) return null;");
 
                     sb.Append(scopedIndent);
                     sb.AppendLine("while (index < json.Length)");
@@ -1096,12 +1100,16 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine("{");
                     string scopedIndent = indent + "    ";
 
-                    var dictVar = $"dict{depth}";
-                    sb.Append(scopedIndent);
-                    sb.AppendLine($"var {dictVar} = new {d.ConstructionTypeName}();");
-
                     sb.Append(scopedIndent);
                     sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
+
+                    string countVar = $"count{depth}";
+                    sb.Append(scopedIndent);
+                    sb.AppendLine($"int {countVar} = global::GenJson.GenJsonParser.CountDictionaryItems(json, index);");
+
+                    string dictVar = $"dict{depth}";
+                    sb.Append(scopedIndent);
+                    sb.AppendLine($"var {dictVar} = new {d.ConstructionTypeName}({countVar});");
 
                     sb.Append(scopedIndent);
                     sb.AppendLine("while (index < json.Length)");

@@ -313,7 +313,8 @@ namespace GenJson
             {
                 return TrySkipString(json, ref index);
             }
-            else if (c == '{')
+            
+            if (c == '{')
             {
                 index++;
                 while (index < json.Length)
@@ -376,10 +377,54 @@ namespace GenJson
             }
             else
             {
+                if (IsDelimiter(c) && c != '-') return false;
                 index++;
                 return true;
             }
             return false;
+        }
+
+        public static int CountListItems(ReadOnlySpan<char> json, int index)
+        {
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length || json[index] == ']') return 0;
+
+            int count = 0;
+            while (index < json.Length)
+            {
+                count++;
+                TrySkipValue(json, ref index);
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length) return count;
+                if (json[index] == ']') return count;
+                if (json[index] == ',') index++;
+                else return count;
+            }
+            return count;
+        }
+
+        public static int CountDictionaryItems(ReadOnlySpan<char> json, int index)
+        {
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length || json[index] == '}') return 0;
+
+            int count = 0;
+            while (index < json.Length)
+            {
+                count++;
+                if (!TrySkipString(json, ref index)) return count; // Skip Key
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length || json[index] != ':') return count;
+                index++; // Skip colon
+                if (!TrySkipValue(json, ref index)) return count; // Skip Value
+
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length) return count;
+                if (json[index] == '}') return count;
+                if (json[index] == ',') index++;
+                else return count;
+            }
+            return count;
         }
         public static bool IsNull(ReadOnlySpan<char> json, ref int index)
         {
