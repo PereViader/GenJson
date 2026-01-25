@@ -43,7 +43,7 @@ public static class MyCustomConverter
 [GenJson]
 public partial class CustomConverterClass
 {
-    [GenJson.Converter(typeof(MyCustomConverter))]
+    [GenJsonConverter(typeof(MyCustomConverter))]
     public int Value { get; set; }
 }
 

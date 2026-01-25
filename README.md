@@ -65,20 +65,20 @@ public enum ProductSize : byte
 ### 2 Mark your enum
 
 Enum properties of classes may be marked with
-- `[GenJson.Enum.AsNumber]` to serialize as a number (default, not required)
-- `[GenJson.Enum.AsText]` to serialize as a string.
+- `[GenJsonEnumAsNumber]` to serialize as a number (default, not required)
+- `[GenJsonEnumAsText]` to serialize as a string.
 
 ```csharp
     public ProductSizeType ProductSize { get; set; } // <-- Json will be de/serialized using 0, 1
 ```
 
 ```csharp
-    [GenJson.Enum.AsNumber] // <-- Json will be de/serialized using 0 or 1
+    [GenJsonEnumAsNumber] // <-- Json will be de/serialized using 0 or 1
     public ProductSize ProductSize { get; set; }
 ```
 
 ```csharp
-    [GenJson.Enum.AsText] // <-- Json will be de/serialized using "Small" or "Large"
+    [GenJsonEnumAsText] // <-- Json will be de/serialized using "Small" or "Large"
     public ProductSize ProductSize { get; set; }
 ```
 
@@ -86,10 +86,10 @@ Enum properties of classes may be marked with
 
 When deserializing enums, you can specify a fallback value to use if the JSON contains a value that doesn't match any enum member. This is useful for handling unknown values from external APIs (e.g., future enum values).
 
-Use the `[GenJson.Enum.Fallback]` attribute on the enum type definition.
+Use the `[GenJsonEnumFallback]` attribute on the enum type definition.
 
 ```csharp
-[GenJson.Enum.Fallback(Unknown)]
+[GenJsonEnumFallback(Unknown)]
 public enum Status
 {
     Unknown = 0,
@@ -102,10 +102,10 @@ public enum Status
 
 ### 4. Custom Conversion
 
-You can define custom logic for serializing and deserializing specific properties using the `[GenJson.Converter]` attribute.
+You can define custom logic for serializing and deserializing specific properties using the `[GenJsonConverter]` attribute.
 
 1.  Define a class with static methods `GetSize`, `WriteJson`, and `FromJson`.
-2.  Apply `[GenJson.Converter(typeof(YourConverter))]` to the property.
+2.  Apply `[GenJsonConverter(typeof(YourConverter))]` to the property.
 
 ```csharp
 public static class MyCustomConverter
@@ -118,7 +118,7 @@ public static class MyCustomConverter
 [GenJson]
 public partial class MyClass
 {
-    [GenJson.Converter(typeof(MyCustomConverter))]
+    [GenJsonConverter(typeof(MyCustomConverter))]
     public int MyProperty { get; set; }
 }
 ```

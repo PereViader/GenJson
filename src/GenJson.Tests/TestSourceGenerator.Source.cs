@@ -164,8 +164,8 @@ public enum ByteEnum : byte
 public partial class IntEnumClass
 {
     public IntEnum PresentNumber { get; init; }
-    [GenJson.Enum.AsText] public IntEnum PresentText { get; init; }
-    [GenJson.Enum.AsNumber] public IntEnum NullablePresentNumber { get; init; }
+    [GenJsonEnumAsText] public IntEnum PresentText { get; init; }
+    [GenJsonEnumAsNumber] public IntEnum NullablePresentNumber { get; init; }
     public IntEnum? NullableNull { get; init; }
 }
 
@@ -282,7 +282,7 @@ public partial record StrictRecordReference(string Required, string? Optional);
 [GenJson]
 public partial record StrictRecordValue(int Required, int? Optional);
 
-[GenJson.Enum.Fallback(Unknown)]
+[GenJsonEnumFallback(Unknown)]
 public enum FallbackEnum
 {
     Unknown,

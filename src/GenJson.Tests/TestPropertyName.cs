@@ -55,12 +55,12 @@ namespace GenJson.Tests
     [GenJson]
     partial class RenamedClass
     {
-        [GenJson.PropertyName("new_name")]
+        [GenJsonPropertyName("new_name")]
         public int OriginalName { get; set; }
 
         public string Other { get; set; } = "";
     }
 
     [GenJson]
-    partial record RenamedRecord([GenJson.PropertyName("renamed_prop")] int Prop);
+    partial record RenamedRecord([GenJsonPropertyName("renamed_prop")] int Prop);
 }

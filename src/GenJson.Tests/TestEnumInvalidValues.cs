@@ -4,14 +4,14 @@ using NUnit.Framework;
 
 namespace GenJson.Tests
 {
-    [GenJson.Enum.AsNumber]
+    [GenJsonEnumAsNumber]
     public enum NumberEnum
     {
         First = 1,
         Second = 2
     }
 
-    [GenJson.Enum.AsText]
+    [GenJsonEnumAsText]
     public enum TextEnum
     {
         First = 1,
@@ -30,8 +30,8 @@ namespace GenJson.Tests
         public TextEnum Value { get; set; }
     }
 
-    [GenJson.Enum.AsText]
-    [GenJson.Enum.Fallback(Unknown)]
+    [GenJsonEnumAsText]
+    [GenJsonEnumFallback(Unknown)]
     public enum InvalidFallbackEnum
     {
         Unknown = -1,

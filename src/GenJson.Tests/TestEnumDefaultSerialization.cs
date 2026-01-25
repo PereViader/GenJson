@@ -3,7 +3,7 @@ using NUnit.Framework;
 
 namespace GenJson.Tests;
 
-[GenJson.Enum.AsText]
+[GenJsonEnumAsText]
 public enum DefaultAsTextEnum
 {
     One = 1,
@@ -13,7 +13,7 @@ public enum DefaultAsTextEnum
 [GenJson]
 public partial record DefaultAsText(DefaultAsTextEnum Value);
 
-[GenJson.Enum.AsNumber]
+[GenJsonEnumAsNumber]
 public enum DefaultAsNumberEnum
 {
     One = 1,
@@ -24,10 +24,10 @@ public enum DefaultAsNumberEnum
 public partial record DefaultAsNumber(DefaultAsNumberEnum Value);
 
 [GenJson]
-public partial record OverrideAsNumber([GenJson.Enum.AsNumber] DefaultAsTextEnum Value);
+public partial record OverrideAsNumber([GenJsonEnumAsNumber] DefaultAsTextEnum Value);
 
 [GenJson]
-public partial record OverrideAsText([GenJson.Enum.AsText] DefaultAsNumberEnum Value);
+public partial record OverrideAsText([GenJsonEnumAsText] DefaultAsNumberEnum Value);
 
 [GenJson]
 public partial record EnumList(List<DefaultAsNumberEnum> Number, List<DefaultAsTextEnum> Text);

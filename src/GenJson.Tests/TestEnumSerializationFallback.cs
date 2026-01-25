@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace GenJson.Tests
 {
-    [GenJson.Enum.AsText]
+    [GenJsonEnumAsText]
     public enum FallbackTextEnum
     {
         First = 1,
