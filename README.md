@@ -82,7 +82,32 @@ Enum properties of classes may be marked with
     public ProductSize ProductSize { get; set; }
 ```
 
-### 3. Enum Fallback
+### 3. Rename Properties
+
+You can customize the name of the property in the generated JSON using the `[GenJsonPropertyName]` attribute.
+
+```csharp
+[GenJson]
+public partial class User
+{
+    [GenJsonPropertyName("user_id")]
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+}
+```
+
+This works for records as well:
+
+```csharp
+[GenJson]
+public partial record User(
+    [GenJsonPropertyName("user_id")] int Id, 
+    string Name
+);
+```
+
+### 4. Enum Fallback
 
 When deserializing enums, you can specify a fallback value to use if the JSON contains a value that doesn't match any enum member. This is useful for handling unknown values from external APIs (e.g., future enum values).
 
@@ -100,7 +125,7 @@ public enum Status
 // If JSON contains "Pending", it will deserialize to Status.Unknown
 ```
 
-### 4. Custom Conversion
+### 5. Custom Conversion
 
 You can define custom logic for serializing and deserializing specific properties using the `[GenJsonConverter]` attribute.
 
@@ -123,7 +148,7 @@ public partial class MyClass
 }
 ```
 
-### 5. Serialization
+### 6. Serialization
 
 The generator creates a `ToJson()` method.
 
@@ -141,7 +166,7 @@ var product = new Product
 string json = product.ToJson();
 ```
 
-### 6. Deserialization
+### 7. Deserialization
 
 The generator creates a static `FromJson` method on your class.
 
