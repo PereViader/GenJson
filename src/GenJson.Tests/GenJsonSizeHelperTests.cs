@@ -19,7 +19,6 @@ namespace GenJson.Tests
         [Test]
         public void GetSize_String_ReturnsCorrectSize()
         {
-            Assert.That(GenJsonSizeHelper.GetSize((string?)null), Is.EqualTo(0));
             Assert.That(GenJsonSizeHelper.GetSize(""), Is.EqualTo(2)); // ""
             Assert.That(GenJsonSizeHelper.GetSize("hello"), Is.EqualTo(7)); // "hello" -> 2 quotes + 5 chars = 7
             Assert.That(GenJsonSizeHelper.GetSize("\n"), Is.EqualTo(4)); // "\n" -> 2 quotes + 2 chars (\n) = 4

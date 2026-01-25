@@ -6,88 +6,94 @@ namespace GenJson
 {
     public static class GenJsonSizeHelper
     {
+        public static int GetSize(byte value)
+        {
+            Span<char> buffer = stackalloc char[3];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
+        }
+        
+        public static int GetSize(sbyte value)
+        {
+            Span<char> buffer = stackalloc char[4];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
+        }
+        
+        public static int GetSize(short value)
+        {
+            Span<char> buffer = stackalloc char[6];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
+        }
+        
+        public static int GetSize(ushort value)
+        {
+            Span<char> buffer = stackalloc char[5];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
+        }
+        
         public static int GetSize(int value)
         {
-            if (value == 0) return 1;
-            if (value == int.MinValue) return 11;
-            if (value < 0) return 1 + GetSize(-value);
-            if (value < 10) return 1;
-            if (value < 100) return 2;
-            if (value < 1000) return 3;
-            if (value < 10000) return 4;
-            if (value < 100000) return 5;
-            if (value < 1000000) return 6;
-            if (value < 10000000) return 7;
-            if (value < 100000000) return 8;
-            if (value < 1000000000) return 9;
-            return 10;
+            Span<char> buffer = stackalloc char[11];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
         }
-
+        
+        public static int GetSize(uint value)
+        {
+            Span<char> buffer = stackalloc char[10];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
+        }
+        
         public static int GetSize(long value)
         {
-            if (value == 0) return 1;
-            if (value == long.MinValue) return 20;
-            if (value < 0) return 1 + GetSize(-value);
-            if (value < 10L) return 1;
-            if (value < 100L) return 2;
-            if (value < 1000L) return 3;
-            if (value < 10000L) return 4;
-            if (value < 100000L) return 5;
-            if (value < 1000000L) return 6;
-            if (value < 10000000L) return 7;
-            if (value < 100000000L) return 8;
-            if (value < 1000000000L) return 9;
-            if (value < 10000000000L) return 10;
-            if (value < 100000000000L) return 11;
-            if (value < 1000000000000L) return 12;
-            if (value < 10000000000000L) return 13;
-            if (value < 100000000000000L) return 14;
-            if (value < 1000000000000000L) return 15;
-            if (value < 10000000000000000L) return 16;
-            if (value < 100000000000000000L) return 17;
-            if (value < 1000000000000000000L) return 18;
-            return 19;
+            Span<char> buffer = stackalloc char[20];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
         }
-
+        
         public static int GetSize(ulong value)
         {
-            if (value == 0) return 1;
-            if (value < 10UL) return 1;
-            if (value < 100UL) return 2;
-            if (value < 1000UL) return 3;
-            if (value < 10000UL) return 4;
-            if (value < 100000UL) return 5;
-            if (value < 1000000UL) return 6;
-            if (value < 10000000UL) return 7;
-            if (value < 100000000UL) return 8;
-            if (value < 1000000000UL) return 9;
-            if (value < 10000000000UL) return 10;
-            if (value < 100000000000UL) return 11;
-            if (value < 1000000000000UL) return 12;
-            if (value < 10000000000000UL) return 13;
-            if (value < 100000000000000UL) return 14;
-            if (value < 1000000000000000UL) return 15;
-            if (value < 10000000000000000UL) return 16;
-            if (value < 100000000000000000UL) return 17;
-            if (value < 1000000000000000000UL) return 18;
-            if (value < 10000000000000000000UL) return 19;
-            return 20;
+            Span<char> buffer = stackalloc char[20];
+            value.TryFormat(buffer, out int charsWritten);
+            return charsWritten;
         }
 
-        public static int GetSize(bool value) => value ? 4 : 5;
-        public static int GetSize(char _) => 3; // "c"
-
-        public static int GetSize(string? value)
+        public static int GetSize(bool value) => value ? 4 : 5; // "true" or "false"
+        
+        public static int GetSize(char c) => c switch
         {
-            if (value is null) return 0;
-            int size = 2;
-            foreach (var c in value)
+            '\n' => 4, // \n
+            '\r' => 4, // \r
+            '\t' => 4, // \t
+            '\\' => 4, // \\
+            '\"' => 4, // \"
+            '\0' => 4, // \0
+            _ when char.IsControl(c) => 8, // \uXXXX format for other control chars
+            _ => 3
+        };
+
+        public static int GetSize(ReadOnlySpan<char> input)
+        {
+            int length = 2;
+            foreach (char c in input)
             {
-                if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') size += 2;
-                else if (c < ' ') size += 6;
-                else size++;
+                length += c switch
+                {
+                    '\n' => 2, // \n
+                    '\r' => 2, // \r
+                    '\t' => 2, // \t
+                    '\\' => 2, // \\
+                    '\"' => 2, // \"
+                    '\0' => 2, // \0
+                    _ when char.IsControl(c) => 6, // \uXXXX format for other control chars
+                    _ => 1
+                };
             }
-            return size;
+            return length;
         }
 
         public static int GetSize(Guid _) => 38;
