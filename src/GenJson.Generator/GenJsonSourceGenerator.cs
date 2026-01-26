@@ -225,7 +225,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             var members = new List<string>();
             foreach (var member in enumType.GetMembers())
             {
-                if (member is IFieldSymbol field && field.ConstantValue != null)
+                if (member is IFieldSymbol { ConstantValue: not null })
                 {
                     members.Add(member.Name);
                 }
@@ -234,37 +234,41 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
-            type is INamedTypeSymbol namedRaw && namedRaw.TypeArguments.Length > 0)
+            type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
             return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0]));
         }
 
-        if (type.SpecialType == SpecialType.System_String)
+        switch (type.SpecialType)
         {
-            return GenJsonDataType.String.Instance;
-        }
-
-        if (type.SpecialType == SpecialType.System_Boolean)
-        {
-            return GenJsonDataType.Boolean.Instance;
-        }
-
-        if (type.SpecialType == SpecialType.System_Char)
-        {
-            return GenJsonDataType.Char.Instance;
-        }
-
-        if (type.SpecialType is SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal)
-        {
-            return new GenJsonDataType.FloatingPoint(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            case SpecialType.System_String:
+                return GenJsonDataType.String.Instance;
+            case SpecialType.System_Boolean:
+                return GenJsonDataType.Boolean.Instance;
+            case SpecialType.System_Char:
+                return GenJsonDataType.Char.Instance;
+            case SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal:
+                return new GenJsonDataType.FloatingPoint(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
         }
 
         var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        if (typeName == "global::System.Guid" || typeName == "System.Guid") return GenJsonDataType.Guid.Instance;
-        if (typeName == "global::System.DateTime" || typeName == "System.DateTime") return GenJsonDataType.DateTime.Instance;
-        if (typeName == "global::System.TimeSpan" || typeName == "System.TimeSpan") return GenJsonDataType.TimeSpan.Instance;
-        if (typeName == "global::System.DateTimeOffset" || typeName == "System.DateTimeOffset") return GenJsonDataType.DateTimeOffset.Instance;
-        if (typeName == "global::System.Version" || typeName == "System.Version") return GenJsonDataType.Version.Instance;
+        switch (typeName)
+        {
+            case "global::System.Guid" or "System.Guid":
+                return GenJsonDataType.Guid.Instance;
+            case "global::System.DateTime":
+            case "System.DateTime":
+                return GenJsonDataType.DateTime.Instance;
+            case "global::System.TimeSpan":
+            case "System.TimeSpan":
+                return GenJsonDataType.TimeSpan.Instance;
+            case "global::System.DateTimeOffset":
+            case "System.DateTimeOffset":
+                return GenJsonDataType.DateTimeOffset.Instance;
+            case "global::System.Version":
+            case "System.Version":
+                return GenJsonDataType.Version.Instance;
+        }
 
         if (HasGenJsonAttribute(type))
         {
@@ -323,43 +327,42 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     private static bool IsDictionary(INamedTypeSymbol type)
     {
         return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
-               (type.OriginalDefinition.Name == "IDictionary" || type.OriginalDefinition.Name == "IReadOnlyDictionary") &&
+               type.OriginalDefinition.Name is "IDictionary" or "IReadOnlyDictionary" &&
                type.TypeParameters.Length == 2;
     }
 
     private static bool HasGenJsonAttribute(ITypeSymbol type)
     {
-        if (type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
-        {
-            return true;
-        }
-
-        return false;
+        return type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
     }
 
     private static ITypeSymbol? GetEnumerableElementType(ITypeSymbol type)
     {
-        if (type is IArrayTypeSymbol arrayType)
+        switch (type)
         {
-            return arrayType.ElementType;
-        }
-
-        if (type is INamedTypeSymbol namedTypeSym)
-        {
-            if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
+            case IArrayTypeSymbol arrayType:
+                return arrayType.ElementType;
+            
+            case INamedTypeSymbol namedTypeSym:
             {
-                if (namedTypeSym.TypeArguments.Length > 0)
+                if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
                 {
-                    return namedTypeSym.TypeArguments[0];
+                    if (namedTypeSym.TypeArguments.Length > 0)
+                    {
+                        return namedTypeSym.TypeArguments[0];
+                    }
                 }
-            }
 
-            var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
-            if (enumerableInterface != null)
-            {
-                return enumerableInterface.TypeArguments[0];
+                var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+                if (enumerableInterface != null)
+                {
+                    return enumerableInterface.TypeArguments[0];
+                }
+
+                break;
             }
         }
+
         return null;
     }
 
@@ -368,7 +371,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute");
 
-        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is string name)
+        if (converterAttr is { ConstructorArguments.Length: > 0 } && converterAttr.ConstructorArguments[0].Value is string name)
         {
             return name;
         }
@@ -995,8 +998,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     {
                         sb.AppendLine($"{d.KeyTypeName} {keyVar} = default;");
                         GenerateEnumParseLogic(sb, enumKeyType, keyVar, loopIndent, true, depth);
-                        // If AsString, Match consumes key. If AsNumber, ParseString+ParseInt+ExpectingColon consumes key and colon.
-                        // Now GenerateEnumParseLogic consumes colon for AsString too.
                     }
                     else
                     {
@@ -1007,26 +1008,33 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         sb.Append(loopIndent);
                         sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
 
-                        if (d.KeyType is GenJsonDataType.String)
+                        switch (d.KeyType)
                         {
-                            sb.AppendLine($"{d.KeyTypeName} {keyVar} = {keyStrVar};");
-                        }
-                        else if (d.KeyType is GenJsonDataType.Primitive || d.KeyType is GenJsonDataType.FloatingPoint || d.KeyType is GenJsonDataType.Guid || d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.TimeSpan || d.KeyType is GenJsonDataType.DateTimeOffset)
-                        {
-                            // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
-                            if (d.KeyType is GenJsonDataType.FloatingPoint)
+                            case GenJsonDataType.String:
+                                sb.AppendLine($"{d.KeyTypeName} {keyVar} = {keyStrVar};");
+                                break;
+                            case GenJsonDataType.Primitive:
+                            case GenJsonDataType.FloatingPoint:
+                            case GenJsonDataType.Guid:
+                            case GenJsonDataType.DateTime:
+                            case GenJsonDataType.TimeSpan:
+                            case GenJsonDataType.DateTimeOffset:
                             {
-                                sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
+                                // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
+                                if (d.KeyType is GenJsonDataType.FloatingPoint)
+                                {
+                                    sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
+                                }
+                                else
+                                {
+                                    sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                                }
+
+                                break;
                             }
-                            else
-                            {
+                            default:
                                 sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
-                            }
-                        }
-                        else
-                        {
-                            // Fallback or error? Assuming Parse works.
-                            sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                                break;
                         }
                     }
 
@@ -1337,18 +1345,21 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     private string GetPrimitiveParserName(string typeName)
     {
         if (typeName.StartsWith("global::")) typeName = typeName.Substring(8);
-        if (typeName == "int" || typeName == "System.Int32") return "Int";
-        if (typeName == "uint" || typeName == "System.UInt32") return "UInt";
-        if (typeName == "long" || typeName == "System.Int64") return "Long";
-        if (typeName == "ulong" || typeName == "System.UInt64") return "ULong";
-        if (typeName == "short" || typeName == "System.Int16") return "Short";
-        if (typeName == "ushort" || typeName == "System.UInt16") return "UShort";
-        if (typeName == "byte" || typeName == "System.Byte") return "Byte";
-        if (typeName == "sbyte" || typeName == "System.SByte") return "SByte";
-        if (typeName == "float" || typeName == "System.Single") return "Float";
-        if (typeName == "double" || typeName == "System.Double") return "Double";
-        if (typeName == "decimal" || typeName == "System.Decimal") return "Decimal";
-        return "Int";
+        return typeName switch
+        {
+            "int" or "System.Int32" => "Int",
+            "uint" or "System.UInt32" => "UInt",
+            "long" or "System.Int64" => "Long",
+            "ulong" or "System.UInt64" => "ULong",
+            "short" or "System.Int16" => "Short",
+            "ushort" or "System.UInt16" => "UShort",
+            "byte" or "System.Byte" => "Byte",
+            "sbyte" or "System.SByte" => "SByte",
+            "float" or "System.Single" => "Float",
+            "double" or "System.Double" => "Double",
+            "decimal" or "System.Decimal" => "Decimal",
+            _ => "Int"
+        };
     }
 
 
@@ -1696,10 +1707,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(valueAccessor);
                 string? fmt2 = (type is GenJsonDataType.DateTime || type is GenJsonDataType.DateTimeOffset) ? "O" :
                              (type is GenJsonDataType.TimeSpan) ? "c" : default;
-                if (fmt2 != null)
-                    sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmt2}\", System.Globalization.CultureInfo.InvariantCulture))");
-                else
-                    sb.Append($".TryFormat(span.Slice(index), out int written))");
+                sb.Append(fmt2 != null
+                    ? $".TryFormat(span.Slice(index), out int written, \"{fmt2}\", System.Globalization.CultureInfo.InvariantCulture))"
+                    : $".TryFormat(span.Slice(index), out int written))");
 
                 sb.Append(indent);
                 sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Formatted)\"); }");
@@ -1838,56 +1848,55 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     // Key
                     sb.Append(loopIndentDict);
-                    if (dictionary.KeyType is GenJsonDataType.Enum en)
+                    switch (dictionary.KeyType)
                     {
-                        GenerateEnumWriteLogic(sb, en, $"{kvpVar}.Key", loopIndentDict, forceQuotes: true);
-                    }
-                    else if (dictionary.KeyType is GenJsonDataType.Primitive || dictionary.KeyType is GenJsonDataType.FloatingPoint || dictionary.KeyType is GenJsonDataType.Guid || dictionary.KeyType is GenJsonDataType.DateTime || dictionary.KeyType is GenJsonDataType.TimeSpan || dictionary.KeyType is GenJsonDataType.DateTimeOffset)
-                    {
-                        sb.AppendLine("span[index++] = '\"';");
-                        sb.Append(loopIndentDict);
-
-                        string keyVal = $"{kvpVar}.Key";
-                        string? fmtKey = null;
-
-                        if (dictionary.KeyType is GenJsonDataType.FloatingPoint fp)
+                        case GenJsonDataType.Enum en:
+                            GenerateEnumWriteLogic(sb, en, $"{kvpVar}.Key", loopIndentDict, forceQuotes: true);
+                            break;
+                        case GenJsonDataType.Primitive:
+                        case GenJsonDataType.FloatingPoint:
+                        case GenJsonDataType.Guid:
+                        case GenJsonDataType.DateTime:
+                        case GenJsonDataType.TimeSpan:
+                        case GenJsonDataType.DateTimeOffset:
                         {
-                            fmtKey = !fp.TypeName.EndsWith("Decimal") ? "R" : "G";
-                        }
-                        else if (dictionary.KeyType is GenJsonDataType.DateTime || dictionary.KeyType is GenJsonDataType.DateTimeOffset)
-                        {
-                            fmtKey = "O";
-                        }
-                        else if (dictionary.KeyType is GenJsonDataType.TimeSpan)
-                        {
-                            fmtKey = "c";
-                        }
+                            sb.AppendLine("span[index++] = '\"';");
+                            sb.Append(loopIndentDict);
 
-                        sb.Append("{ if (!");
-                        sb.Append(keyVal);
-                        if (fmtKey != null)
-                            sb.Append($".TryFormat(span.Slice(index), out int written, \"{fmtKey}\", System.Globalization.CultureInfo.InvariantCulture))");
-                        else
-                            sb.Append($".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                            string keyVal = $"{kvpVar}.Key";
 
-                        sb.Append(loopIndentDict);
-                        sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Key)\"); }");
-                        sb.Append(loopIndentDict);
-                        sb.AppendLine("index += written; }");
-                        sb.Append(loopIndentDict);
-                        sb.AppendLine("span[index++] = '\"';");
-                    }
-                    else if (dictionary.KeyType is GenJsonDataType.String)
-                    {
-                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
-                        sb.Append(kvpVar);
-                        sb.AppendLine(".Key);");
-                    }
-                    else
-                    {
-                        sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
-                        sb.Append(kvpVar);
-                        sb.AppendLine(".Key.ToString());");
+                            string? fmtKey = dictionary.KeyType switch
+                            {
+                                GenJsonDataType.FloatingPoint fp => !fp.TypeName.EndsWith("Decimal") ? "R" : "G",
+                                GenJsonDataType.DateTime or GenJsonDataType.DateTimeOffset => "O",
+                                GenJsonDataType.TimeSpan => "c",
+                                _ => null
+                            };
+
+                            sb.Append("{ if (!");
+                            sb.Append(keyVal);
+                            sb.Append(fmtKey != null
+                                ? $".TryFormat(span.Slice(index), out int written, \"{fmtKey}\", System.Globalization.CultureInfo.InvariantCulture))"
+                                : $".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Key)\"); }");
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("index += written; }");
+                            sb.Append(loopIndentDict);
+                            sb.AppendLine("span[index++] = '\"';");
+                            break;
+                        }
+                        case GenJsonDataType.String:
+                            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key);");
+                            break;
+                        default:
+                            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key.ToString());");
+                            break;
                     }
                     sb.Append(loopIndentDict);
                     sb.AppendLine("span[index++] = ':';");
