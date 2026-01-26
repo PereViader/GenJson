@@ -125,6 +125,10 @@ public enum Status
 // If JSON contains "Pending", it will deserialize to Status.Unknown
 ```
 
+When an enum is used as a `Dictionary` key (e.g., `Dictionary<Status, int>`), and the JSON contains a key that doesn't match any enum member:
+- If `[GenJsonEnumFallback]` is present, the invalid key-value pair will be **skipped** (ignored).
+- If `[GenJsonEnumFallback]` is NOT present, deserialization will return `null` (fail).
+
 ### 5. Custom Conversion
 
 You can define custom logic for serializing and deserializing specific properties using the `[GenJsonConverter]` attribute.

@@ -1137,41 +1137,184 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(loopIndent);
                     sb.AppendLine("}");
 
-                    string keyStrVar = $"keyStr{depth}";
-                    sb.Append(loopIndent);
-                    sb.AppendLine($"if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var {keyStrVar}) || {keyStrVar} is null) return null;");
-
-                    sb.Append(loopIndent);
-                    sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
-
                     string keyVar = $"key{depth}";
                     sb.Append(loopIndent);
 
-                    // Parse Key Logic
-                    if (d.KeyType is GenJsonDataType.String)
+                    if (d.KeyType is GenJsonDataType.Enum enumKeyType)
                     {
-                        sb.AppendLine($"{d.KeyTypeName} {keyVar} = {keyStrVar};");
-                    }
-                    else if (d.KeyType is GenJsonDataType.Primitive || d.KeyType is GenJsonDataType.FloatingPoint || d.KeyType is GenJsonDataType.Guid || d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.TimeSpan || d.KeyType is GenJsonDataType.DateTimeOffset)
-                    {
-                        // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
-                        if (d.KeyType is GenJsonDataType.FloatingPoint)
+                        sb.AppendLine($"{d.KeyTypeName} {keyVar} = default;");
+
+                        if (enumKeyType.AsString)
                         {
-                            sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
+                            sb.Append(loopIndent);
+                            sb.AppendLine("bool matchedKey = false;");
+
+                            bool firstKey = true;
+                            foreach (var member in enumKeyType.Members.Value)
+                            {
+                                sb.Append(loopIndent);
+                                if (!firstKey) sb.Append("else ");
+                                sb.AppendLine($"if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"{member}\"))");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("{");
+                                sb.Append(loopIndent);
+                                sb.AppendLine($"    {keyVar} = {d.KeyTypeName}.{member};");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    matchedKey = true;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("}");
+                                firstKey = false;
+                            }
+
+                            sb.Append(loopIndent);
+                            sb.AppendLine("if (!matchedKey)");
+                            sb.Append(loopIndent);
+                            sb.AppendLine("{");
+                            if (enumKeyType.FallbackValue != null)
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (index < json.Length && json[index] == ',')");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    {");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("        index++;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    }");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    continue;");
+                            }
+                            else
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    return null;");
+                            }
+                            sb.Append(loopIndent);
+                            sb.AppendLine("}");
+
+                            // Key matched, expect colon
+                            sb.Append(loopIndent);
+                            sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
                         }
                         else
                         {
-                            sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                            // Enum as Number -> Needs String parsing first? No, Key is always a string in JSON.
+                            // But usually "1" or "2". MatchesKey expects quoted string.
+                            // If EnumAsNumber, keys like "1": value are valid JSON? Yes.
+                            // But MatchesKey handles "key". If key is "1", MatchesKey works if we pass "1".
+                            // However, we don't know the values at compile time easily if they vary? We have members.
+                            // Wait, currently EnumAsNumber serialization uses GetSize(int). 
+                            // Serialization: "1": val
+                            // Deserialization: MatchesKey looks for "1" (with quotes).
+                            // IF the format is {"1": val}, then keys are strings. 
+                            // Original logic used TryParseString -> keyStrVar="1" -> Enum.TryParse("1", out val).
+                            // So we need to parse the string key.
+
+                            string keyStrVar = $"keyStr{depth}";
+                            sb.Append(loopIndent);
+                            sb.AppendLine($"if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var {keyStrVar}) || {keyStrVar} is null) return null;");
+
+                            sb.Append(loopIndent);
+                            sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+
+                            sb.AppendLine($"if (!{enumKeyType.UnderlyingType}.TryParse({keyStrVar}, out var {keyVar}_val))");
+                            sb.Append(loopIndent);
+                            sb.AppendLine("{");
+                            if (enumKeyType.FallbackValue != null)
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (index < json.Length && json[index] == ',')");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    {");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("        index++;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    }");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    continue;");
+                            }
+                            else
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    return null;");
+                            }
+                            sb.Append(loopIndent);
+                            sb.AppendLine("}");
+
+                            sb.Append(loopIndent);
+                            sb.AppendLine($"{keyVar} = ({d.KeyTypeName}){keyVar}_val;"); // Cast to enum
+
+                            sb.AppendLine($"if (!System.Enum.IsDefined(typeof({d.KeyTypeName}), {keyVar}))");
+                            sb.Append(loopIndent);
+                            sb.AppendLine("{");
+                            if (enumKeyType.FallbackValue != null)
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    if (index < json.Length && json[index] == ',')");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    {");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("        index++;");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    }");
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    continue;");
+                            }
+                            else
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine("    return null;");
+                            }
+                            sb.Append(loopIndent);
+                            sb.AppendLine("}");
+
                         }
-                    }
-                    else if (d.KeyType is GenJsonDataType.Enum)
-                    {
-                        sb.AppendLine($"if (!System.Enum.TryParse<{d.KeyTypeName}>({keyStrVar}, out var {keyVar})) return null;");
                     }
                     else
                     {
-                        // Fallback or error? Assuming Parse works.
-                        sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                        string keyStrVar = $"keyStr{depth}";
+                        sb.Append(loopIndent);
+                        sb.AppendLine($"if (!global::GenJson.GenJsonParser.TryParseString(json, ref index, out var {keyStrVar}) || {keyStrVar} is null) return null;");
+
+                        sb.Append(loopIndent);
+                        sb.AppendLine("if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+
+                        if (d.KeyType is GenJsonDataType.String)
+                        {
+                            sb.AppendLine($"{d.KeyTypeName} {keyVar} = {keyStrVar};");
+                        }
+                        else if (d.KeyType is GenJsonDataType.Primitive || d.KeyType is GenJsonDataType.FloatingPoint || d.KeyType is GenJsonDataType.Guid || d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.TimeSpan || d.KeyType is GenJsonDataType.DateTimeOffset)
+                        {
+                            // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
+                            if (d.KeyType is GenJsonDataType.FloatingPoint)
+                            {
+                                sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
+                            }
+                            else
+                            {
+                                sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                            }
+                        }
+                        else
+                        {
+                            // Fallback or error? Assuming Parse works.
+                            sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                        }
                     }
 
                     string valVar = $"val{depth}";
