@@ -48,6 +48,50 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseString_HandlesEscapedQuotesMidString()
+        {
+            // The JSON literal: "The cat said \"Meow\" and ran away"
+            var json = "\"The cat said \\\"Meow\\\" and ran away\"".AsSpan();
+            int index = 0;
+
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+
+            // The original code would fail this by returning "The cat said " 
+            // and leaving index at the first \"
+            Assert.That(success, Is.True, "Parser should succeed");
+            Assert.That(result, Is.EqualTo("The cat said \"Meow\" and ran away"), "Result should contain the full unescaped string");
+            Assert.That(index, Is.EqualTo(json.Length), "Index should be at the end of the JSON string");
+        }
+
+        [Test]
+        public void TryParseString_MalformedUnicode_ReturnsFalse()
+        {
+            // The escape is missing digits and the closing quote
+            var json = "\"test \\u00".AsSpan();
+            int index = 0;
+
+            // This should NOT throw ArgumentOutOfRangeException
+            bool success = GenJsonParser.TryParseString(json, ref index, out var result);
+
+            Assert.That(success, Is.False, "Parser should return false for truncated escapes.");
+        }
+
+        [Test]
+        public void TryParseString_HandlesEscapesAtEnd()
+        {
+            // JSON: "Standard escape: \\"
+            // The backslash is escaped by another backslash.
+            var json = "\"Standard escape: \\\\\"".AsSpan();
+            int index = 0;
+
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo("Standard escape: \\"));
+            Assert.That(index, Is.EqualTo(json.Length), "Should consume the entire JSON string");
+        }
+
+        [Test]
         public void TryParseInt_ParsesIntegers()
         {
             var cases = new[] { ("123", 123), ("-123", -123), ("0", 0), ("2147483647", int.MaxValue), ("-2147483648", int.MinValue) };
