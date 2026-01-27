@@ -28,13 +28,23 @@ namespace GenJson.Tests
         }
 
         [Test]
-        public void TryParseString_ParsesUnicodeEscape()
+        public void TryParseString_ParsesSingleUnicodeEscape()
         {
             var json = "\"\\u0041\"".AsSpan(); // 'A'
             int index = 0;
             var success = GenJsonParser.TryParseString(json, ref index, out var result);
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo("A"));
+        }
+
+        [Test]
+        public void TryParseString_ParsesSurrogatePair()
+        {
+            var json = "\"potato\\uD83D\\uDE01banana\"".AsSpan(); // 'A'
+            int index = 0;
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo("potato😁banana"));
         }
 
         [Test]
