@@ -62,24 +62,36 @@ public enum ProductSize : byte
 }
 ```
 
-### 2 Mark your enum
+### 2. Mark your enum
 
-Enum properties of classes may be marked with
-- `[GenJsonEnumAsNumber]` to serialize as a number (default, not required)
+You can control how enums are serialized by marking the enum type itself with:
+- `[GenJsonEnumAsNumber]` to serialize as a number (default).
 - `[GenJsonEnumAsText]` to serialize as a string.
 
 ```csharp
-    public ProductSizeType ProductSize { get; set; } // <-- Json will be de/serialized using 0, 1
+[GenJsonEnumAsText]
+public enum ProductSize : byte
+{
+    Small = 0,
+    Large = 1
+}
+
+[GenJson]
+public partial class Product
+{
+    public ProductSize ProductSize { get; set; } // Serialized as "Small" or "Large"
+}
 ```
 
-```csharp
-    [GenJsonEnumAsNumber] // <-- Json will be de/serialized using 0 or 1
-    public ProductSize ProductSize { get; set; }
-```
+You can also override this behavior for specific properties by applying the attribute directly to the property:
 
 ```csharp
-    [GenJsonEnumAsText] // <-- Json will be de/serialized using "Small" or "Large"
-    public ProductSize ProductSize { get; set; }
+[GenJson]
+public partial class Product
+{
+    [GenJsonEnumAsNumber] // Overrides the enum's default behavior
+    public ProductSize ProductSize { get; set; } // Serialized as 0 or 1
+}
 ```
 
 ### 3. Rename Properties
