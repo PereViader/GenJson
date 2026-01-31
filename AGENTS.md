@@ -1,2 +1,6 @@
-- Always keep the Microsoft.CodeAnalysis.CSharp version to 4.1.0
-- When TestSourceGenerator fails after running `dotnet test` and the cause is due a an expected change in the source generator, validate that the updated  `TestsSourceGenerator.Generated.received.txt` is correct and then you can run `sh src/GenJson.Tests/accept-received.sh`
+- The solution contains 3 projects:
+    - GenJson: The main library that contains some utility classes and attributes
+    - GenJson.Tests: The tests, can be ran to validate the code
+    - GenJson.Generator: The source generator which will generate the code. Generated code will use the main library code.
+- The generator must use Microsoft.CodeAnalysis.CSharp version to 4.1.0
+- The tests contain TestSourceGenerator which can be used to analyze the source generated code

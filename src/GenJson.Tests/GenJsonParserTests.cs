@@ -40,7 +40,7 @@ namespace GenJson.Tests
         [Test]
         public void TryParseString_ParsesSurrogatePair()
         {
-            var json = "\"potato\\uD83D\\uDE01banana\"".AsSpan(); // 'A'
+            var json = "\"potato\\uD83D\\uDE01banana\"".AsSpan();
             int index = 0;
             var success = GenJsonParser.TryParseString(json, ref index, out var result);
             Assert.That(success, Is.True);
