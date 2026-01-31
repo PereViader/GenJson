@@ -172,6 +172,27 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
+        // Filter out ignored properties
+        // We do this AFTER processing constructor arguments because we want to keep constructor arguments even if they are ignored or readonly
+        // (readonly properties are common in records, and we still need to set them via constructor)
+        for (int i = properties.Count - 1; i >= 0; i--)
+        {
+            var propName = properties[i].Name;
+            var propSymbol = propertiesMap[propName].Item2;
+
+            if (propSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonIgnoreAttribute"))
+            {
+                properties.RemoveAt(i);
+                continue;
+            }
+
+            if (propSymbol.IsReadOnly)
+            {
+                properties.RemoveAt(i);
+                continue;
+            }
+        }
+
         var keyword = typeDeclaration switch
         {
             RecordDeclarationSyntax recordDeclarationSyntax => recordDeclarationSyntax.ClassOrStructKeyword.Text == "struct"
@@ -342,25 +363,25 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             case IArrayTypeSymbol arrayType:
                 return arrayType.ElementType;
-            
+
             case INamedTypeSymbol namedTypeSym:
-            {
-                if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
                 {
-                    if (namedTypeSym.TypeArguments.Length > 0)
+                    if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
                     {
-                        return namedTypeSym.TypeArguments[0];
+                        if (namedTypeSym.TypeArguments.Length > 0)
+                        {
+                            return namedTypeSym.TypeArguments[0];
+                        }
                     }
-                }
 
-                var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
-                if (enumerableInterface != null)
-                {
-                    return enumerableInterface.TypeArguments[0];
-                }
+                    var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+                    if (enumerableInterface != null)
+                    {
+                        return enumerableInterface.TypeArguments[0];
+                    }
 
-                break;
-            }
+                    break;
+                }
         }
 
         return null;
@@ -1019,19 +1040,19 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                             case GenJsonDataType.DateTime:
                             case GenJsonDataType.TimeSpan:
                             case GenJsonDataType.DateTimeOffset:
-                            {
-                                // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
-                                if (d.KeyType is GenJsonDataType.FloatingPoint)
                                 {
-                                    sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
-                                }
-                                else
-                                {
-                                    sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
-                                }
+                                    // Use .Parse(string, CultureInfo) if applicable, or just .Parse(string)
+                                    if (d.KeyType is GenJsonDataType.FloatingPoint)
+                                    {
+                                        sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out {d.KeyTypeName} {keyVar})) return null;");
+                                    }
+                                    else
+                                    {
+                                        sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
+                                    }
 
-                                break;
-                            }
+                                    break;
+                                }
                             default:
                                 sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {d.KeyTypeName} {keyVar})) return null;");
                                 break;
@@ -1859,34 +1880,34 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         case GenJsonDataType.DateTime:
                         case GenJsonDataType.TimeSpan:
                         case GenJsonDataType.DateTimeOffset:
-                        {
-                            sb.AppendLine("span[index++] = '\"';");
-                            sb.Append(loopIndentDict);
-
-                            string keyVal = $"{kvpVar}.Key";
-
-                            string? fmtKey = dictionary.KeyType switch
                             {
-                                GenJsonDataType.FloatingPoint fp => !fp.TypeName.EndsWith("Decimal") ? "R" : "G",
-                                GenJsonDataType.DateTime or GenJsonDataType.DateTimeOffset => "O",
-                                GenJsonDataType.TimeSpan => "c",
-                                _ => null
-                            };
+                                sb.AppendLine("span[index++] = '\"';");
+                                sb.Append(loopIndentDict);
 
-                            sb.Append("{ if (!");
-                            sb.Append(keyVal);
-                            sb.Append(fmtKey != null
-                                ? $".TryFormat(span.Slice(index), out int written, \"{fmtKey}\", System.Globalization.CultureInfo.InvariantCulture))"
-                                : $".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                                string keyVal = $"{kvpVar}.Key";
 
-                            sb.Append(loopIndentDict);
-                            sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Key)\"); }");
-                            sb.Append(loopIndentDict);
-                            sb.AppendLine("index += written; }");
-                            sb.Append(loopIndentDict);
-                            sb.AppendLine("span[index++] = '\"';");
-                            break;
-                        }
+                                string? fmtKey = dictionary.KeyType switch
+                                {
+                                    GenJsonDataType.FloatingPoint fp => !fp.TypeName.EndsWith("Decimal") ? "R" : "G",
+                                    GenJsonDataType.DateTime or GenJsonDataType.DateTimeOffset => "O",
+                                    GenJsonDataType.TimeSpan => "c",
+                                    _ => null
+                                };
+
+                                sb.Append("{ if (!");
+                                sb.Append(keyVal);
+                                sb.Append(fmtKey != null
+                                    ? $".TryFormat(span.Slice(index), out int written, \"{fmtKey}\", System.Globalization.CultureInfo.InvariantCulture))"
+                                    : $".TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+
+                                sb.Append(loopIndentDict);
+                                sb.AppendLine("{ throw new System.Exception(\"Buffer too small (Key)\"); }");
+                                sb.Append(loopIndentDict);
+                                sb.AppendLine("index += written; }");
+                                sb.Append(loopIndentDict);
+                                sb.AppendLine("span[index++] = '\"';");
+                                break;
+                            }
                         case GenJsonDataType.String:
                             sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
                             sb.Append(kvpVar);
