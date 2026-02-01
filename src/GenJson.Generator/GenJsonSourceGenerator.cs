@@ -78,8 +78,11 @@ public record ClassData(
     string ClassName,
     string Namespace,
     EquatableList<PropertyData> ConstructorArgs,
-    EquatableList<PropertyData> Properties,
+    EquatableList<PropertyData> InitProperties,
+    EquatableList<PropertyData> AllProperties,
     string Keyword,
+    bool IsAbstract,
+    bool HasGenJsonBase,
     bool IsNullableContext);
 
 [Generator]
@@ -129,29 +132,48 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         var properties = new List<PropertyData>();
-        var propertiesMap = new Dictionary<string, (PropertyData, IPropertySymbol)>(StringComparer.OrdinalIgnoreCase);
+        var propertiesMap = new Dictionary<string, (PropertyData Data, IPropertySymbol Symbol)>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var member in typeSymbol.GetMembers())
+        var currentType = typeSymbol;
+        var typeHierarchy = new Stack<INamedTypeSymbol>();
+        while (currentType != null && currentType.SpecialType != SpecialType.System_Object)
         {
-            if (member is IPropertySymbol propertySymbol &&
-                propertySymbol.DeclaredAccessibility == Accessibility.Public &&
-                !propertySymbol.IsStatic)
+            typeHierarchy.Push(currentType);
+            currentType = currentType.BaseType;
+        }
+
+        foreach (var t in typeHierarchy)
+        {
+            foreach (var member in t.GetMembers())
             {
-                bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
-                                  propertySymbol.NullableAnnotation == NullableAnnotation.Annotated ||
-                                  (!propertySymbol.Type.IsValueType && propertySymbol.NullableAnnotation == NullableAnnotation.None);
+                if (member is IPropertySymbol propertySymbol &&
+                    propertySymbol.DeclaredAccessibility == Accessibility.Public &&
+                    !propertySymbol.IsStatic)
+                {
+                    bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+                                      propertySymbol.NullableAnnotation == NullableAnnotation.Annotated ||
+                                      (!propertySymbol.Type.IsValueType && propertySymbol.NullableAnnotation == NullableAnnotation.None);
 
-                var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
-                bool isValueType = propertySymbol.Type.IsValueType;
+                    var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
+                    bool isValueType = propertySymbol.Type.IsValueType;
 
-                var propName = GetJsonName(propertySymbol, null);
-                var propData = new PropertyData(propertySymbol.Name, propName, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, isValueType, type);
-                properties.Add(propData);
-                propertiesMap[propertySymbol.Name] = (propData, propertySymbol);
+                    var propName = GetJsonName(propertySymbol, null);
+                    var propData = new PropertyData(propertySymbol.Name, propName, propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), isNullable, isValueType, type);
+
+                    if (propertiesMap.TryGetValue(propertySymbol.Name, out var existing))
+                    {
+                        properties.Remove(existing.Data);
+                    }
+
+                    properties.Add(propData);
+                    propertiesMap[propertySymbol.Name] = (propData, propertySymbol);
+                }
             }
         }
 
         var constructorArgs = new List<PropertyData>();
+        var utilizedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         if (typeDeclaration is RecordDeclarationSyntax)
         {
             var ctor = typeSymbol.Constructors
@@ -161,12 +183,55 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             {
                 foreach (var param in ctor.Parameters)
                 {
-                    if (propertiesMap.TryGetValue(param.Name, out var prop))
+                    var propData = GetPropertyForParameter(param, propertiesMap, context.SemanticModel.Compilation);
+
+                    if (propData != null)
                     {
-                        var newType = GetGenJsonDataType(prop.Item2, param, prop.Item2.Type);
-                        var newJsonName = GetJsonName(prop.Item2, param);
-                        properties.Remove(prop.Item1); // Remove from property list as it will be set via constructor
-                        constructorArgs.Add(prop.Item1 with { Type = newType, JsonName = newJsonName });
+                        // We found a matching property (either direct or via base)
+                        // Re-evaluate types/names in context of the parameter
+                        var originalSymbol = propertiesMap[propData.Name].Symbol;
+
+                        var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type);
+                        // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any, 
+                        // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
+                        // GetJsonName checks param first, then property.
+                        // If param C has no attributes, it returns "C" (param.Name) by default in some logic? 
+                        // Wait, GetJsonName(prop, param): checks Attr on Prop. checks Attr on Param. 
+                        // If neither, returns prop.Name.
+                        // So for C -> A mapping: Prop is A. Param is C.
+                        // If C has no Attr, GetJsonName returns "A". Perfect.
+                        var newJsonName = GetJsonName(originalSymbol, param);
+
+                        var newPropData = propData with { Type = newType, JsonName = newJsonName };
+
+                        // If param name differs from property name (mapping), remove the param-named property if it exists
+                        // This prevents serializing 'C' when it just maps to base 'A'
+                        if (param.Name != propData.Name && propertiesMap.TryGetValue(param.Name, out var selfProp))
+                        {
+                            properties.Remove(selfProp.Data);
+                        }
+
+                        // Update the main list with new data to keep consistency
+                        var index = properties.IndexOf(propData);
+                        if (index >= 0)
+                        {
+                            properties[index] = newPropData;
+                        }
+
+                        // Add to constructor args with the NAME OF THE PROPERTY (because we parse properties by JSON key -> _PropName)
+                        // Yes, we need to pass _PropName to constructor.
+                        // But wait.
+                        // If we map Param C -> Property A.
+                        // We parse JSON key "A" -> variable `_A`.
+                        // Constructor expects `_A`.
+                        // But generated code loop:
+                        // foreach(var arg in data.ConstructorArgs.Value) { append("_" + arg.Name) }
+                        // arg.Name must be "A".
+                        // newPropData.Name is "A". 
+                        // Correct.
+
+                        constructorArgs.Add(newPropData);
+                        utilizedPropertyNames.Add(propData.Name);
                     }
                 }
             }
@@ -178,7 +243,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         for (int i = properties.Count - 1; i >= 0; i--)
         {
             var propName = properties[i].Name;
-            var propSymbol = propertiesMap[propName].Item2;
+            var propSymbol = propertiesMap[propName].Symbol;
+
+            if (utilizedPropertyNames.Contains(propName)) continue;
 
             if (propSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonIgnoreAttribute"))
             {
@@ -192,6 +259,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 continue;
             }
         }
+
+        var initProperties = properties.Where(p => !utilizedPropertyNames.Contains(p.Name)).ToList();
 
         var keyword = typeDeclaration switch
         {
@@ -209,7 +278,88 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var isNullableContext = (nullableContext & NullableContext.Enabled) == NullableContext.Enabled ||
                                 (context.SemanticModel.Compilation.Options.NullableContextOptions == NullableContextOptions.Enable && (nullableContext & NullableContext.Disabled) != NullableContext.Disabled);
 
-        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(properties), keyword, isNullableContext);
+        bool hasGenJsonBase = false;
+        var checkBase = typeSymbol.BaseType;
+        while (checkBase != null && checkBase.SpecialType != SpecialType.System_Object)
+        {
+            if (HasGenJsonAttribute(checkBase))
+            {
+                hasGenJsonBase = true;
+                break;
+            }
+            checkBase = checkBase.BaseType;
+        }
+
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext);
+    }
+
+    private static PropertyData? GetPropertyForParameter(
+        IParameterSymbol parameter,
+        Dictionary<string, (PropertyData Data, IPropertySymbol Symbol)> propertiesMap,
+        Compilation compilation)
+    {
+        // 1. Check if parameter is passed to base constructor (Prioritize base mapping to resolve renames/redundancy)
+        var containingType = parameter.ContainingType;
+        if (containingType != null)
+        {
+            var syntaxRef = containingType.DeclaringSyntaxReferences.FirstOrDefault();
+            if (syntaxRef != null)
+            {
+                var typeDecl = syntaxRef.GetSyntax() as RecordDeclarationSyntax;
+                if (typeDecl != null && typeDecl.ParameterList != null)
+                {
+                    // Find index of parameter in declaration
+                    int paramIndex = -1;
+                    for (int i = 0; i < typeDecl.ParameterList.Parameters.Count; i++)
+                    {
+                        if (typeDecl.ParameterList.Parameters[i].Identifier.Text == parameter.Name)
+                        {
+                            paramIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (paramIndex != -1 && typeDecl.BaseList != null)
+                    {
+                        var baseInit = typeDecl.BaseList.Types.FirstOrDefault(t => t is PrimaryConstructorBaseTypeSyntax) as PrimaryConstructorBaseTypeSyntax;
+                        if (baseInit != null)
+                        {
+                            // Find which argument uses our parameter
+                            var args = baseInit.ArgumentList.Arguments;
+                            for (int j = 0; j < args.Count; j++)
+                            {
+                                if (args[j].Expression is IdentifierNameSyntax id && id.Identifier.Text == parameter.Name)
+                                {
+                                    // This parameter matches base arg at index j
+                                    // Find base constructor parameter at index j
+                                    var model = compilation.GetSemanticModel(typeDecl.SyntaxTree);
+                                    var baseType = model.GetTypeInfo(baseInit.Type).Type as INamedTypeSymbol;
+
+                                    if (baseType != null)
+                                    {
+                                        var baseCtor = baseType.Constructors.OrderByDescending(c => c.Parameters.Length).FirstOrDefault();
+                                        if (baseCtor != null && j < baseCtor.Parameters.Length)
+                                        {
+                                            var baseParam = baseCtor.Parameters[j];
+                                            var baseResult = GetPropertyForParameter(baseParam, propertiesMap, compilation);
+                                            if (baseResult != null) return baseResult;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check if parameter maps directly to a declared property
+        if (propertiesMap.TryGetValue(parameter.Name, out var prop))
+        {
+            return prop.Data;
+        }
+
+        return null;
     }
 
     private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type)
@@ -420,14 +570,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("    {");
 
-        sb.AppendLine("        public int CalculateJsonSize()");
+
+        var newModifier = data.HasGenJsonBase ? "new " : "";
+
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("int CalculateJsonSize()");
         sb.AppendLine("        {");
         sb.AppendLine("            int size = 2;");
         sb.AppendLine("            int propertyCount = 0;");
 
-        var allProperties = new List<PropertyData>();
-        allProperties.AddRange(data.ConstructorArgs.Value);
-        allProperties.AddRange(data.Properties.Value);
+
+        var allProperties = data.AllProperties.Value;
 
         foreach (var prop in allProperties)
         {
@@ -463,20 +617,23 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
         sb.AppendLine();
 
-        sb.AppendLine("""
-        public string ToJson()
-        {
-            return string.Create(CalculateJsonSize(), this, (span, state) =>
-            {
-                int index = 0;
-                state.WriteJson(span, ref index);
-            });
-        }
-""");
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("string ToJson()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return string.Create(CalculateJsonSize(), this, (span, state) =>");
+        sb.AppendLine("            {");
+        sb.AppendLine("                int index = 0;");
+        sb.AppendLine("                state.WriteJson(span, ref index);");
+        sb.AppendLine("            });");
+        sb.AppendLine("        }");
 
 
         sb.AppendLine();
-        sb.AppendLine("        public void WriteJson(System.Span<char> span, ref int index)");
+        sb.AppendLine();
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("void WriteJson(System.Span<char> span, ref int index)");
         sb.AppendLine("        {");
         sb.AppendLine("            span[index++] = '{';");
 
@@ -555,7 +712,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
 
         sb.AppendLine();
-        sb.AppendLine("        public static " + data.ClassName + "? FromJson(string json)");
+
+        sb.AppendLine();
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("static " + data.ClassName + "? FromJson(string json)");
         sb.AppendLine("        {");
         sb.AppendLine("            System.ReadOnlySpan<char> span = json;");
         sb.AppendLine("            var index = 0;");
@@ -564,7 +725,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
 
         sb.AppendLine();
-        sb.AppendLine("        internal static " + data.ClassName + "? Parse(System.ReadOnlySpan<char> json, ref int index)");
+
+        sb.AppendLine();
+        sb.Append("        internal ");
+        sb.Append(newModifier);
+        sb.AppendLine("static " + data.ClassName + "? Parse(System.ReadOnlySpan<char> json, ref int index)");
         sb.AppendLine("        {");
         sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
         sb.AppendLine("            if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
@@ -614,35 +779,42 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 }
             }
         }
-        sb.Append("                    return new ");
-        sb.Append(data.ClassName);
-        sb.Append("(");
 
-        bool firstArg = true;
-        foreach (var arg in data.ConstructorArgs.Value)
+        if (data.IsAbstract)
         {
-            if (!firstArg) sb.Append(", ");
-            sb.Append("_");
-            sb.Append(arg.Name);
-            firstArg = false;
+            sb.AppendLine("                    throw new System.NotSupportedException(\"Cannot deserialize abstract type\");");
         }
-
-        sb.AppendLine(")");
-        if (data.Properties.Value.Count > 0)
+        else
         {
-            sb.AppendLine("                    {");
-            foreach (var prop in data.Properties.Value)
+            sb.Append("                    return new ");
+            sb.Append(data.ClassName);
+            sb.Append("(");
+
+            bool firstArg = true;
+            foreach (var arg in data.ConstructorArgs.Value)
             {
-                sb.Append("                        ");
-                sb.Append(prop.Name);
-                sb.Append(" = _");
-                sb.Append(prop.Name);
-                sb.AppendLine(",");
+                if (!firstArg) sb.Append(", ");
+                sb.Append("_");
+                sb.Append(arg.Name);
+                firstArg = false;
             }
-            sb.Append("                    }");
-        }
 
-        sb.AppendLine(";");
+            sb.AppendLine(")");
+            if (data.InitProperties.Value.Count > 0)
+            {
+                sb.AppendLine("                    {");
+                foreach (var prop in data.InitProperties.Value)
+                {
+                    sb.Append("                        ");
+                    sb.Append(prop.Name);
+                    sb.Append(" = _");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(",");
+                }
+                sb.Append("                    }");
+            }
+            sb.AppendLine(";");
+        }
         sb.AppendLine("                }");
 
         sb.AppendLine("                bool matched = false;");

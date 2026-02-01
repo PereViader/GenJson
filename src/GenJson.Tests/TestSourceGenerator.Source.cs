@@ -330,3 +330,15 @@ public partial record ParentNullableDisableClass(
 [GenJson]
 public partial record ChildNullableDisableClass(int Value);
 #nullable restore
+
+[GenJson]
+public partial class BaseScenario
+{
+    public int BaseProp { get; set; }
+}
+
+[GenJson]
+public partial class DerivedScenario : BaseScenario
+{
+    public int DerivedProp { get; set; }
+}
