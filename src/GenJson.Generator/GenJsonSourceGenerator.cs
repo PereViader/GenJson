@@ -83,7 +83,11 @@ public record ClassData(
     string Keyword,
     bool IsAbstract,
     bool HasGenJsonBase,
-    bool IsNullableContext);
+    bool IsNullableContext,
+    string? PolymorphicDiscriminatorProp,
+    EquatableList<DerivedTypeData> DerivedTypes);
+
+public record DerivedTypeData(string TypeName, string DiscriminatorValue, bool IsIntDiscriminator);
 
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
@@ -290,7 +294,25 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             checkBase = checkBase.BaseType;
         }
 
-        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext);
+        string? polymorphicDiscriminatorProp = null;
+        var polyAttr = typeSymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPolymorphicAttribute");
+        if (polyAttr != null)
+        {
+            polymorphicDiscriminatorProp = polyAttr.ConstructorArguments.Length > 0 && polyAttr.ConstructorArguments[0].Value is string s ? s : "$type";
+        }
+
+        var derivedTypes = new List<DerivedTypeData>();
+        foreach (var attr in typeSymbol.GetAttributes().Where(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonDerivedTypeAttribute"))
+        {
+            if (attr.ConstructorArguments.Length >= 2 && attr.ConstructorArguments[0].Value is ITypeSymbol derivedType && attr.ConstructorArguments[1].Value is object discVal)
+            {
+                bool isInt = discVal is int or byte or short or long; // or other integer types
+                string valStr = isInt ? discVal.ToString() : $"\"{discVal}\"";
+                derivedTypes.Add(new DerivedTypeData(derivedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), valStr, isInt));
+            }
+        }
+
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
     }
 
     private static PropertyData? GetPropertyForParameter(
@@ -571,17 +593,55 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
 
 
+
+        var allProperties = data.AllProperties.Value;
         var newModifier = data.HasGenJsonBase ? "new " : "";
 
         sb.Append("        public ");
         sb.Append(newModifier);
         sb.AppendLine("int CalculateJsonSize()");
         sb.AppendLine("        {");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            sb.AppendLine("            switch (this)");
+            sb.AppendLine("            {");
+            int derivedIdx = 0;
+            foreach (var derived in data.DerivedTypes.Value)
+            {
+                derivedIdx++;
+                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
+                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
+                int overhead = discKey.Length + 3 + 1;
+                overhead += derived.DiscriminatorValue.Length;
+                sb.AppendLine("                    return d" + derivedIdx + ".CalculateJsonSize() + " + overhead + ";");
+            }
+            sb.AppendLine("                default:");
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+            }
+            else
+            {
+                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    break;");
+            }
+            sb.AppendLine("            }");
+
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("        }");
+                sb.AppendLine();
+                goto GenerateToJson; // Skip base calculation for abstract types
+            }
+        }
         sb.AppendLine("            int size = 2;");
         sb.AppendLine("            int propertyCount = 0;");
 
 
-        var allProperties = data.AllProperties.Value;
+
 
         foreach (var prop in allProperties)
         {
@@ -617,6 +677,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
         sb.AppendLine();
 
+    GenerateToJson:
         sb.Append("        public ");
         sb.Append(newModifier);
         sb.AppendLine("string ToJson()");
@@ -635,8 +696,69 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.Append(newModifier);
         sb.AppendLine("void WriteJson(System.Span<char> span, ref int index)");
         sb.AppendLine("        {");
-        sb.AppendLine("            span[index++] = '{';");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            sb.AppendLine("            switch (this)");
+            sb.AppendLine("            {");
+            int derivedIdx = 0;
+            foreach (var derived in data.DerivedTypes.Value)
+            {
+                derivedIdx++;
+                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    span[index++] = '{';");
+                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
+                sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, \"" + discKey + "\");");
+                sb.AppendLine("                    span[index++] = ':';");
+                if (derived.IsIntDiscriminator)
+                {
+                    foreach (char c in derived.DiscriminatorValue)
+                        sb.AppendLine("                    span[index++] = '" + c + "';");
+                }
+                else
+                {
+                    sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, " + derived.DiscriminatorValue + ");");
+                }
+                sb.AppendLine("                    span[index++] = ',';");
+                sb.AppendLine("                    d" + derivedIdx + ".WriteJsonContent(span, ref index);");
+                sb.AppendLine("                    span[index++] = '}';");
+                sb.AppendLine("                    return;");
+                sb.AppendLine("                }");
+            }
 
+            sb.AppendLine("                default:");
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+            }
+            else
+            {
+                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    break;");
+            }
+            sb.AppendLine("            }");
+
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("        }");
+                sb.AppendLine();
+                goto GenerateWriteJsonContent;
+            }
+        }
+        sb.AppendLine("            span[index++] = '{';");
+        sb.AppendLine("            WriteJsonContent(span, ref index);");
+        sb.AppendLine("            span[index++] = '}';");
+        sb.AppendLine("        }");
+
+        sb.AppendLine();
+    GenerateWriteJsonContent:
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("void WriteJsonContent(System.Span<char> span, ref int index)");
+        sb.AppendLine("        {");
         bool needFirstSpan = allProperties.Count > 1 && allProperties[0].IsNullable;
         if (needFirstSpan)
         {
@@ -708,7 +830,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("            }");
             }
         }
-        sb.AppendLine("            span[index++] = '}';");
         sb.AppendLine("        }");
 
         sb.AppendLine();
@@ -731,6 +852,75 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.Append(newModifier);
         sb.AppendLine("static " + data.ClassName + "? Parse(System.ReadOnlySpan<char> json, ref int index)");
         sb.AppendLine("        {");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            var discName = data.PolymorphicDiscriminatorProp ?? "$type";
+            sb.AppendLine("            if (global::GenJson.GenJsonParser.TryFindProperty(json, index, \"" + discName + "\", out var valIndex))");
+            sb.AppendLine("            {");
+            sb.AppendLine("                int tempIndex = valIndex;");
+            sb.AppendLine("                global::GenJson.GenJsonParser.SkipWhitespace(json, ref tempIndex);");
+            sb.AppendLine("                if (tempIndex < json.Length)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    char c = json[tempIndex];");
+            sb.AppendLine("                    if (c == '\"')");
+            sb.AppendLine("                    {");
+            foreach (var derived in data.DerivedTypes.Value.Where(d => !d.IsIntDiscriminator))
+            {
+                var rawVal = derived.DiscriminatorValue.Trim('"');
+                sb.AppendLine("                        if (global::GenJson.GenJsonParser.MatchesKey(json, ref tempIndex, \"" + rawVal + "\"))");
+                sb.AppendLine("                        {");
+                sb.AppendLine("                            int i = index;");
+                sb.AppendLine("                            var result = " + derived.TypeName + ".Parse(json, ref i);");
+                sb.AppendLine("                            index = i;");
+                sb.AppendLine("                            return result;");
+                sb.AppendLine("                        }");
+            }
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    else if (char.IsDigit(c) || c == '-')");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        if (global::GenJson.GenJsonParser.TryParseInt(json, ref tempIndex, out var iVal))");
+            sb.AppendLine("                        {");
+            if (data.DerivedTypes.Value.Any(d => d.IsIntDiscriminator))
+            {
+                sb.AppendLine("                            switch (iVal)");
+                sb.AppendLine("                            {");
+                foreach (var derived in data.DerivedTypes.Value.Where(d => d.IsIntDiscriminator))
+                {
+                    sb.AppendLine("                                case " + derived.DiscriminatorValue + ":");
+                    sb.AppendLine("                                {");
+                    sb.AppendLine("                                    int i = index;");
+                    sb.AppendLine("                                    var result = " + derived.TypeName + ".Parse(json, ref i);");
+                    sb.AppendLine("                                    index = i;");
+                    sb.AppendLine("                                    return result;");
+                    sb.AppendLine("                                }");
+                }
+                sb.AppendLine("                            }");
+            }
+            sb.AppendLine("                        }");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                }");
+
+            // If we found property but failed to match value:
+            sb.AppendLine("                return null;");
+            sb.AppendLine("            }");
+
+            // If we didn't find property:
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("            return null;"); // User requested null return
+                goto GenerateParseEnd;
+            }
+            else
+            {
+                // Concrete base: If missing, maybe it IS the base?
+                // User said: "if the type is not identified it should fail".
+                // But if I have a concrete base, and no discriminator, it is usually assumed to be the base.
+                // However, if "type not identified" implies strictness.
+                // Let's assume for Concrete Base, missing discriminator -> Base.
+                // This is consistent with "Keep the check when [..] not abstract".
+            }
+        }
+        sb.AppendLine();
         sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
         sb.AppendLine("            if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
 
@@ -851,6 +1041,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("                }");
         sb.AppendLine("            }");
         sb.AppendLine("            return null;");
+    GenerateParseEnd:
         sb.AppendLine("        }");
 
         sb.AppendLine("    }");

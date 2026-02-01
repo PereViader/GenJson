@@ -83,4 +83,36 @@ namespace GenJson
     public sealed class GenJsonIgnoreAttribute : Attribute
     {
     }
+
+    /// <summary>
+    /// This attribute can be used to specify that a class or struct should be serialized polymorphically.
+    /// The typeDiscriminatorPropertyName parameter specifies the name of the property that should be used to store the type information.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public sealed class GenJsonPolymorphicAttribute : Attribute
+    {
+        public GenJsonPolymorphicAttribute(string typeDiscriminatorPropertyName = "$type")
+        {
+            TypeDiscriminatorPropertyName = typeDiscriminatorPropertyName;
+        }
+        public string TypeDiscriminatorPropertyName { get; }
+    }
+
+    /// <summary>
+    /// This attribute can be used to specify that a class or struct should be serialized as a derived type.
+    /// The type parameter specifies the type that should be used to store the type information.
+    /// The type discriminator value is the value that should be used to store the type information. Either a string or an int.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
+    public sealed class GenJsonDerivedTypeAttribute : Attribute
+    {
+        public GenJsonDerivedTypeAttribute(Type type, object? typeDiscriminatorValue = null)
+        {
+            Type = type;
+            TypeDiscriminatorValue = typeDiscriminatorValue;
+        }
+
+        public Type Type { get; }
+        public object? TypeDiscriminatorValue { get; }
+    }
 }

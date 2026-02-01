@@ -313,7 +313,7 @@ namespace GenJson
             {
                 return TrySkipString(json, ref index);
             }
-            
+
             if (c == '{')
             {
                 index++;
@@ -431,6 +431,46 @@ namespace GenJson
             int i = index;
             SkipWhitespace(json, ref i);
             return i + 4 <= json.Length && json.Slice(i, 4).SequenceEqual("null".AsSpan());
+        }
+
+        public static bool TryFindProperty(ReadOnlySpan<char> json, int startIndex, string propertyName, out int valueIndex)
+        {
+            valueIndex = -1;
+            int index = startIndex;
+            SkipWhitespace(json, ref index);
+            if (index >= json.Length || json[index] != '{') return false;
+            index++;
+
+            while (index < json.Length)
+            {
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length || json[index] == '}') return false;
+
+                if (MatchesKey(json, ref index, propertyName))
+                {
+                    SkipWhitespace(json, ref index);
+                    if (index >= json.Length || json[index] != ':') return false;
+                    index++;
+                    SkipWhitespace(json, ref index);
+                    valueIndex = index;
+                    return true;
+                }
+
+                // Skip key
+                if (!TrySkipString(json, ref index)) return false;
+
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length || json[index] != ':') return false;
+                index++;
+
+                if (!TrySkipValue(json, ref index)) return false;
+
+                SkipWhitespace(json, ref index);
+                if (index >= json.Length) return false;
+                if (json[index] == '}') return false;
+                if (json[index] == ',') index++;
+            }
+            return false;
         }
     }
 }
