@@ -4,3 +4,5 @@
     - GenJson.Generator: The source generator which will generate the code. Generated code will use the main library code.
 - The generator must use Microsoft.CodeAnalysis.CSharp version to 4.1.0
 - The tests contain TestSourceGenerator which can be used to analyze the source generated code
+- Avoid memory allocations in generated code unless strictly necessary or for performance.
+- Prefer switch statements or expressions over if-else chains for handling multiple cases.
