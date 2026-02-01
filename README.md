@@ -216,6 +216,61 @@ public partial class Product
 }
 ```
 
+
+### 8. Inheritance
+
+GenJson supports serialization of inherited properties. Simply mark both the base class and the derived class with `[GenJson]`.
+
+```csharp
+[GenJson]
+public partial class Animal
+{
+    public string Name { get; set; }
+}
+
+[GenJson]
+public partial class Dog : Animal
+{
+    public string Breed { get; set; }
+}
+```
+
+### 9. Polymorphism
+
+GenJson supports polymorphic serialization and deserialization.
+
+1.  Mark the base class (can be abstract) with `[GenJsonPolymorphic]`.
+    - This is optional and is only needed if you want to change it.
+2.  Register known derived types using `[GenJsonDerivedType(typeof(Derived), identifier)]`.
+    - The identifier can be an `int` or a `string`.
+
+```csharp
+[GenJson]
+[GenJsonPolymorphic("$animal-type")] // Optional attribute, when unspecified defaults to "$type"
+[GenJsonDerivedType(typeof(Dog), "dog")]
+[GenJsonDerivedType(typeof(Cat), "cat")]
+public abstract partial class Animal
+{
+    public string Name { get; set; }
+}
+
+[GenJson]
+public partial class Dog : Animal
+{
+    public string Breed { get; set; }
+}
+
+[GenJson]
+public partial class Cat : Animal
+{
+    public bool IsLazy { get; set; }
+}
+```
+
+**Serialization**: The generator will automatically include the discriminator property (`$type`: "dog") in the JSON output.
+
+**Deserialization**: `Animal.FromJson(...)` will inspect the `$type` property and deserialize into the correct derived type (`Dog` or `Cat`). If the type is unknown or missing (for abstract bases), it returns `null`.
+
 ## How It Works
 
 GenJson analyzes your code during compilation and generates specialized serialization code.
