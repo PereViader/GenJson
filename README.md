@@ -20,14 +20,14 @@ GenJson is a **zero-allocation**, high-performance C# Source Generator library t
 
 ## [Benchmark](https://github.com/PereViader/GenJson/blob/main/src/GenJson.Benchmark/Program.cs)
 
-| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
-|------------------------ |-----------:|-----------:|------------:|-------:|---------------:|
-| GenJson_ToJson          |   955.3 ns |   18.49 ns |    19.78 ns | 0.0324 |         1.6 KB |
-| MicrosoftJson_ToJson    | 1,219.7 ns |   23.88 ns |    29.32 ns | 0.0381 |        1.92 KB |
-| NewtonsoftJson_ToJson   | 2,391.1 ns |   43.50 ns |    40.69 ns | 0.1183 |        5.95 KB |
-| GenJson_FromJson        | 1,700.2 ns |   32.93 ns |    40.44 ns | 0.0534 |        2.69 KB |
-| MicrosoftJson_FromJson  | 2,450.4 ns |   48.04 ns |    60.75 ns | 0.0610 |           3 KB |
-| NewtonsoftJson_FromJson | 4,000.7 ns |   78.60 ns |    96.53 ns | 0.1678 |        8.23 KB |
+| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Median [ns] | Gen0   | Allocated [KB] |
+|------------------------ |-----------:|-----------:|------------:|------------:|-------:|---------------:|
+| GenJson_ToJson          |   889.2 ns |   17.74 ns |    22.44 ns |    880.9 ns | 0.0324 |         1.6 KB |
+| MicrosoftJson_ToJson    | 1,166.0 ns |   23.29 ns |    34.86 ns |  1,158.0 ns | 0.0381 |        1.92 KB |
+| NewtonsoftJson_ToJson   | 2,294.7 ns |   45.66 ns |    66.93 ns |  2,296.7 ns | 0.1183 |        5.95 KB |
+| GenJson_FromJson        | 1,687.8 ns |   32.79 ns |    44.88 ns |  1,671.8 ns | 0.0477 |        2.39 KB |
+| MicrosoftJson_FromJson  | 2,327.2 ns |   45.12 ns |    58.67 ns |  2,293.2 ns | 0.0610 |           3 KB |
+| NewtonsoftJson_FromJson | 4,187.9 ns |   83.47 ns |   117.02 ns |  4,206.9 ns | 0.1678 |        8.23 KB |
 
 ## Usage
 

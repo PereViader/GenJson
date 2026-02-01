@@ -1008,10 +1008,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("                }");
 
         sb.AppendLine("                bool matched = false;");
-        sb.AppendLine("                if (false) { }"); // This is a dummy block to start the else if chain
         foreach (var prop in allProperties)
         {
-            sb.Append("                else if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
+            sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
             sb.Append(prop.JsonName);
             sb.AppendLine("\"))");
             sb.AppendLine("                {");
@@ -1024,20 +1023,24 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("_set = true;");
             }
             sb.AppendLine("                    matched = true;");
+            sb.AppendLine("                    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+            sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        index++;");
+            sb.AppendLine("                    }");
             sb.AppendLine("                }");
         }
 
-        sb.AppendLine("                if (!matched)");
+        sb.AppendLine("                if (!matched || (index < json.Length && json[index] == '\"'))");
         sb.AppendLine("                {");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
-        sb.AppendLine("                }");
-
-        sb.AppendLine("                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
-        sb.AppendLine("                if (index < json.Length && json[index] == ',')");
-        sb.AppendLine("                {");
-        sb.AppendLine("                    index++;");
+        sb.AppendLine("                    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+        sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        index++;");
+        sb.AppendLine("                    }");
         sb.AppendLine("                }");
         sb.AppendLine("            }");
         sb.AppendLine("            return null;");
