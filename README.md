@@ -119,7 +119,22 @@ public partial record User(
 );
 ```
 
-### 4. Enum Fallback
+### 4. Ignore Properties
+
+You can prevent a property from being serialized or deserialized using the `[GenJsonIgnore]` attribute.
+
+```csharp
+[GenJson]
+public partial class User
+{
+    public string Username { get; set; }
+
+    [GenJsonIgnore]
+    public string Password { get; set; } // Will not be included in JSON
+}
+```
+
+### 5. Enum Fallback
 
 When deserializing enums, you can specify a fallback value to use if the JSON contains a value that doesn't match any enum member. This is useful for handling unknown values from external APIs (e.g., future enum values).
 
@@ -141,7 +156,7 @@ When an enum is used as a `Dictionary` key (e.g., `Dictionary<Status, int>`), an
 - If `[GenJsonEnumFallback]` is present, the invalid key-value pair will be **skipped** (ignored).
 - If `[GenJsonEnumFallback]` is NOT present, deserialization will return `null` (fail).
 
-### 5. Custom Conversion
+### 6. Custom Conversion
 
 You can define custom logic for serializing and deserializing specific properties using the `[GenJsonConverter]` attribute.
 
@@ -164,7 +179,7 @@ public partial class MyClass
 }
 ```
 
-### 6. Serialization
+### 7. Serialization
 
 The generator creates a `ToJson()` method.
 
@@ -182,7 +197,7 @@ var product = new Product
 string json = product.ToJson();
 ```
 
-### 7. Deserialization
+### 8. Deserialization
 
 The generator creates a static `FromJson` method on your class.
 
@@ -217,7 +232,7 @@ public partial class Product
 ```
 
 
-### 8. Inheritance
+### 9. Inheritance
 
 GenJson supports serialization of inherited properties. Simply mark both the base class and the derived class with `[GenJson]`.
 
@@ -235,7 +250,7 @@ public partial class Dog : Animal
 }
 ```
 
-### 9. Polymorphism
+### 10. Polymorphism
 
 GenJson supports polymorphic serialization and deserialization.
 
