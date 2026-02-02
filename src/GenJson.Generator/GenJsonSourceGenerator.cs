@@ -858,7 +858,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("            if (global::GenJson.GenJsonParser.TryFindProperty(json, index, \"" + discName + "\", out var valIndex))");
             sb.AppendLine("            {");
             sb.AppendLine("                int tempIndex = valIndex;");
-            sb.AppendLine("                global::GenJson.GenJsonParser.SkipWhitespace(json, ref tempIndex);");
+            sb.AppendLine("");
             sb.AppendLine("                if (tempIndex < json.Length)");
             sb.AppendLine("                {");
             sb.AppendLine("                    char c = json[tempIndex];");
@@ -921,7 +921,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
         sb.AppendLine();
-        sb.AppendLine("            global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+        sb.AppendLine("");
         sb.AppendLine("            if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
 
         foreach (var prop in allProperties)
@@ -943,7 +943,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.AppendLine("            while (index < json.Length)");
         sb.AppendLine("            {");
-        sb.AppendLine("                global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+        sb.AppendLine("    ");
         sb.AppendLine("                if (index >= json.Length) return null;");
         sb.AppendLine("                if (json[index] == '}')");
         sb.AppendLine("                {");
@@ -1023,7 +1023,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("_set = true;");
             }
             sb.AppendLine("                    matched = true;");
-            sb.AppendLine("                    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+            sb.AppendLine("        ");
             sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
             sb.AppendLine("                    {");
             sb.AppendLine("                        index++;");
@@ -1031,12 +1031,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("                }");
         }
 
-        sb.AppendLine("                if (!matched || (index < json.Length && json[index] == '\"'))");
+        sb.AppendLine("                if (!matched && (index < json.Length && json[index] == '\"'))");
         sb.AppendLine("                {");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
         sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
-        sb.AppendLine("                    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+        sb.AppendLine("        ");
         sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
         sb.AppendLine("                    {");
         sb.AppendLine("                        index++;");
@@ -1279,7 +1279,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     string loopIndent = scopedIndent + "    ";
 
                     sb.Append(loopIndent);
-                    sb.AppendLine("global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(loopIndent);
                     sb.AppendLine("if (index >= json.Length) return null;");
 
@@ -1318,7 +1318,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine(");");
 
                     sb.Append(loopIndent);
-                    sb.AppendLine("global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(loopIndent);
                     sb.AppendLine("if (index < json.Length && json[index] == ',')");
                     sb.Append(loopIndent);
@@ -1360,7 +1360,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     string loopIndent = scopedIndent + "    ";
 
                     sb.Append(loopIndent);
-                    sb.AppendLine("global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(loopIndent);
                     sb.AppendLine("if (index >= json.Length) return null;");
 
@@ -1448,7 +1448,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     }
 
                     sb.Append(loopIndent);
-                    sb.AppendLine("global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(loopIndent);
                     sb.AppendLine("if (index < json.Length && json[index] == ',')");
                     sb.Append(loopIndent);
@@ -1529,7 +1529,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(indent);
                     sb.AppendLine("        if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
                     sb.Append(indent);
-                    sb.AppendLine("        global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(indent);
                     sb.AppendLine("        if (index < json.Length && json[index] == ',')");
                     sb.Append(indent);
@@ -1589,7 +1589,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(indent);
                     sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
                     sb.Append(indent);
-                    sb.AppendLine("    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(indent);
                     sb.AppendLine("    if (index < json.Length && json[index] == ',')");
                     sb.Append(indent);
@@ -1660,7 +1660,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(indent);
                     sb.AppendLine("    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
                     sb.Append(indent);
-                    sb.AppendLine("    global::GenJson.GenJsonParser.SkipWhitespace(json, ref index);");
+
                     sb.Append(indent);
                     sb.AppendLine("    if (index < json.Length && json[index] == ',')");
                     sb.Append(indent);

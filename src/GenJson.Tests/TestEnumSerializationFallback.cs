@@ -91,7 +91,7 @@ namespace GenJson.Tests
             // "1" -> One (valid)
             // "2" -> Two (valid)
             // "99" -> Invalid (should be skipped)
-            var json = """{"Value":{"1":10, "2":20, "99":30}}""";
+            var json = """{"Value":{"1":10,"2":20,"99":30}}""";
             var obj = FallbackDictionaryNumericEnumClass.FromJson(json);
 
             Assert.That(obj, Is.Not.Null);
@@ -103,7 +103,7 @@ namespace GenJson.Tests
         [Test]
         public void TestEnumOnDictionary_AllInvalidKeys_ReturnsEmptyDictionary()
         {
-            var json = """{"Value":{"99":1, "100":2}}""";
+            var json = """{"Value":{"99":1,"100":2}}""";
             var obj = FallbackDictionaryNumericEnumClass.FromJson(json);
 
             Assert.That(obj, Is.Not.Null);

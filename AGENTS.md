@@ -6,3 +6,4 @@
 - The tests contain TestSourceGenerator which can be used to analyze the source generated code
 - Avoid memory allocations in generated code unless strictly necessary or for performance.
 - Prefer switch statements or expressions over if-else chains for handling multiple cases.
+- Prefer Raw string literals for test cases instead in order to avoid complex escape character sequences.

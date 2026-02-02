@@ -18,7 +18,7 @@ namespace GenJson.Tests
         [Test]
         public void TestDeserialization()
         {
-            var json = "{\"new_name\": 100, \"Other\": \"bar\"}";
+            var json = "{\"new_name\":100,\"Other\":\"bar\"}";
             var value = RenamedClass.FromJson(json)!;
             Assert.That(value, Is.Not.Null);
             Assert.That(value.OriginalName, Is.EqualTo(100));
@@ -28,7 +28,7 @@ namespace GenJson.Tests
         [Test]
         public void TestDeserialization_MissingRenamedProp()
         {
-            var json = "{\"Other\": \"bar\"}";
+            var json = "{\"Other\":\"bar\"}";
             var value = RenamedClass.FromJson(json);
             Assert.That(value, Is.Null);
         }
@@ -45,7 +45,7 @@ namespace GenJson.Tests
         [Test]
         public void TestRecordDeserialization()
         {
-            var json = "{\"renamed_prop\": 456}";
+            var json = "{\"renamed_prop\":456}";
             var value = RenamedRecord.FromJson(json)!;
             Assert.That(value, Is.Not.Null);
             Assert.That(value.Prop, Is.EqualTo(456));

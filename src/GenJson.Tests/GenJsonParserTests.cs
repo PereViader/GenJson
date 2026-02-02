@@ -119,7 +119,7 @@ namespace GenJson.Tests
         [Test]
         public void MatchesKey_MatchesCorrectKey()
         {
-            var json = "\"key\": 123".AsSpan();
+            var json = "\"key\":123".AsSpan();
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.True);
             Assert.That(json[index], Is.EqualTo(':'));
@@ -128,7 +128,7 @@ namespace GenJson.Tests
         [Test]
         public void MatchesKey_DoesNotMatchWrongKey()
         {
-            var json = "\"other\": 123".AsSpan();
+            var json = "\"other\":123".AsSpan();
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.False);
             Assert.That(index, Is.EqualTo(0)); // Should reset index
@@ -137,7 +137,7 @@ namespace GenJson.Tests
         [Test]
         public void MatchesKey_HandlesEscapedKey()
         {
-            var json = "\"k\\u0065y\": 123".AsSpan(); // "key"
+            var json = "\"k\\u0065y\":123".AsSpan(); // "key"
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.True);
         }
@@ -145,11 +145,10 @@ namespace GenJson.Tests
         [Test]
         public void TrySkipValue_SkipsObject()
         {
-            var json = "{\"a\": 1, \"b\": [2, 3]} next".AsSpan();
+            var json = "{\"a\":1,\"b\":[2,3]}next".AsSpan();
             int index = 0;
             var success = GenJsonParser.TrySkipValue(json, ref index);
             Assert.That(success, Is.True);
-            GenJsonParser.SkipWhitespace(json, ref index);
 
             // Should be at "next"
             Assert.That(json[index], Is.EqualTo('n'));
@@ -158,11 +157,10 @@ namespace GenJson.Tests
         [Test]
         public void TrySkipValue_SkipsArray()
         {
-            var json = "[1, {\"a\": 2}, [3]] next".AsSpan();
+            var json = "[1,{\"a\":2},[3]]next".AsSpan();
             int index = 0;
             var success = GenJsonParser.TrySkipValue(json, ref index);
             Assert.That(success, Is.True);
-            GenJsonParser.SkipWhitespace(json, ref index);
             Assert.That(json[index], Is.EqualTo('n'));
         }
 

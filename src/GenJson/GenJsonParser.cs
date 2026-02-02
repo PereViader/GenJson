@@ -7,17 +7,11 @@ namespace GenJson
 {
     public static class GenJsonParser
     {
-        public static void SkipWhitespace(ReadOnlySpan<char> json, ref int index)
-        {
-            while (index < json.Length && char.IsWhiteSpace(json[index]))
-            {
-                index++;
-            }
-        }
+
 
         public static bool TryExpect(ReadOnlySpan<char> json, ref int index, char expected)
         {
-            SkipWhitespace(json, ref index);
+
             if (index >= json.Length || json[index] != expected)
             {
                 return false;
@@ -140,7 +134,7 @@ namespace GenJson
         public static bool MatchesKey(ReadOnlySpan<char> json, ref int index, string expected)
         {
             int originalIndex = index;
-            SkipWhitespace(json, ref index);
+
             if (index >= json.Length || json[index] != '"')
             {
                 index = originalIndex;
@@ -203,7 +197,7 @@ namespace GenJson
         public static bool TryParseBoolean(ReadOnlySpan<char> json, ref int index, out bool result)
         {
             result = default;
-            SkipWhitespace(json, ref index);
+
             if (json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual("true".AsSpan()))
             {
                 int nextIndex = index + 4;
@@ -229,7 +223,7 @@ namespace GenJson
 
         private static bool IsDelimiter(char c)
         {
-            return char.IsWhiteSpace(c) || c == ',' || c == '}' || c == ']';
+            return c is ',' or '}' or ']';
         }
 
         public static bool TryParseChar(ReadOnlySpan<char> json, ref int index, out char result)
@@ -250,8 +244,6 @@ namespace GenJson
 
         public static bool TryParseLong(ReadOnlySpan<char> json, ref int index, out long result)
         {
-            result = 0;
-            SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && char.IsDigit(json[index])) index++;
@@ -261,8 +253,6 @@ namespace GenJson
 
         public static bool TryParseULong(ReadOnlySpan<char> json, ref int index, out ulong result)
         {
-            result = 0;
-            SkipWhitespace(json, ref index);
             int start = index;
             while (index < json.Length && char.IsDigit(json[index])) index++;
             var slice = json.Slice(start, index - start);
@@ -271,8 +261,6 @@ namespace GenJson
 
         public static bool TryParseDouble(ReadOnlySpan<char> json, ref int index, out double result)
         {
-            result = 0;
-            SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
@@ -280,12 +268,19 @@ namespace GenJson
             return double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
         }
 
-        public static bool TryParseFloat(ReadOnlySpan<char> json, ref int index, out float result) { if (TryParseDouble(json, ref index, out var d)) { result = (float)d; return true; } result = 0; return false; }
+        public static bool TryParseFloat(ReadOnlySpan<char> json, ref int index, out float result)
+        {
+            if (TryParseDouble(json, ref index, out var d))
+            {
+                result = (float)d; 
+                return true;
+            }
+            result = 0; 
+            return false;
+        }
 
         public static bool TryParseDecimal(ReadOnlySpan<char> json, ref int index, out decimal result)
         {
-            result = 0;
-            SkipWhitespace(json, ref index);
             int start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
@@ -295,7 +290,6 @@ namespace GenJson
 
         public static bool TryParseNull(ReadOnlySpan<char> json, ref int index)
         {
-            SkipWhitespace(json, ref index);
             if (json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual("null".AsSpan()))
             {
                 index += 4;
@@ -306,20 +300,19 @@ namespace GenJson
 
         public static bool TrySkipValue(ReadOnlySpan<char> json, ref int index)
         {
-            SkipWhitespace(json, ref index);
             if (index >= json.Length) return false;
             char c = json[index];
-            if (c == '"')
+            if (c == '"') // string
             {
                 return TrySkipString(json, ref index);
             }
 
-            if (c == '{')
+            if (c == '{') //object
             {
                 index++;
                 while (index < json.Length)
                 {
-                    SkipWhitespace(json, ref index);
+
                     if (index >= json.Length) return false;
                     if (json[index] == '}')
                     {
@@ -327,21 +320,21 @@ namespace GenJson
                         return true;
                     }
                     if (!TrySkipValue(json, ref index)) return false;
-                    SkipWhitespace(json, ref index);
+
                     if (index >= json.Length) return false;
                     if (json[index] == ':') index++;
                     if (!TrySkipValue(json, ref index)) return false;
-                    SkipWhitespace(json, ref index);
+
                     if (index >= json.Length) return false;
                     if (json[index] == ',') index++;
                 }
             }
-            else if (c == '[')
+            else if (c == '[') //collection
             {
                 index++;
                 while (index < json.Length)
                 {
-                    SkipWhitespace(json, ref index);
+
                     if (index >= json.Length) return false;
                     if (json[index] == ']')
                     {
@@ -349,7 +342,7 @@ namespace GenJson
                         return true;
                     }
                     if (!TrySkipValue(json, ref index)) return false;
-                    SkipWhitespace(json, ref index);
+
                     if (index >= json.Length) return false;
                     if (json[index] == ',') index++;
                 }
@@ -360,17 +353,17 @@ namespace GenJson
                 while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
                 return true;
             }
-            else if (c == 't')
+            else if (c == 't') //true
             {
                 index += 4;
                 return true;
             }
-            else if (c == 'f')
+            else if (c == 'f') //false
             {
                 index += 5;
                 return true;
             }
-            else if (c == 'n')
+            else if (c == 'n') //null
             {
                 index += 4;
                 return true;
@@ -386,7 +379,6 @@ namespace GenJson
 
         public static int CountListItems(ReadOnlySpan<char> json, int index)
         {
-            SkipWhitespace(json, ref index);
             if (index >= json.Length || json[index] == ']') return 0;
 
             int count = 0;
@@ -394,7 +386,7 @@ namespace GenJson
             {
                 count++;
                 TrySkipValue(json, ref index);
-                SkipWhitespace(json, ref index);
+
                 if (index >= json.Length) return count;
                 if (json[index] == ']') return count;
                 if (json[index] == ',') index++;
@@ -405,7 +397,6 @@ namespace GenJson
 
         public static int CountDictionaryItems(ReadOnlySpan<char> json, int index)
         {
-            SkipWhitespace(json, ref index);
             if (index >= json.Length || json[index] == '}') return 0;
 
             int count = 0;
@@ -413,12 +404,12 @@ namespace GenJson
             {
                 count++;
                 if (!TrySkipString(json, ref index)) return count; // Skip Key
-                SkipWhitespace(json, ref index);
+
                 if (index >= json.Length || json[index] != ':') return count;
                 index++; // Skip colon
                 if (!TrySkipValue(json, ref index)) return count; // Skip Value
 
-                SkipWhitespace(json, ref index);
+
                 if (index >= json.Length) return count;
                 if (json[index] == '}') return count;
                 if (json[index] == ',') index++;
@@ -428,30 +419,27 @@ namespace GenJson
         }
         public static bool IsNull(ReadOnlySpan<char> json, ref int index)
         {
-            int i = index;
-            SkipWhitespace(json, ref i);
-            return i + 4 <= json.Length && json.Slice(i, 4).SequenceEqual("null".AsSpan());
+            return index + 4 <= json.Length && 
+                   json.Slice(index, 4).SequenceEqual("null".AsSpan());
         }
 
         public static bool TryFindProperty(ReadOnlySpan<char> json, int startIndex, string propertyName, out int valueIndex)
         {
             valueIndex = -1;
             int index = startIndex;
-            SkipWhitespace(json, ref index);
+
             if (index >= json.Length || json[index] != '{') return false;
             index++;
 
             while (index < json.Length)
             {
-                SkipWhitespace(json, ref index);
                 if (index >= json.Length || json[index] == '}') return false;
 
                 if (MatchesKey(json, ref index, propertyName))
                 {
-                    SkipWhitespace(json, ref index);
                     if (index >= json.Length || json[index] != ':') return false;
                     index++;
-                    SkipWhitespace(json, ref index);
+
                     valueIndex = index;
                     return true;
                 }
@@ -459,13 +447,13 @@ namespace GenJson
                 // Skip key
                 if (!TrySkipString(json, ref index)) return false;
 
-                SkipWhitespace(json, ref index);
+
                 if (index >= json.Length || json[index] != ':') return false;
                 index++;
 
                 if (!TrySkipValue(json, ref index)) return false;
 
-                SkipWhitespace(json, ref index);
+
                 if (index >= json.Length) return false;
                 if (json[index] == '}') return false;
                 if (json[index] == ',') index++;

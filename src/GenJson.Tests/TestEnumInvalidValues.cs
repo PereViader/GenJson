@@ -38,7 +38,7 @@ namespace GenJson.Tests
         One = 1,
         Two = 2,
     }
-    
+
     [GenJson]
     public partial class InvalidFallbackEnumClass
     {
@@ -50,7 +50,7 @@ namespace GenJson.Tests
         [Test]
         public void TestInvalidEnumValue_AsNumber()
         {
-            var json = """{"Value": 3}""";
+            var json = """{"Value":3}""";
             var result = NumberEnumClass.FromJson(json);
 
             Assert.That(result, Is.Null, "Should return null for undefined enum value 3");
@@ -59,7 +59,7 @@ namespace GenJson.Tests
         [Test]
         public void TestInvalidEnumValue_AsText()
         {
-            var json = """{"Value": "Third"}""";
+            var json = """{"Value":"Third"}""";
             var result = TextEnumClass.FromJson(json);
 
             Assert.That(result, Is.Null, "Should return null for undefined enum value 'Third'");
@@ -70,7 +70,7 @@ namespace GenJson.Tests
         {
             // "3" matches the underlying int type but is not defined in TextEnum
             // Enum.TryParse("3", ...) returns true, so IsDefined is needed to reject it.
-            var json = """{"Value": "3"}""";
+            var json = """{"Value":"3"}""";
             var result = TextEnumClass.FromJson(json);
 
             Assert.That(result, Is.Null, "Should return null for undefined enum value '3' in text mode");
@@ -79,7 +79,7 @@ namespace GenJson.Tests
         [Test]
         public void TestInvalidEnumValue_AsTextFallback()
         {
-            var json = """{"Value": "3"}""";
+            var json = """{"Value":"3"}""";
             var result = InvalidFallbackEnumClass.FromJson(json);
 
             Assert.That(result!.Value, Is.EqualTo(InvalidFallbackEnum.Unknown));

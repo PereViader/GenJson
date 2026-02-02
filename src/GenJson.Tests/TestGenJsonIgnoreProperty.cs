@@ -29,8 +29,8 @@ namespace GenJson.Tests
             var json = obj.ToJson();
 
             Assert.That(json, Is.EqualTo("""{"Normal":10}"""));
-            
-            var inputJson = """{"Normal": 20, "Ignored": 888, "ReadOnly": 999}""";
+
+            var inputJson = """{"Normal":20,"Ignored":888,"ReadOnly":999}""";
             var deserialized = MixedClass.FromJson(inputJson)!;
 
             Assert.That(deserialized, Is.Not.Null);
