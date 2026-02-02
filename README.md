@@ -205,7 +205,10 @@ The generator creates a static `FromJson` method on your class.
 Product product = Product.FromJson(json);
 ```
 
-GenJson will will generate slightly different code depending on the status of the nullable C# feature.
+> [!IMPORTANT]
+> GenJson assumes that the input JSON is properly formatted. To achieve maximum performance, it does not fully validate the JSON structure.
+
+GenJson will generate slightly different code depending on the status of the nullable C# feature.
 
 Given the class below with the nullable feature disabled, both Name and Description may be deserialized as null when they are not available in the JSON.
 
