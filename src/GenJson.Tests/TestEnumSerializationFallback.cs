@@ -74,7 +74,7 @@ namespace GenJson.Tests
             var obj = FallbackDictionaryTextEnumClass.FromJson(json);
             Assert.That(obj, Is.Not.Null);
             var result = obj!.ToJson();
-            Assert.That(result, Is.EqualTo("""{"Value":{"First":1,"Second":2}}"""));
+            Assert.That(result, Is.EqualTo("""{"$Value":2,"Value":{"First":1,"Second":2}}"""));
         }
 
         [Test]

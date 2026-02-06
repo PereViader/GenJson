@@ -140,7 +140,7 @@ public class TestPolymorphic
     public void TestPolymorphicContainerRecord()
     {
         var obj = new PolymorphicContainerRecord(new List<PolymorphicBaseRecord> { new PolymorphicStringRecord("test", 1), new PolymorphicIntRecord(1, 2) });
-        var expected = """{"Records":[{"$type":1,"Base":1,"Value":"test"},{"$type":2,"Base":1,"Value":2}]}""";
+        var expected = """{"$Records":2,"Records":[{"$type":1,"Base":1,"Value":"test"},{"$type":2,"Base":1,"Value":2}]}""";
         Assert.That(obj.ToJson(), Is.EqualTo(expected));
 
         var obj2 = PolymorphicContainerRecord.FromJson(expected)!;

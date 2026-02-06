@@ -81,7 +81,7 @@ public class TestEnumDefaultSerialization
             [DefaultAsTextEnum.One, DefaultAsTextEnum.Two]
             );
         var json = obj.ToJson();
-        var expected = """{"Number":[1,2],"Text":["One","Two"]}""";
+        var expected = """{"$Number":2,"Number":[1,2],"$Text":2,"Text":["One","Two"]}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -108,7 +108,7 @@ public class TestEnumDefaultSerialization
         }
         );
         var json = obj.ToJson();
-        var expected = """{"Number":{"1":1,"2":2},"Text":{"One":"One","Two":"Two"}}""";
+        var expected = """{"$Number":2,"Number":{"1":1,"2":2},"$Text":2,"Text":{"One":"One","Two":"Two"}}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();

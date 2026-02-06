@@ -632,7 +632,7 @@ public class TestRuntime
             NullableListNull = null,
         };
         var json = obj.ToJson();
-        var expected = """{"EnumerablePresent":[1,2],"ArrayPresent":[3],"ListPresent":[4],"NullableEnumerablePresent":[5],"NullableArrayPresent":[6],"NullableListPresent":[7]}""";
+        var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[1,2],"$ArrayPresent":1,"ArrayPresent":[3],"$ListPresent":1,"ListPresent":[4],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":[5],"$NullableArrayPresent":1,"NullableArrayPresent":[6],"$NullableListPresent":1,"NullableListPresent":[7]}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -661,7 +661,7 @@ public class TestRuntime
             NullableListNull = null,
         };
         var json = obj.ToJson();
-        var expected = """{"EnumerablePresent":["1","2"],"ArrayPresent":["3"],"ListPresent":["4"],"NullableEnumerablePresent":["5"],"NullableArrayPresent":["6"],"NullableListPresent":["7"]}""";
+        var expected = """{"$EnumerablePresent":2,"EnumerablePresent":["1","2"],"$ArrayPresent":1,"ArrayPresent":["3"],"$ListPresent":1,"ListPresent":["4"],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":["5"],"$NullableArrayPresent":1,"NullableArrayPresent":["6"],"$NullableListPresent":1,"NullableListPresent":["7"]}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -690,7 +690,7 @@ public class TestRuntime
             NullableListNull = null,
         };
         var json = obj.ToJson();
-        var expected = """{"EnumerablePresent":[{"Value":1},{"Value":2}],"ArrayPresent":[{}],"ListPresent":[{}],"NullableEnumerablePresent":[{}],"NullableArrayPresent":[{}],"NullableListPresent":[{}]}""";
+        var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[{"Value":1},{"Value":2}],"$ArrayPresent":1,"ArrayPresent":[{}],"$ListPresent":1,"ListPresent":[{}],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":[{}],"$NullableArrayPresent":1,"NullableArrayPresent":[{}],"$NullableListPresent":1,"NullableListPresent":[{}]}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -711,7 +711,7 @@ public class TestRuntime
             EnumerablePresent = [[new EmptyClass() { Value = 1 }, new EmptyClass()], [new EmptyClass(), new EmptyClass() { Value = 2 }]],
         };
         var json = obj.ToJson();
-        var expected = """{"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
+        var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -738,7 +738,7 @@ public class TestRuntime
         };
 
         var json = obj.ToJson();
-        var expected = """{"PresentIntInt":{"1":2,"3":4},"PresentIntString":{"5":"6"},"PresentStringInt":{"7":8},"PresentIntEnumerableInt":{"9":[10]},"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
+        var expected = """{"$PresentIntInt":2,"PresentIntInt":{"1":2,"3":4},"$PresentIntString":1,"PresentIntString":{"5":"6"},"$PresentStringInt":1,"PresentStringInt":{"7":8},"$PresentIntEnumerableInt":1,"PresentIntEnumerableInt":{"9":[10]},"$PresentDictionaryIntEmptyClasses":1,"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
@@ -759,7 +759,7 @@ public class TestRuntime
             Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass() } } } },
         };
         var json = obj.ToJson();
-        var expected = """{"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
+        var expected = """{"$Present":1,"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
         Assert.That(json, Is.EqualTo(expected));
 
         var size = obj.CalculateJsonSize();
