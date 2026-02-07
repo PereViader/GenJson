@@ -85,6 +85,7 @@ public record ClassData(
     bool HasGenJsonBase,
     bool IsNullableContext,
     string? PolymorphicDiscriminatorProp,
+    bool SkipCountOptimization,
     EquatableList<DerivedTypeData> DerivedTypes);
 
 public record DerivedTypeData(string TypeName, string DiscriminatorValue, bool IsIntDiscriminator);
@@ -312,7 +313,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
-        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
+        bool skipCountOptimization = typeSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonSkipCountOptimizationAttribute");
+
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, skipCountOptimization, new EquatableList<DerivedTypeData>(derivedTypes));
     }
 
     private static PropertyData? GetPropertyForParameter(
@@ -659,7 +662,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             sb.Append(indent);
             sb.AppendLine("propertyCount++;");
-            if (prop.Type is GenJsonDataType.Enumerable en)
+            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
             {
                 if (en.IsArray)
                 {
@@ -704,7 +707,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine("}");
                 }
             }
-            else if (prop.Type is GenJsonDataType.Dictionary)
+            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
             {
                 sb.Append(indent);
                 sb.Append("size += ");
@@ -877,7 +880,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 else stateSpan = 1;
             }
 
-            if (prop.Type is GenJsonDataType.Enumerable en)
+            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
             {
                 if (en.IsArray)
                 {
@@ -938,7 +941,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine("}");
                 }
             }
-            else if (prop.Type is GenJsonDataType.Dictionary)
+            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
             {
                 sb.Append(indent);
                 sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
@@ -1078,7 +1081,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(prop.Name);
             sb.AppendLine(" = default;");
 
-            if (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)
+            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
             {
                 sb.Append("            int _");
                 sb.Append(prop.Name);
@@ -1162,7 +1165,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("                bool matched = false;");
         foreach (var prop in allProperties)
         {
-            if (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)
+            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
             {
                 sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
                 sb.Append(prop.JsonName);
@@ -1182,7 +1185,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("\"))");
             sb.AppendLine("                {");
             sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
-            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0, (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary) ? $"_{prop.Name}_count" : null);
+            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0, (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)) ? $"_{prop.Name}_count" : null);
             if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
             {
                 sb.Append("                    _");

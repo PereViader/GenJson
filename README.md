@@ -289,6 +289,32 @@ public partial class Cat : Animal
 
 **Deserialization**: `Animal.FromJson(...)` will inspect the `$type` property and deserialize into the correct derived type (`Dog` or `Cat`). If the type is unknown or missing (for abstract bases), it returns `null`.
 
+### 11. Collection Count Optimization
+
+GenJson optimizes collection deserialization (Lists, Arrays, Dictionaries) by pre-allocating the collection with the exact size. This avoids resizing overhead during population.
+
+**How it works:**
+- **Serialization**: The generator automatically emits a hidden property named after the collection with a `$` prefix (e.g., `"$MyList": 5`) immediately before the collection property.
+- **Deserialization**: The parser reads this count property first and initializes the collection with the correct capacity (e.g., `new List<int>(5)`).
+
+> [!NOTE]
+> GenJson can still parse standard JSON without the count property. If the property is missing, it will automatically fall back to counting the elements of the collection before doing the allocation.
+
+**Disabling Optimization:**
+To maintain strictly standard JSON or avoid extra metadata properties, apply the [GenJsonSkipCountOptimization] attribute to your class or struct.
+
+> [!TIP] 
+> If the receiving end doesn't use count metadata, disabling this optimization speeds up ToJson execution and reduces memory allocations.
+
+```csharp
+[GenJson]
+[GenJsonSkipCountOptimization] // Disables usage of $MyList property
+public partial class MyClass
+{
+    public List<int> MyList { get; set; }
+}
+```
+
 ## How It Works
 
 GenJson analyzes your code during compilation and generates specialized serialization code.
