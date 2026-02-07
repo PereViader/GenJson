@@ -1,6 +1,11 @@
+[![Test and publish](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml/badge.svg)](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml) ![GitHub Release](https://img.shields.io/github/v/release/PereViader/GenJson?include_prereleases) ![Unity version 2022.3.29](https://img.shields.io/badge/Unity-2022.3.29-57b9d3.svg?style=flat&logo=unity)
+
+
 # GenJson
 
 GenJson is a **zero-allocation**, high-performance C# Source Generator library that automatically creates `ToJson()` and `FromJson()` methods for your classes and structs.
+
+This project is compatible with both pure C# projects and Unity3D.
 
 ## Features
 
@@ -28,6 +33,28 @@ GenJson is a **zero-allocation**, high-performance C# Source Generator library t
 | GenJson_FromJson        | 1,212.7 ns |   23.63 ns |    28.13 ns | 0.0477 | 0.0000 |        2.39 KB |
 | MicrosoftJson_FromJson  | 2,342.1 ns |   46.59 ns |    51.78 ns | 0.0610 | 0.0000 |           3 KB |
 | NewtonsoftJson_FromJson | 3,889.3 ns |   76.55 ns |    94.01 ns | 0.1678 | 0.0038 |        8.23 KB |
+
+## Installation
+
+### NuGet
+
+> [!WARNING]
+> Not implemented yet
+
+### Unity Package Manager
+
+### From OpenUPM
+
+> [!WARNING]
+> OpenUPM still not implemented
+
+### From Tarball
+
+- Download the latest release from [releases](https://github.com/PereViader/GenJson/releases)
+- Package files are usually in the packages folder
+- Reference the package using the `Add Package from tar` button in the Unity Package Manager [(docs)](https://docs.unity3d.com/6000.3/Documentation/Manual/upm-ui-tarball.html)
+
+
 
 ## Usage
 
