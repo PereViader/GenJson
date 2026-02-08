@@ -81,3 +81,13 @@ jobs:
           prerelease: ${{ steps.get-version.outputs.isPrerelease }}
           files: |
             GenJson.Unity3d.Package/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
+
+      - name: Trigger OpenUPM Publish
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPENUPM_GITHUB_TOKEN }}
+        run: |
+          gh workflow run Publish.yml \
+            --repo PereViader/OpenUPM \
+            --ref main \
+            -f ingest_url=https://github.com/PereViader/GenJson/releases/download/${{ steps.get-version.outputs.version }}/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
