@@ -90,4 +90,4 @@ jobs:
           gh workflow run Publish.yml \
             --repo PereViader/OpenUPM \
             --ref main \
-            -f ingest_url=https://github.com/PereViader/GenJson/releases/download/${{ steps.get-version.outputs.version }}/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
+            -f ingest_url=https://github.com/PereViader/GenJson/releases/download/v${{ steps.get-version.outputs.version }}/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
