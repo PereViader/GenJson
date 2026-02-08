@@ -1,4 +1,4 @@
-[![Test and publish](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml/badge.svg)](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml) ![GitHub Release](https://img.shields.io/github/v/release/PereViader/GenJson?include_prereleases) ![Unity version 2022.3.29](https://img.shields.io/badge/Unity-2022.3.29-57b9d3.svg?style=flat&logo=unity)
+[![Test and publish](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml/badge.svg)](https://github.com/PereViader/GenJson/actions/workflows/TestAndPublish.yml) ![Unity version 2022.3.29](https://img.shields.io/badge/Unity-2022.3.29-57b9d3.svg?style=flat&logo=unity) ![GitHub Release](https://img.shields.io/github/v/release/PereViader/GenJson?include_prereleases) [![NuGet](https://img.shields.io/nuget/v/GenJson?label=nuget)](https://www.nuget.org/packages/GenJson/)
 
 
 # GenJson
@@ -38,8 +38,9 @@ This project is compatible with both pure C# projects and Unity3D.
 
 ### NuGet
 
-> [!WARNING]
-> Not implemented yet
+```bash
+dotnet add package GenJson
+```
 
 ### Unity Package Manager
 
