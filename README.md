@@ -38,6 +38,7 @@ This project is compatible with both pure C# projects and Unity3D.
 
 ### NuGet
 
+Install from [Nuget](https://www.nuget.org/packages/GenJson/)
 ```bash
 dotnet add package GenJson
 ```
