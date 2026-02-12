@@ -46,16 +46,13 @@ dotnet add package GenJson
 
 ### From OpenUPM
 
-> [!WARNING]
-> OpenUPM still not implemented
+Install from [OpenUPM](https://openupm.com/packages/com.pereviader.genjson.unity3d/#modal-manualinstallation)
 
 ### From Tarball
 
 - Download the latest release from [releases](https://github.com/PereViader/GenJson/releases)
-- Package files are usually in the packages folder
+- Place the downloaded package file inside the `Packages` folder in your unity project
 - Reference the package using the `Add Package from tar` button in the Unity Package Manager [(docs)](https://docs.unity3d.com/6000.3/Documentation/Manual/upm-ui-tarball.html)
-
-
 
 ## Usage
 
