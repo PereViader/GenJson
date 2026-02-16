@@ -600,622 +600,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var allProperties = data.AllProperties.Value;
         var newModifier = data.HasGenJsonBase ? "new " : "";
 
-        sb.Append("        public ");
-        sb.Append(newModifier);
-        sb.AppendLine("int CalculateJsonSize()");
-        sb.AppendLine("        {");
-        if (data.DerivedTypes.Value.Count > 0)
-        {
-            sb.AppendLine("            switch (this)");
-            sb.AppendLine("            {");
-            int derivedIdx = 0;
-            foreach (var derived in data.DerivedTypes.Value)
-            {
-                derivedIdx++;
-                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
-                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
-                int overhead = discKey.Length + 3 + 1;
-                overhead += derived.DiscriminatorValue.Length;
-                sb.AppendLine("                    return d" + derivedIdx + ".CalculateJsonSize() + " + overhead + ";");
-            }
-            sb.AppendLine("                default:");
-            if (data.IsAbstract)
-            {
-                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
-            }
-            else
-            {
-                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
-                sb.AppendLine("                    {");
-                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    break;");
-            }
-            sb.AppendLine("            }");
-
-            if (data.IsAbstract)
-            {
-                sb.AppendLine("        }");
-                sb.AppendLine();
-                goto GenerateToJson; // Skip base calculation for abstract types
-            }
-        }
-        sb.AppendLine("            int size = 2;");
-        sb.AppendLine("            int propertyCount = 0;");
-
-
-
-
-        foreach (var prop in allProperties)
-        {
-            string indent = "            ";
-            if (prop.IsNullable)
-            {
-                sb.Append(indent);
-                sb.Append("if (this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(" is not null)");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                indent = "                ";
-            }
-
-            sb.Append(indent);
-            sb.AppendLine("propertyCount++;");
-            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
-            {
-                if (en.IsArray)
-                {
-                    sb.Append(indent);
-                    sb.Append("size += ");
-                    sb.Append(prop.JsonName.Length + 4); // "$Name":
-                    sb.AppendLine(";");
-
-                    sb.Append(indent);
-                    sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(this.");
-                    sb.Append(prop.Name);
-                    sb.AppendLine(".Length);");
-
-                    sb.Append(indent);
-                    sb.AppendLine("size += 1;"); // Comma
-                }
-                else
-                {
-                    sb.Append(indent);
-                    sb.AppendLine("{");
-                    sb.Append(indent);
-                    sb.AppendLine("    int _count = -1;");
-                    sb.Append(indent);
-                    sb.AppendLine($"    if (this.{prop.Name} is global::System.Collections.Generic.ICollection<{en.ElementTypeName}> c) _count = c.Count;");
-                    sb.Append(indent);
-                    sb.AppendLine($"    else if (this.{prop.Name} is global::System.Collections.Generic.IReadOnlyCollection<{en.ElementTypeName}> r) _count = r.Count;");
-                    sb.Append(indent);
-                    sb.AppendLine("    if (_count >= 0)");
-                    sb.Append(indent);
-                    sb.AppendLine("    {");
-                    sb.Append(indent);
-                    sb.Append("        size += ");
-                    sb.Append(prop.JsonName.Length + 4);
-                    sb.AppendLine(";");
-                    sb.Append(indent);
-                    sb.AppendLine("        size += global::GenJson.GenJsonSizeHelper.GetSize(_count);");
-                    sb.Append(indent);
-                    sb.AppendLine("        size += 1;");
-                    sb.Append(indent);
-                    sb.AppendLine("    }");
-                    sb.Append(indent);
-                    sb.AppendLine("}");
-                }
-            }
-            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
-            {
-                sb.Append(indent);
-                sb.Append("size += ");
-                sb.Append(prop.JsonName.Length + 4); // "$Name":
-                sb.AppendLine(";");
-
-                sb.Append(indent);
-                sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(".Count);");
-
-                sb.Append(indent);
-                sb.AppendLine("size += 1;"); // Comma
-            }
-
-            sb.Append(indent);
-            sb.Append("size += ");
-            sb.Append(prop.JsonName.Length + 3); // "Key":
-            sb.AppendLine(";");
-
-            GenerateSizeValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
-
-            if (prop.IsNullable)
-            {
-                sb.AppendLine("            }");
-            }
-        }
-
-        sb.AppendLine("            if (propertyCount > 0) size += propertyCount - 1;");
-        sb.AppendLine("            return size;");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-
-    GenerateToJson:
-        sb.Append("        public ");
-        sb.Append(newModifier);
-        sb.AppendLine("string ToJson()");
-        sb.AppendLine("        {");
-        sb.AppendLine("            return string.Create(CalculateJsonSize(), this, (span, state) =>");
-        sb.AppendLine("            {");
-        sb.AppendLine("                int index = 0;");
-        sb.AppendLine("                state.WriteJson(span, ref index);");
-        sb.AppendLine("            });");
-        sb.AppendLine("        }");
-
-
+        GenerateCalculateJsonSize(sb, data, allProperties, newModifier);
+        GenerateToJson(sb, newModifier);
+        GenerateWriteJson(sb, data, allProperties, newModifier);
+        GenerateWriteJsonContent(sb, data, allProperties, newModifier);
         sb.AppendLine();
         sb.AppendLine();
-        sb.Append("        public ");
-        sb.Append(newModifier);
-        sb.AppendLine("void WriteJson(System.Span<char> span, ref int index)");
-        sb.AppendLine("        {");
-        if (data.DerivedTypes.Value.Count > 0)
-        {
-            sb.AppendLine("            switch (this)");
-            sb.AppendLine("            {");
-            int derivedIdx = 0;
-            foreach (var derived in data.DerivedTypes.Value)
-            {
-                derivedIdx++;
-                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
-                sb.AppendLine("                {");
-                sb.AppendLine("                    span[index++] = '{';");
-                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
-                sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, \"" + discKey + "\");");
-                sb.AppendLine("                    span[index++] = ':';");
-                if (derived.IsIntDiscriminator)
-                {
-                    foreach (char c in derived.DiscriminatorValue)
-                        sb.AppendLine("                    span[index++] = '" + c + "';");
-                }
-                else
-                {
-                    sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, " + derived.DiscriminatorValue + ");");
-                }
-                sb.AppendLine("                    span[index++] = ',';");
-                sb.AppendLine("                    d" + derivedIdx + ".WriteJsonContent(span, ref index);");
-                sb.AppendLine("                    span[index++] = '}';");
-                sb.AppendLine("                    return;");
-                sb.AppendLine("                }");
-            }
-
-            sb.AppendLine("                default:");
-            if (data.IsAbstract)
-            {
-                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
-            }
-            else
-            {
-                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
-                sb.AppendLine("                    {");
-                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    break;");
-            }
-            sb.AppendLine("            }");
-
-            if (data.IsAbstract)
-            {
-                sb.AppendLine("        }");
-                sb.AppendLine();
-                goto GenerateWriteJsonContent;
-            }
-        }
-        sb.AppendLine("            span[index++] = '{';");
-        sb.AppendLine("            WriteJsonContent(span, ref index);");
-        sb.AppendLine("            span[index++] = '}';");
-        sb.AppendLine("        }");
-
-        sb.AppendLine();
-    GenerateWriteJsonContent:
-        sb.Append("        public ");
-        sb.Append(newModifier);
-        sb.AppendLine("void WriteJsonContent(System.Span<char> span, ref int index)");
-        sb.AppendLine("        {");
-        bool needFirstSpan = allProperties.Count > 1 && allProperties[0].IsNullable;
-        if (needFirstSpan)
-        {
-            sb.AppendLine("            bool first = true;");
-        }
-        var stateSpan = 0;
-
-        foreach (var prop in allProperties)
-        {
-            string indent = "            ";
-            if (prop.IsNullable)
-            {
-                sb.Append(indent);
-                sb.Append("if (this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(" is not null)");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                indent = "                ";
-            }
-
-            if (stateSpan == 0) // True
-            {
-                if (prop.IsNullable)
-                {
-                    if (needFirstSpan)
-                    {
-                        sb.Append(indent);
-                        sb.AppendLine("first = false;");
-                    }
-                    stateSpan = 2;
-                }
-                else stateSpan = 1;
-            }
-            else if (stateSpan == 1) // False
-            {
-                sb.Append(indent);
-                sb.AppendLine("span[index++] = ',';");
-            }
-            else // Unknown
-            {
-                sb.Append(indent);
-                sb.AppendLine("if (!first)");
-                sb.Append(indent);
-                sb.AppendLine("{");
-                sb.Append(indent);
-                sb.AppendLine("    span[index++] = ',';");
-                sb.Append(indent);
-                sb.AppendLine("}");
-                if (prop.IsNullable)
-                {
-                    sb.Append(indent);
-                    sb.AppendLine("first = false;");
-                }
-                else stateSpan = 1;
-            }
-
-            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
-            {
-                if (en.IsArray)
-                {
-                    sb.Append(indent);
-                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                    sb.Append(prop.JsonName);
-                    sb.AppendLine("\");");
-
-                    sb.Append(indent);
-                    sb.AppendLine("span[index++] = ':';");
-
-                    sb.Append(indent);
-                    sb.Append("{ if (!this.");
-                    sb.Append(prop.Name);
-                    sb.AppendLine(".Length.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                    sb.Append(indent);
-                    sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                    sb.Append(indent);
-                    sb.AppendLine("    index += written; }");
-
-                    sb.Append(indent);
-                    sb.AppendLine("span[index++] = ',';");
-                }
-                else
-                {
-                    sb.Append(indent);
-                    sb.AppendLine("{");
-                    sb.Append(indent);
-                    sb.AppendLine("    int _count = -1;");
-                    sb.Append(indent);
-                    sb.AppendLine($"    if (this.{prop.Name} is global::System.Collections.Generic.ICollection<{en.ElementTypeName}> c) _count = c.Count;");
-                    sb.Append(indent);
-                    sb.AppendLine($"    else if (this.{prop.Name} is global::System.Collections.Generic.IReadOnlyCollection<{en.ElementTypeName}> r) _count = r.Count;");
-                    sb.Append(indent);
-                    sb.AppendLine("    if (_count >= 0)");
-                    sb.Append(indent);
-                    sb.AppendLine("    {");
-                    sb.Append(indent);
-                    sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                    sb.Append(prop.JsonName);
-                    sb.AppendLine("\");");
-
-                    sb.Append(indent);
-                    sb.AppendLine("        span[index++] = ':';");
-
-                    sb.Append(indent);
-                    sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                    sb.Append(indent);
-                    sb.AppendLine("            { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                    sb.Append(indent);
-                    sb.AppendLine("            index += written; }");
-
-                    sb.Append(indent);
-                    sb.AppendLine("        span[index++] = ',';");
-                    sb.Append(indent);
-                    sb.AppendLine("    }");
-                    sb.Append(indent);
-                    sb.AppendLine("}");
-                }
-            }
-            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
-            {
-                sb.Append(indent);
-                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                sb.Append(prop.JsonName);
-                sb.AppendLine("\");");
-
-                sb.Append(indent);
-                sb.AppendLine("span[index++] = ':';");
-
-                sb.Append(indent);
-                sb.Append("{ if (!this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(".Count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                sb.Append(indent);
-                sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                sb.Append(indent);
-                sb.AppendLine("    index += written; }");
-
-                sb.Append(indent);
-                sb.AppendLine("span[index++] = ',';");
-            }
-
-            sb.Append(indent);
-            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
-            sb.Append(prop.JsonName);
-            sb.AppendLine("\");");
-            sb.Append(indent);
-            sb.AppendLine("span[index++] = ':';");
-
-            GenerateWriteJsonValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
-
-            if (prop.IsNullable)
-            {
-                sb.AppendLine("            }");
-            }
-        }
-        sb.AppendLine("        }");
-
-        sb.AppendLine();
-
-        sb.AppendLine();
-        sb.Append("        public ");
-        sb.Append(newModifier);
-        sb.AppendLine("static " + data.ClassName + "? FromJson(string json)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            System.ReadOnlySpan<char> span = json;");
-        sb.AppendLine("            var index = 0;");
-        sb.AppendLine("            var result = Parse(span, ref index);");
-        sb.AppendLine("            return result;");
-        sb.AppendLine("        }");
-
-        sb.AppendLine();
-
-        sb.AppendLine();
-        sb.Append("        internal ");
-        sb.Append(newModifier);
-        sb.AppendLine("static " + data.ClassName + "? Parse(System.ReadOnlySpan<char> json, ref int index)");
-        sb.AppendLine("        {");
-        if (data.DerivedTypes.Value.Count > 0)
-        {
-            var discName = data.PolymorphicDiscriminatorProp ?? "$type";
-            sb.AppendLine("            if (global::GenJson.GenJsonParser.TryFindProperty(json, index, \"" + discName + "\", out var valIndex))");
-            sb.AppendLine("            {");
-            sb.AppendLine("                int tempIndex = valIndex;");
-            sb.AppendLine("");
-            sb.AppendLine("                if (tempIndex < json.Length)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    char c = json[tempIndex];");
-            sb.AppendLine("                    if (c == '\"')");
-            sb.AppendLine("                    {");
-            foreach (var derived in data.DerivedTypes.Value.Where(d => !d.IsIntDiscriminator))
-            {
-                var rawVal = derived.DiscriminatorValue.Trim('"');
-                sb.AppendLine("                        if (global::GenJson.GenJsonParser.MatchesKey(json, ref tempIndex, \"" + rawVal + "\"))");
-                sb.AppendLine("                        {");
-                sb.AppendLine("                            int i = index;");
-                sb.AppendLine("                            var result = " + derived.TypeName + ".Parse(json, ref i);");
-                sb.AppendLine("                            index = i;");
-                sb.AppendLine("                            return result;");
-                sb.AppendLine("                        }");
-            }
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    else if (char.IsDigit(c) || c == '-')");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        if (global::GenJson.GenJsonParser.TryParseInt(json, ref tempIndex, out var iVal))");
-            sb.AppendLine("                        {");
-            if (data.DerivedTypes.Value.Any(d => d.IsIntDiscriminator))
-            {
-                sb.AppendLine("                            switch (iVal)");
-                sb.AppendLine("                            {");
-                foreach (var derived in data.DerivedTypes.Value.Where(d => d.IsIntDiscriminator))
-                {
-                    sb.AppendLine("                                case " + derived.DiscriminatorValue + ":");
-                    sb.AppendLine("                                {");
-                    sb.AppendLine("                                    int i = index;");
-                    sb.AppendLine("                                    var result = " + derived.TypeName + ".Parse(json, ref i);");
-                    sb.AppendLine("                                    index = i;");
-                    sb.AppendLine("                                    return result;");
-                    sb.AppendLine("                                }");
-                }
-                sb.AppendLine("                            }");
-            }
-            sb.AppendLine("                        }");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                }");
-
-            // If we found property but failed to match value:
-            sb.AppendLine("                return null;");
-            sb.AppendLine("            }");
-
-            // If we didn't find property:
-            if (data.IsAbstract)
-            {
-                sb.AppendLine("            return null;"); // User requested null return
-                goto GenerateParseEnd;
-            }
-            else
-            {
-                // Concrete base: If missing, maybe it IS the base?
-                // User said: "if the type is not identified it should fail".
-                // But if I have a concrete base, and no discriminator, it is usually assumed to be the base.
-                // However, if "type not identified" implies strictness.
-                // Let's assume for Concrete Base, missing discriminator -> Base.
-                // This is consistent with "Keep the check when [..] not abstract".
-            }
-        }
-        sb.AppendLine();
-        sb.AppendLine("");
-        sb.AppendLine("            if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
-
-        foreach (var prop in allProperties)
-        {
-            sb.Append("            ");
-            sb.Append(prop.TypeName);
-            if (!prop.IsValueType && !prop.TypeName.EndsWith("?")) sb.Append("?");
-            sb.Append(" _");
-            sb.Append(prop.Name);
-            sb.AppendLine(" = default;");
-
-            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
-            {
-                sb.Append("            int _");
-                sb.Append(prop.Name);
-                sb.AppendLine("_count = -1;");
-            }
-
-            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
-            {
-                sb.Append("            bool _");
-                sb.Append(prop.Name);
-                sb.AppendLine("_set = false;");
-            }
-        }
-
-        sb.AppendLine("            while (index < json.Length)");
-        sb.AppendLine("            {");
-        sb.AppendLine("    ");
-        sb.AppendLine("                if (index >= json.Length) return null;");
-        sb.AppendLine("                if (json[index] == '}')");
-        sb.AppendLine("                {");
-        sb.AppendLine("                    index++;");
-        if (data.IsNullableContext)
-        {
-            foreach (var prop in allProperties)
-            {
-                if (!prop.IsNullable)
-                {
-                    if (!prop.IsValueType)
-                    {
-                        sb.Append("                    if (_");
-                        sb.Append(prop.Name);
-                        sb.AppendLine(" is null) return null;");
-                    }
-                    else
-                    {
-                        sb.Append("                    if (!_");
-                        sb.Append(prop.Name);
-                        sb.AppendLine("_set) return null;");
-                    }
-                }
-            }
-        }
-
-        if (data.IsAbstract)
-        {
-            sb.AppendLine("                    throw new System.NotSupportedException(\"Cannot deserialize abstract type\");");
-        }
-        else
-        {
-            sb.Append("                    return new ");
-            sb.Append(data.ClassName);
-            sb.Append("(");
-
-            bool firstArg = true;
-            foreach (var arg in data.ConstructorArgs.Value)
-            {
-                if (!firstArg) sb.Append(", ");
-                sb.Append("_");
-                sb.Append(arg.Name);
-                firstArg = false;
-            }
-
-            sb.AppendLine(")");
-            if (data.InitProperties.Value.Count > 0)
-            {
-                sb.AppendLine("                    {");
-                foreach (var prop in data.InitProperties.Value)
-                {
-                    sb.Append("                        ");
-                    sb.Append(prop.Name);
-                    sb.Append(" = _");
-                    sb.Append(prop.Name);
-                    sb.AppendLine(",");
-                }
-                sb.Append("                    }");
-            }
-            sb.AppendLine(";");
-        }
-        sb.AppendLine("                }");
-
-        sb.AppendLine("                bool matched = false;");
-        foreach (var prop in allProperties)
-        {
-            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
-            {
-                sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
-                sb.Append(prop.JsonName);
-                sb.AppendLine("\"))");
-                sb.AppendLine("                {");
-                sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
-                sb.Append("                    if (!global::GenJson.GenJsonParser.TryParseInt(json, ref index, out _");
-                sb.Append(prop.Name);
-                sb.AppendLine("_count)) return null;");
-                sb.AppendLine("                    if (index < json.Length && json[index] == ',') index++;");
-                sb.AppendLine("                    matched = true;");
-                sb.AppendLine("                }");
-            }
-
-            sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
-            sb.Append(prop.JsonName);
-            sb.AppendLine("\"))");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
-            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0, (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)) ? $"_{prop.Name}_count" : null, (!prop.IsValueType || prop.IsNullable));
-            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
-            {
-                sb.Append("                    _");
-                sb.Append(prop.Name);
-                sb.AppendLine("_set = true;");
-            }
-            sb.AppendLine("                    matched = true;");
-            sb.AppendLine("        ");
-            sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        index++;");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                }");
-        }
-
-        sb.AppendLine("                if (!matched && (index < json.Length && json[index] == '\"'))");
-        sb.AppendLine("                {");
-        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
-        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
-        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
-        sb.AppendLine("        ");
-        sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
-        sb.AppendLine("                    {");
-        sb.AppendLine("                        index++;");
-        sb.AppendLine("                    }");
-        sb.AppendLine("                }");
-        sb.AppendLine("            }");
-        sb.AppendLine("            return null;");
-    GenerateParseEnd:
-        sb.AppendLine("        }");
+        GenerateFromJson(sb, data, newModifier);
+        GenerateParse(sb, data, allProperties, newModifier);
 
         sb.AppendLine("    }");
 
@@ -2585,5 +1977,626 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine(");");
                 break;
         }
+    }
+
+    private void GenerateCalculateJsonSize(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier)
+    {
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("int CalculateJsonSize()");
+        sb.AppendLine("        {");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            sb.AppendLine("            switch (this)");
+            sb.AppendLine("            {");
+            int derivedIdx = 0;
+            foreach (var derived in data.DerivedTypes.Value)
+            {
+                derivedIdx++;
+                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
+                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
+                int overhead = discKey.Length + 3 + 1;
+                overhead += derived.DiscriminatorValue.Length;
+                sb.AppendLine("                    return d" + derivedIdx + ".CalculateJsonSize() + " + overhead + ";");
+            }
+            sb.AppendLine("                default:");
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+            }
+            else
+            {
+                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    break;");
+            }
+            sb.AppendLine("            }");
+
+            if (data.IsAbstract)
+            {
+                // For abstract types, we just return here if it was a derived type (returned above) or throw (default case).
+                // But wait, the original code had a goto GenerateToJson.
+                // If it's abstract, we can't emit the rest of the method which assumes concrete properties?
+                // Actually, the original code skipped the rest of the method using `goto GenerateToJson`.
+                // So here we should just return.
+                sb.AppendLine("        }");
+                sb.AppendLine();
+                return;
+            }
+        }
+        sb.AppendLine("            int size = 2;");
+        sb.AppendLine("            int propertyCount = 0;");
+
+        foreach (var prop in allProperties)
+        {
+            string indent = "            ";
+            if (prop.IsNullable)
+            {
+                sb.Append(indent);
+                sb.Append("if (this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(" is not null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                indent = "                ";
+            }
+
+            sb.Append(indent);
+            sb.AppendLine("propertyCount++;");
+            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
+            {
+                if (en.IsArray)
+                {
+                    sb.Append(indent);
+                    sb.Append("size += ");
+                    sb.Append(prop.JsonName.Length + 4); // "$Name":
+                    sb.AppendLine(";");
+
+                    sb.Append(indent);
+                    sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(this.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(".Length);");
+
+                    sb.Append(indent);
+                    sb.AppendLine("size += 1;"); // Comma
+                }
+                else
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    GenerateGetCollectionCount(sb, indent, prop.Name, en.ElementTypeName);
+
+                    sb.Append(indent);
+                    sb.AppendLine("    if (_count >= 0)");
+                    sb.Append(indent);
+                    sb.AppendLine("    {");
+                    sb.Append(indent);
+                    sb.Append("        size += ");
+                    sb.Append(prop.JsonName.Length + 4);
+                    sb.AppendLine(";");
+                    sb.Append(indent);
+                    sb.AppendLine("        size += global::GenJson.GenJsonSizeHelper.GetSize(_count);");
+                    sb.Append(indent);
+                    sb.AppendLine("        size += 1;");
+                    sb.Append(indent);
+                    sb.AppendLine("    }");
+                    sb.Append(indent);
+                    sb.AppendLine("}");
+                }
+            }
+            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
+            {
+                sb.Append(indent);
+                sb.Append("size += ");
+                sb.Append(prop.JsonName.Length + 4); // "$Name":
+                sb.AppendLine(";");
+
+                sb.Append(indent);
+                sb.Append("size += global::GenJson.GenJsonSizeHelper.GetSize(this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(".Count);");
+
+                sb.Append(indent);
+                sb.AppendLine("size += 1;"); // Comma
+            }
+
+            sb.Append(indent);
+            sb.Append("size += ");
+            sb.Append(prop.JsonName.Length + 3); // "Key":
+            sb.AppendLine(";");
+
+            GenerateSizeValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
+
+            if (prop.IsNullable)
+            {
+                sb.AppendLine("            }");
+            }
+        }
+
+        sb.AppendLine("            if (propertyCount > 0) size += propertyCount - 1;");
+        sb.AppendLine("            return size;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+    }
+
+    private void GenerateToJson(StringBuilder sb, string newModifier)
+    {
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("string ToJson()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return string.Create(CalculateJsonSize(), this, (span, state) =>");
+        sb.AppendLine("            {");
+        sb.AppendLine("                int index = 0;");
+        sb.AppendLine("                state.WriteJson(span, ref index);");
+        sb.AppendLine("            });");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine();
+    }
+
+    private void GenerateWriteJson(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier)
+    {
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("void WriteJson(System.Span<char> span, ref int index)");
+        sb.AppendLine("        {");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            sb.AppendLine("            switch (this)");
+            sb.AppendLine("            {");
+            int derivedIdx = 0;
+            foreach (var derived in data.DerivedTypes.Value)
+            {
+                derivedIdx++;
+                sb.AppendLine("                case " + derived.TypeName + " d" + derivedIdx + ":");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    span[index++] = '{';");
+                var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
+                sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, \"" + discKey + "\");");
+                sb.AppendLine("                    span[index++] = ':';");
+                if (derived.IsIntDiscriminator)
+                {
+                    foreach (char c in derived.DiscriminatorValue)
+                        sb.AppendLine("                    span[index++] = '" + c + "';");
+                }
+                else
+                {
+                    sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, " + derived.DiscriminatorValue + ");");
+                }
+                sb.AppendLine("                    span[index++] = ',';");
+                sb.AppendLine("                    d" + derivedIdx + ".WriteJsonContent(span, ref index);");
+                sb.AppendLine("                    span[index++] = '}';");
+                sb.AppendLine("                    return;");
+                sb.AppendLine("                }");
+            }
+
+            sb.AppendLine("                default:");
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+            }
+            else
+            {
+                sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    break;");
+            }
+            sb.AppendLine("            }");
+
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("        }");
+                sb.AppendLine();
+                return;
+            }
+        }
+        sb.AppendLine("            span[index++] = '{';");
+        sb.AppendLine("            WriteJsonContent(span, ref index);");
+        sb.AppendLine("            span[index++] = '}';");
+        sb.AppendLine("        }");
+
+        sb.AppendLine();
+    }
+
+
+    private void GenerateWriteJsonContent(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier)
+    {
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("void WriteJsonContent(System.Span<char> span, ref int index)");
+        sb.AppendLine("        {");
+        bool needFirstSpan = allProperties.Count > 1 && allProperties[0].IsNullable;
+        if (needFirstSpan)
+        {
+            sb.AppendLine("            bool first = true;");
+        }
+        var stateSpan = 0;
+
+        foreach (var prop in allProperties)
+        {
+            string indent = "            ";
+            if (prop.IsNullable)
+            {
+                sb.Append(indent);
+                sb.Append("if (this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(" is not null)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                indent = "                ";
+            }
+
+            if (stateSpan == 0) // True
+            {
+                if (prop.IsNullable)
+                {
+                    if (needFirstSpan)
+                    {
+                        sb.Append(indent);
+                        sb.AppendLine("first = false;");
+                    }
+                    stateSpan = 2;
+                }
+                else stateSpan = 1;
+            }
+            else if (stateSpan == 1) // False
+            {
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = ',';");
+            }
+            else // Unknown
+            {
+                sb.Append(indent);
+                sb.AppendLine("if (!first)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                sb.Append(indent);
+                sb.AppendLine("    span[index++] = ',';");
+                sb.Append(indent);
+                sb.AppendLine("}");
+                if (prop.IsNullable)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("first = false;");
+                }
+                else stateSpan = 1;
+            }
+
+            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
+            {
+                if (en.IsArray)
+                {
+                    sb.Append(indent);
+                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
+                    sb.Append(prop.JsonName);
+                    sb.AppendLine("\");");
+
+                    sb.Append(indent);
+                    sb.AppendLine("span[index++] = ':';");
+
+                    sb.Append(indent);
+                    sb.Append("{ if (!this.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(".Length.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    sb.Append(indent);
+                    sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
+                    sb.Append(indent);
+                    sb.AppendLine("    index += written; }");
+
+                    sb.Append(indent);
+                    sb.AppendLine("span[index++] = ',';");
+                }
+                else
+                {
+                    sb.Append(indent);
+                    sb.AppendLine("{");
+                    GenerateGetCollectionCount(sb, indent, prop.Name, en.ElementTypeName);
+
+                    sb.Append(indent);
+                    sb.AppendLine("    if (_count >= 0)");
+                    sb.Append(indent);
+                    sb.AppendLine("    {");
+                    sb.Append(indent);
+                    sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
+                    sb.Append(prop.JsonName);
+                    sb.AppendLine("\");");
+
+                    sb.Append(indent);
+                    sb.AppendLine("        span[index++] = ':';");
+
+                    sb.Append(indent);
+                    sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    sb.Append(indent);
+                    sb.AppendLine("            { throw new System.Exception(\"Buffer too small (Count)\"); }");
+                    sb.Append(indent);
+                    sb.AppendLine("            index += written; }");
+
+                    sb.Append(indent);
+                    sb.AppendLine("        span[index++] = ',';");
+                    sb.Append(indent);
+                    sb.AppendLine("    }");
+                    sb.Append(indent);
+                    sb.AppendLine("}");
+                }
+            }
+            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
+            {
+                sb.Append(indent);
+                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
+                sb.Append(prop.JsonName);
+                sb.AppendLine("\");");
+
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = ':';");
+
+                sb.Append(indent);
+                sb.Append("{ if (!this.");
+                sb.Append(prop.Name);
+                sb.AppendLine(".Count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                sb.Append(indent);
+                sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
+                sb.Append(indent);
+                sb.AppendLine("    index += written; }");
+
+                sb.Append(indent);
+                sb.AppendLine("span[index++] = ',';");
+            }
+
+            sb.Append(indent);
+            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
+            sb.Append(prop.JsonName);
+            sb.AppendLine("\");");
+            sb.Append(indent);
+            sb.AppendLine("span[index++] = ':';");
+
+            GenerateWriteJsonValue(sb, prop.Type, $"this.{prop.Name}", indent, 0);
+
+            if (prop.IsNullable)
+            {
+                sb.AppendLine("            }");
+            }
+        }
+        sb.AppendLine("        }");
+    }
+
+    private void GenerateGetCollectionCount(StringBuilder sb, string indent, string propName, string elementTypeName)
+    {
+        sb.Append(indent);
+        sb.AppendLine("    int _count = -1;");
+        sb.Append(indent);
+        sb.AppendLine($"    if (this.{propName} is global::System.Collections.Generic.ICollection<{elementTypeName}> c) _count = c.Count;");
+        sb.Append(indent);
+        sb.AppendLine($"    else if (this.{propName} is global::System.Collections.Generic.IReadOnlyCollection<{elementTypeName}> r) _count = r.Count;");
+    }
+
+    private void GenerateFromJson(StringBuilder sb, ClassData data, string newModifier)
+    {
+        sb.Append("        public ");
+        sb.Append(newModifier);
+        sb.AppendLine("static " + data.ClassName + "? FromJson(string json)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            System.ReadOnlySpan<char> span = json;");
+        sb.AppendLine("            var index = 0;");
+        sb.AppendLine("            var result = Parse(span, ref index);");
+        sb.AppendLine("            return result;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+    }
+
+    private void GenerateParse(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier)
+    {
+        sb.Append("        internal ");
+        sb.Append(newModifier);
+        sb.AppendLine("static " + data.ClassName + "? Parse(System.ReadOnlySpan<char> json, ref int index)");
+        sb.AppendLine("        {");
+        if (data.DerivedTypes.Value.Count > 0)
+        {
+            var discName = data.PolymorphicDiscriminatorProp ?? "$type";
+            sb.AppendLine("            if (global::GenJson.GenJsonParser.TryFindProperty(json, index, \"" + discName + "\", out var valIndex))");
+            sb.AppendLine("            {");
+            sb.AppendLine("                int tempIndex = valIndex;");
+            sb.AppendLine("");
+            sb.AppendLine("                if (tempIndex < json.Length)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    char c = json[tempIndex];");
+            sb.AppendLine("                    if (c == '\"')");
+            sb.AppendLine("                    {");
+            foreach (var derived in data.DerivedTypes.Value.Where(d => !d.IsIntDiscriminator))
+            {
+                var rawVal = derived.DiscriminatorValue.Trim('"');
+                sb.AppendLine("                        if (global::GenJson.GenJsonParser.MatchesKey(json, ref tempIndex, \"" + rawVal + "\"))");
+                sb.AppendLine("                        {");
+                sb.AppendLine("                            int i = index;");
+                sb.AppendLine("                            var result = " + derived.TypeName + ".Parse(json, ref i);");
+                sb.AppendLine("                            index = i;");
+                sb.AppendLine("                            return result;");
+                sb.AppendLine("                        }");
+            }
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    else if (char.IsDigit(c) || c == '-')");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        if (global::GenJson.GenJsonParser.TryParseInt(json, ref tempIndex, out var iVal))");
+            sb.AppendLine("                        {");
+            if (data.DerivedTypes.Value.Any(d => d.IsIntDiscriminator))
+            {
+                sb.AppendLine("                            switch (iVal)");
+                sb.AppendLine("                            {");
+                foreach (var derived in data.DerivedTypes.Value.Where(d => d.IsIntDiscriminator))
+                {
+                    sb.AppendLine("                                case " + derived.DiscriminatorValue + ":");
+                    sb.AppendLine("                                {");
+                    sb.AppendLine("                                    int i = index;");
+                    sb.AppendLine("                                    var result = " + derived.TypeName + ".Parse(json, ref i);");
+                    sb.AppendLine("                                    index = i;");
+                    sb.AppendLine("                                    return result;");
+                    sb.AppendLine("                                }");
+                }
+                sb.AppendLine("                            }");
+            }
+            sb.AppendLine("                        }");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                }");
+            sb.AppendLine("            }");
+
+            if (data.IsAbstract)
+            {
+                sb.AppendLine("            return null;");
+                sb.AppendLine("        }");
+                sb.AppendLine();
+                return;
+            }
+        }
+        sb.AppendLine();
+        sb.AppendLine("");
+        sb.AppendLine("            if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, '{')) return null;");
+
+        foreach (var prop in allProperties)
+        {
+            sb.Append("            ");
+            sb.Append(prop.TypeName);
+            if (!prop.IsValueType && !prop.TypeName.EndsWith("?")) sb.Append("?");
+            sb.Append(" _");
+            sb.Append(prop.Name);
+            sb.AppendLine(" = default;");
+
+            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+            {
+                sb.Append("            int _");
+                sb.Append(prop.Name);
+                sb.AppendLine("_count = -1;");
+            }
+
+            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
+            {
+                sb.Append("            bool _");
+                sb.Append(prop.Name);
+                sb.AppendLine("_set = false;");
+            }
+        }
+
+        sb.AppendLine("            while (index < json.Length)");
+        sb.AppendLine("            {");
+        sb.AppendLine("    ");
+        sb.AppendLine("                if (index >= json.Length) return null;");
+        sb.AppendLine("                if (json[index] == '}')");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    index++;");
+        if (data.IsNullableContext)
+        {
+            foreach (var prop in allProperties)
+            {
+                if (!prop.IsNullable)
+                {
+                    if (!prop.IsValueType)
+                    {
+                        sb.Append("                    if (_");
+                        sb.Append(prop.Name);
+                        sb.AppendLine(" is null) return null;");
+                    }
+                    else
+                    {
+                        sb.Append("                    if (!_");
+                        sb.Append(prop.Name);
+                        sb.AppendLine("_set) return null;");
+                    }
+                }
+            }
+        }
+
+        if (data.IsAbstract)
+        {
+            sb.AppendLine("                    throw new System.NotSupportedException(\"Cannot deserialize abstract type\");");
+        }
+        else
+        {
+            sb.Append("                    return new ");
+            sb.Append(data.ClassName);
+            sb.Append("(");
+
+            bool firstArg = true;
+            foreach (var arg in data.ConstructorArgs.Value)
+            {
+                if (!firstArg) sb.Append(", ");
+                sb.Append("_");
+                sb.Append(arg.Name);
+                firstArg = false;
+            }
+
+            sb.AppendLine(")");
+            if (data.InitProperties.Value.Count > 0)
+            {
+                sb.AppendLine("                    {");
+                foreach (var prop in data.InitProperties.Value)
+                {
+                    sb.Append("                        ");
+                    sb.Append(prop.Name);
+                    sb.Append(" = _");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(",");
+                }
+                sb.Append("                    }");
+            }
+            sb.AppendLine(";");
+        }
+        sb.AppendLine("                }");
+
+        sb.AppendLine("                bool matched = false;");
+        foreach (var prop in allProperties)
+        {
+            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+            {
+                sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
+                sb.Append(prop.JsonName);
+                sb.AppendLine("\"))");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+                sb.Append("                    if (!global::GenJson.GenJsonParser.TryParseInt(json, ref index, out _");
+                sb.Append(prop.Name);
+                sb.AppendLine("_count)) return null;");
+                sb.AppendLine("                    if (index < json.Length && json[index] == ',') index++;");
+                sb.AppendLine("                    matched = true;");
+                sb.AppendLine("                }");
+            }
+
+            sb.Append("                if (global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"");
+            sb.Append(prop.JsonName);
+            sb.AppendLine("\"))");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+            GenerateParseValue(sb, prop.Type, "_" + prop.Name, "                    ", 0, (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)) ? $"_{prop.Name}_count" : null, (!prop.IsValueType || prop.IsNullable));
+            if (data.IsNullableContext && prop.IsValueType && !prop.IsNullable)
+            {
+                sb.Append("                    _");
+                sb.Append(prop.Name);
+                sb.AppendLine("_set = true;");
+            }
+            sb.AppendLine("                    matched = true;");
+            sb.AppendLine("        ");
+            sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        index++;");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                }");
+        }
+
+        sb.AppendLine("                if (!matched && (index < json.Length && json[index] == '\"'))");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipString(json, ref index)) return null;");
+        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, ':')) return null;");
+        sb.AppendLine("                    if (!global::GenJson.GenJsonParser.TrySkipValue(json, ref index)) return null;");
+        sb.AppendLine("        ");
+        sb.AppendLine("                    if (index < json.Length && json[index] == ',')");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        index++;");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                }");
+        sb.AppendLine("            }");
+        sb.AppendLine("            return null;");
+        sb.AppendLine("        }");
     }
 }
