@@ -13,6 +13,9 @@ namespace GenJson.Tests
             var json = value.ToJson();
             var expected = """{"new_name":42,"Other":"foo"}""";
             Assert.That(json, Is.EqualTo(expected));
+
+            var utf8Json = value.ToJsonUtf8();
+            Assert.That(utf8Json, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
         }
 
         [Test]
@@ -23,6 +26,12 @@ namespace GenJson.Tests
             Assert.That(value, Is.Not.Null);
             Assert.That(value.OriginalName, Is.EqualTo(100));
             Assert.That(value.Other, Is.EqualTo("bar"));
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Value = RenamedClass.FromJsonUtf8(utf8Json)!;
+            Assert.That(utf8Value, Is.Not.Null);
+            Assert.That(utf8Value.OriginalName, Is.EqualTo(100));
+            Assert.That(utf8Value.Other, Is.EqualTo("bar"));
         }
 
         [Test]
@@ -31,6 +40,10 @@ namespace GenJson.Tests
             var json = "{\"Other\":\"bar\"}";
             var value = RenamedClass.FromJson(json);
             Assert.That(value, Is.Null);
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Value = RenamedClass.FromJsonUtf8(utf8Json);
+            Assert.That(utf8Value, Is.Null);
         }
 
         [Test]
@@ -40,6 +53,9 @@ namespace GenJson.Tests
             var json = value.ToJson();
             var expected = """{"renamed_prop":123}""";
             Assert.That(json, Is.EqualTo(expected));
+
+            var utf8Json = value.ToJsonUtf8();
+            Assert.That(utf8Json, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
         }
 
         [Test]
@@ -49,6 +65,11 @@ namespace GenJson.Tests
             var value = RenamedRecord.FromJson(json)!;
             Assert.That(value, Is.Not.Null);
             Assert.That(value.Prop, Is.EqualTo(456));
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Value = RenamedRecord.FromJsonUtf8(utf8Json)!;
+            Assert.That(utf8Value, Is.Not.Null);
+            Assert.That(utf8Value.Prop, Is.EqualTo(456));
         }
     }
 

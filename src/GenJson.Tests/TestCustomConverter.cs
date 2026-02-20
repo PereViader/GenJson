@@ -38,6 +38,40 @@ public static class MyCustomConverter
 
         return val;
     }
+
+    public static int GetSizeUtf8(int value)
+    {
+        return GetSize(value);
+    }
+
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, int value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)'X';
+        System.Buffers.Text.Utf8Formatter.TryFormat(value, span.Slice(index), out var written);
+        index += written;
+        span[index++] = (byte)'X';
+        span[index++] = (byte)'"';
+    }
+
+    public static int FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"') throw new Exception("Expected quote");
+        index++;
+        if (span[index] != (byte)'X') throw new Exception("Expected X");
+        index++;
+
+        int start = index;
+        while (span[index] >= (byte)'0' && span[index] <= (byte)'9') index++;
+        System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _);
+
+        if (span[index] != (byte)'X') throw new Exception("Expected X");
+        index++;
+        if (span[index] != (byte)'"') throw new Exception("Expected quote");
+        index++;
+
+        return val;
+    }
 }
 
 [GenJson]
@@ -67,5 +101,16 @@ public class TestCustomConverter
         var obj2 = CustomConverterClass.FromJson(json)!;
         Assert.That(obj2, Is.Not.Null);
         Assert.That(obj2.Value, Is.EqualTo(123));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = CustomConverterClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.Value, Is.EqualTo(123));
     }
 }

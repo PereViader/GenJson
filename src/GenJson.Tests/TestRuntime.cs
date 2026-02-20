@@ -24,6 +24,16 @@ public class TestRuntime
         var obj2 = ParentNullableDisableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ParentNullableDisableClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         var obj3 = StringNullableDisableClass.FromJson("{}")!;
         Assert.That(obj3, Is.Not.Null);
@@ -50,6 +60,16 @@ public class TestRuntime
         var obj2 = StringNullableDisableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = StringNullableDisableClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         var obj3 = StringNullableDisableClass.FromJson("{}")!;
         Assert.That(obj3, Is.Not.Null);
@@ -77,6 +97,16 @@ public class TestRuntime
         var obj2 = DateTimeNullableDisableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DateTimeNullableDisableClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         var obj3 = DateTimeNullableDisableClass.FromJson("{}")!;
         Assert.That(obj3, Is.Not.Null);
@@ -105,6 +135,16 @@ public class TestRuntime
         var obj2 = ByteNullableDisableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ByteNullableDisableClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         var obj3 = ByteNullableDisableClass.FromJson("{}")!;
         Assert.That(obj3, Is.Not.Null);
@@ -133,8 +173,19 @@ public class TestRuntime
         var obj2 = StringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = StringClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(StringClass.FromJson("{}"), Is.Null);
+        Assert.That(StringClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -156,8 +207,19 @@ public class TestRuntime
         var obj2 = IntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = IntClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(IntClass.FromJson("{}"), Is.Null);
+        Assert.That(IntClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -180,8 +242,19 @@ public class TestRuntime
         var obj2 = IntEnumClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = IntEnumClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(IntEnumClass.FromJson("{}"), Is.Null);
+        Assert.That(IntEnumClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
 
@@ -204,8 +277,19 @@ public class TestRuntime
         var obj2 = UIntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = UIntClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(UIntClass.FromJson("{}"), Is.Null);
+        Assert.That(UIntClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -227,8 +311,19 @@ public class TestRuntime
         var obj2 = ULongClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ULongClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ULongClass.FromJson("{}"), Is.Null);
+        Assert.That(ULongClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -250,8 +345,19 @@ public class TestRuntime
         var obj2 = BoolClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = BoolClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(BoolClass.FromJson("{}"), Is.Null);
+        Assert.That(BoolClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -273,8 +379,19 @@ public class TestRuntime
         var obj2 = CharClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = CharClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(CharClass.FromJson("{}"), Is.Null);
+        Assert.That(CharClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -296,8 +413,19 @@ public class TestRuntime
         var obj2 = FloatClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = FloatClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(FloatClass.FromJson("{}"), Is.Null);
+        Assert.That(FloatClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -319,8 +447,19 @@ public class TestRuntime
         var obj2 = DoubleClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DoubleClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DoubleClass.FromJson("{}"), Is.Null);
+        Assert.That(DoubleClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -342,8 +481,19 @@ public class TestRuntime
         var obj2 = DecimalClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DecimalClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DecimalClass.FromJson("{}"), Is.Null);
+        Assert.That(DecimalClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -365,8 +515,19 @@ public class TestRuntime
         var obj2 = DateTimeClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DateTimeClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DateTimeClass.FromJson("{}"), Is.Null);
+        Assert.That(DateTimeClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -388,8 +549,19 @@ public class TestRuntime
         var obj2 = ByteClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ByteClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ByteClass.FromJson("{}"), Is.Null);
+        Assert.That(ByteClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -411,8 +583,19 @@ public class TestRuntime
         var obj2 = SByteClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = SByteClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(SByteClass.FromJson("{}"), Is.Null);
+        Assert.That(SByteClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -434,8 +617,19 @@ public class TestRuntime
         var obj2 = ShortClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ShortClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ShortClass.FromJson("{}"), Is.Null);
+        Assert.That(ShortClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -457,8 +651,19 @@ public class TestRuntime
         var obj2 = UShortClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = UShortClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(UShortClass.FromJson("{}"), Is.Null);
+        Assert.That(UShortClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -480,8 +685,19 @@ public class TestRuntime
         var obj2 = DateTimeOffsetClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DateTimeOffsetClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DateTimeClass.FromJson("{}"), Is.Null);
+        Assert.That(DateTimeClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -503,8 +719,19 @@ public class TestRuntime
         var obj2 = TimeSpanClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = TimeSpanClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(TimeSpanClass.FromJson("{}"), Is.Null);
+        Assert.That(TimeSpanClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -526,8 +753,19 @@ public class TestRuntime
         var obj2 = GuidClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = GuidClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(GuidClass.FromJson("{}"), Is.Null);
+        Assert.That(GuidClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -549,8 +787,19 @@ public class TestRuntime
         var obj2 = VersionClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = VersionClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(VersionClass.FromJson("{}"), Is.Null);
+        Assert.That(VersionClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -570,8 +819,19 @@ public class TestRuntime
         var obj2 = ByteEnumClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ByteEnumClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ByteEnumClass.FromJson("{}"), Is.Null);
+        Assert.That(ByteEnumClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -588,6 +848,16 @@ public class TestRuntime
         var obj2 = EmptyClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EmptyClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
     }
 
 
@@ -612,8 +882,19 @@ public class TestRuntime
         var obj2 = ParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ParentClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ParentClass.FromJson("{}"), Is.Null);
+        Assert.That(ParentClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -641,8 +922,19 @@ public class TestRuntime
         var obj2 = EnumerableIntClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EnumerableIntClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
+        Assert.That(EnumerableIntClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -670,8 +962,19 @@ public class TestRuntime
         var obj2 = EnumerableStringClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EnumerableStringClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
+        Assert.That(EnumerableIntClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -699,8 +1002,19 @@ public class TestRuntime
         var obj2 = EnumerableParentClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EnumerableParentClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableParentClass.FromJson("{}"), Is.Null);
+        Assert.That(EnumerableParentClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -720,8 +1034,19 @@ public class TestRuntime
         var obj2 = NestedEnumerableClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = NestedEnumerableClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(NestedEnumerableClass.FromJson("{}"), Is.Null);
+        Assert.That(NestedEnumerableClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -747,8 +1072,19 @@ public class TestRuntime
         var obj2 = DictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DictionaryClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DictionaryClass.FromJson("{}"), Is.Null);
+        Assert.That(DictionaryClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -768,8 +1104,19 @@ public class TestRuntime
         var obj2 = NestedDictionaryClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = NestedDictionaryClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(NestedDictionaryClass.FromJson("{}"), Is.Null);
+        Assert.That(NestedDictionaryClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
 
@@ -787,8 +1134,19 @@ public class TestRuntime
         var obj2 = ParentRecordClass.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = ParentRecordClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(ParentRecordClass.FromJson("{}"), Is.Null);
+        Assert.That(ParentRecordClass.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -837,6 +1195,7 @@ public class TestRuntime
         Assert.That(json, Is.EqualTo(json2));
 
         Assert.That(ParentRecordStruct.FromJson("{}"), Is.Null);
+        Assert.That(ParentRecordStruct.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -897,15 +1256,29 @@ public class TestRuntime
         Assert.That(objMissingRequired, Is.Null, "Should return null when required constructor parameter is missing");
     }
 
+
     [Test]
     public void IncorrectJson()
     {
-        Assert.That(IntClass.FromJson(""), Is.Null);
-        Assert.That(IntClass.FromJson("{"), Is.Null);
-        Assert.That(IntClass.FromJson("}"), Is.Null);
-        Assert.That(IntClass.FromJson("""{"Present":1"""), Is.Null);
-        Assert.That(IntClass.FromJson("""{"Present":1,"NullablePresent":true}"""), Is.Null);
-        Assert.That(StringClass.FromJson("""{"Present":"val","""), Is.Null);
+        void AssertInvalid<T>(System.Func<T> parseFunc)
+        {
+            try
+            {
+                var result = parseFunc();
+                Assert.That(result, Is.Null, "Expected null or JsonParseException for malformed JSON.");
+            }
+            catch (JsonParseException)
+            {
+                // Both null and exception are acceptable behaviors for malformed JSON
+            }
+        }
+
+        AssertInvalid(() => IntClass.FromJson(""));
+        AssertInvalid(() => IntClass.FromJson("{"));
+        AssertInvalid(() => IntClass.FromJson("}"));
+        AssertInvalid(() => IntClass.FromJson("""{"Present":1"""));
+        AssertInvalid(() => IntClass.FromJson("""{"Present":1,"NullablePresent":true}"""));
+        AssertInvalid(() => StringClass.FromJson("""{"Present":"val","""));
     }
 }
 

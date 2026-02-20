@@ -108,11 +108,11 @@ namespace GenJson.Tests
         public void TryParseBoolean_ParsesBooleans()
         {
             int index = 0;
-            Assert.That(GenJsonParser.TryParseBoolean("true".AsSpan(), ref index, out var t), Is.True);
+            Assert.That(GenJsonParser.TryParseBoolean("true".AsSpan(), ref index, out bool t), Is.True);
             Assert.That(t, Is.True);
 
             index = 0;
-            Assert.That(GenJsonParser.TryParseBoolean("false".AsSpan(), ref index, out var f), Is.True);
+            Assert.That(GenJsonParser.TryParseBoolean("false".AsSpan(), ref index, out bool f), Is.True);
             Assert.That(f, Is.False);
         }
 
@@ -140,6 +140,51 @@ namespace GenJson.Tests
             var json = "\"k\\u0065y\":123".AsSpan(); // "key"
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.True);
+        }
+
+        [Test]
+        public void MatchesKey_ByteSpan_MatchesCorrectKey()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"key\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("key").AsSpan();
+            int index = 0;
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "key", expectedUtf8), Is.True);
+            Assert.That(json[index], Is.EqualTo((byte)':'));
+        }
+
+        [Test]
+        public void MatchesKey_ByteSpan_DoesNotMatchWrongKey()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"other\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("key").AsSpan();
+            int index = 0;
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "key", expectedUtf8), Is.False);
+            Assert.That(index, Is.EqualTo(0)); // Should reset index
+        }
+
+        [Test]
+        public void MatchesKey_ByteSpan_HandlesEscapedKeyFallback()
+        {
+            // The JSON contains the escaped unicode character for 'e' in "key"
+            var json = System.Text.Encoding.UTF8.GetBytes("\"k\\u0065y\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("key").AsSpan();
+            int index = 0;
+
+            // This tests that the fast-path SequenceEqual fails and the slow-path
+            // correctly decodes the escaped value!
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "key", expectedUtf8), Is.True);
+        }
+
+        [Test]
+        public void MatchesKey_ByteSpan_HandlesQuoteEscapedKeyFallback()
+        {
+            // The JSON contains: "my\"key":123
+            var json = System.Text.Encoding.UTF8.GetBytes("\"my\\\"key\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("my\"key").AsSpan();
+            int index = 0;
+
+            // This tests that the fast path avoids incorrectly jumping ahead due to early quotes
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "my\"key", expectedUtf8), Is.True);
         }
 
         [Test]
@@ -171,7 +216,7 @@ namespace GenJson.Tests
             foreach (var (input, expected) in cases)
             {
                 int index = 0;
-                var success = GenJsonParser.TryParseDouble(input.AsSpan(), ref index, out var result);
+                var success = GenJsonParser.TryParseDouble(input.AsSpan(), ref index, out double result);
                 Assert.That(success, Is.True);
                 Assert.That(result, Is.EqualTo(expected).Within(0.000001));
             }
@@ -184,7 +229,7 @@ namespace GenJson.Tests
             foreach (var input in cases)
             {
                 int index = 0;
-                Assert.That(GenJsonParser.TryParseBoolean(input.AsSpan(), ref index, out _), Is.False, $"Should return false for {input}");
+                Assert.That(GenJsonParser.TryParseBoolean(input.AsSpan(), ref index, out bool _), Is.False, $"Should return false for {input}");
             }
         }
 
@@ -226,7 +271,7 @@ namespace GenJson.Tests
             foreach (var (input, expected) in cases)
             {
                 int index = 0;
-                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out var result);
+                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out decimal result);
                 Assert.That(success, Is.True, $"Failed to parse {input}");
                 Assert.That(result, Is.EqualTo(expected), $"Incorrect value for {input}");
             }
@@ -248,7 +293,7 @@ namespace GenJson.Tests
             foreach (var (input, expected) in cases)
             {
                 int index = 0;
-                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out var result);
+                var success = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out decimal result);
                 Assert.That(success, Is.True, $"Failed to parse {input}");
                 Assert.That(result, Is.EqualTo(expected), $"Incorrect value for {input}");
             }
@@ -258,7 +303,7 @@ namespace GenJson.Tests
         public void TryParseDecimal_Edges()
         {
             int index = 0;
-            Assert.That(GenJsonParser.TryParseDecimal("+123".AsSpan(), ref index, out var res), Is.True);
+            Assert.That(GenJsonParser.TryParseDecimal("+123".AsSpan(), ref index, out decimal res), Is.True);
             Assert.That(res, Is.EqualTo(123m));
 
             index = 0;
@@ -281,7 +326,7 @@ namespace GenJson.Tests
             foreach (var input in cases)
             {
                 int index = 0;
-                bool result = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out _);
+                bool result = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out decimal _);
                 Assert.That(result, Is.False, $"Should fail for {input}");
             }
         }

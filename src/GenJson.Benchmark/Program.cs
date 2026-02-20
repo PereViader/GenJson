@@ -91,6 +91,19 @@ public class BenchmarkToJson
         return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
     }
 
+    [Benchmark]
+    public RootObject GenJson_FromJsonUtf8()
+    {
+        return RootObject.FromJsonUtf8(GenJsonUtf8)!;
+    }
+
+    [Benchmark]
+    public RootObject MicrosoftJson_FromJsonUtf8()
+    {
+        return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJsonUtf8)!;
+    }
+
+
     private static readonly RootObject RootObject = new()
     {
         Value1 = int.MaxValue,
@@ -133,4 +146,6 @@ public class BenchmarkToJson
     private static readonly string GenJson = RootObject.ToJson();
     private static readonly string NewtonsoftJson = Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
     private static readonly string MicrosoftJson = System.Text.Json.JsonSerializer.Serialize(RootObject);
+    private static readonly byte[] GenJsonUtf8 = System.Text.Encoding.UTF8.GetBytes(GenJson);
+    private static readonly byte[] MicrosoftJsonUtf8 = System.Text.Encoding.UTF8.GetBytes(MicrosoftJson);
 }

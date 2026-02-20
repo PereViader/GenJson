@@ -90,8 +90,19 @@ public class TestEnumDefaultSerialization
         var obj2 = EnumList.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EnumList.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumList.FromJson("{}"), Is.Null);
+        Assert.That(EnumList.FromJsonUtf8("{}"u8), Is.Null);
     }
 
     [Test]
@@ -117,7 +128,18 @@ public class TestEnumDefaultSerialization
         var obj2 = EnumDictionary.FromJson(json)!;
         var json2 = obj2.ToJson();
         Assert.That(json, Is.EqualTo(json2));
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = EnumDictionary.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumDictionary.FromJson("{}"), Is.Null);
+        Assert.That(EnumDictionary.FromJsonUtf8("{}"u8), Is.Null);
     }
 }

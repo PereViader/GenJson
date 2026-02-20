@@ -51,18 +51,18 @@ namespace GenJson.Tests
         public void TestInvalidEnumValue_AsNumber()
         {
             var json = """{"Value":3}""";
-            var result = NumberEnumClass.FromJson(json);
-
-            Assert.That(result, Is.Null, "Should return null for undefined enum value 3");
+            Assert.That(NumberEnumClass.FromJson(json), Is.Null, "Should return null for undefined enum value 3");
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            Assert.That(NumberEnumClass.FromJsonUtf8(utf8Json), Is.Null, "Should return null for undefined enum value 3");
         }
 
         [Test]
         public void TestInvalidEnumValue_AsText()
         {
             var json = """{"Value":"Third"}""";
-            var result = TextEnumClass.FromJson(json);
-
-            Assert.That(result, Is.Null, "Should return null for undefined enum value 'Third'");
+            Assert.That(TextEnumClass.FromJson(json), Is.Null, "Should return null for undefined enum value 'Third'");
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            Assert.That(TextEnumClass.FromJsonUtf8(utf8Json), Is.Null, "Should return null for undefined enum value 'Third'");
         }
 
         [Test]
@@ -71,9 +71,9 @@ namespace GenJson.Tests
             // "3" matches the underlying int type but is not defined in TextEnum
             // Enum.TryParse("3", ...) returns true, so IsDefined is needed to reject it.
             var json = """{"Value":"3"}""";
-            var result = TextEnumClass.FromJson(json);
-
-            Assert.That(result, Is.Null, "Should return null for undefined enum value '3' in text mode");
+            Assert.That(TextEnumClass.FromJson(json), Is.Null, "Should return null for undefined enum value '3' in text mode");
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            Assert.That(TextEnumClass.FromJsonUtf8(utf8Json), Is.Null, "Should return null for undefined enum value '3' in text mode");
         }
 
         [Test]
@@ -83,6 +83,10 @@ namespace GenJson.Tests
             var result = InvalidFallbackEnumClass.FromJson(json);
 
             Assert.That(result!.Value, Is.EqualTo(InvalidFallbackEnum.Unknown));
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var resultUtf8 = InvalidFallbackEnumClass.FromJsonUtf8(utf8Json);
+            Assert.That(resultUtf8!.Value, Is.EqualTo(InvalidFallbackEnum.Unknown));
         }
     }
 }

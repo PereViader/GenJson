@@ -38,6 +38,14 @@ public class TestInheritance
         var obj2 = InheritanceDerivedDifferentOrderRecord.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Json = obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj2 = InheritanceDerivedDifferentOrderRecord.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 
     [Test]
@@ -50,6 +58,14 @@ public class TestInheritance
         var obj2 = InheritanceDerivedDifferentNameRecord.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Json = obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj2 = InheritanceDerivedDifferentNameRecord.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 
     [Test]
@@ -62,6 +78,14 @@ public class TestInheritance
         var obj2 = InheritanceDerivedPresetValueRecord.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Json = obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj2 = InheritanceDerivedPresetValueRecord.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 
     [Test]
@@ -74,5 +98,13 @@ public class TestInheritance
         var obj2 = InheritanceDerivedClass.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Json = obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj2 = InheritanceDerivedClass.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 }

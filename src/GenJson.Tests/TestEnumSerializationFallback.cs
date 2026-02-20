@@ -64,7 +64,11 @@ namespace GenJson.Tests
             var json = obj.ToJson();
 
             // Requested behavior: formatted as quoted number "3"
-            Assert.That(json, Is.EqualTo("""{"Value":"3"}"""));
+            var expected = """{"Value":"3"}""";
+            Assert.That(json, Is.EqualTo(expected));
+
+            var utf8Json = obj.ToJsonUtf8();
+            Assert.That(utf8Json, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
         }
 
         [Test]
@@ -74,15 +78,23 @@ namespace GenJson.Tests
             var obj = FallbackDictionaryTextEnumClass.FromJson(json);
             Assert.That(obj, Is.Not.Null);
             var result = obj!.ToJson();
-            Assert.That(result, Is.EqualTo("""{"$Value":2,"Value":{"First":1,"Second":2}}"""));
+            var expected = """{"$Value":2,"Value":{"First":1,"Second":2}}""";
+            Assert.That(result, Is.EqualTo(expected));
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Obj = FallbackDictionaryTextEnumClass.FromJsonUtf8(utf8Json);
+            var utf8Result = utf8Obj!.ToJsonUtf8();
+            Assert.That(utf8Result, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
         }
 
         [Test]
         public void TestInvalidEnumOnDictioanry_NoFallback_DoesNotDeserialize()
         {
             var json = """{"Value":{"Zero":0,"First":1,"Second":2,"Third":3}}""";
-            var obj = NoFallbackDictionaryTextEnumClass.FromJson(json);
-            Assert.That(obj, Is.Null);
+            Assert.That(NoFallbackDictionaryTextEnumClass.FromJson(json), Is.Null);
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            Assert.That(NoFallbackDictionaryTextEnumClass.FromJsonUtf8(utf8Json), Is.Null);
         }
 
         [Test]
@@ -98,6 +110,12 @@ namespace GenJson.Tests
             Assert.That(obj!.Value, Has.Count.EqualTo(2));
             Assert.That(obj.Value.ContainsKey(FallbackNumericEnum.One));
             Assert.That(obj.Value.ContainsKey(FallbackNumericEnum.Two));
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Obj = FallbackDictionaryNumericEnumClass.FromJsonUtf8(utf8Json);
+            Assert.That(utf8Obj!.Value, Has.Count.EqualTo(2));
+            Assert.That(utf8Obj.Value.ContainsKey(FallbackNumericEnum.One));
+            Assert.That(utf8Obj.Value.ContainsKey(FallbackNumericEnum.Two));
         }
 
         [Test]
@@ -108,6 +126,18 @@ namespace GenJson.Tests
 
             Assert.That(obj, Is.Not.Null);
             Assert.That(obj!.Value, Is.Empty);
+
+            var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+            var utf8Obj = FallbackDictionaryNumericEnumClass.FromJsonUtf8(utf8Json);
+            Assert.That(utf8Obj!.Value, Is.Empty);
+        }
+
+        [Test]
+        public void TestMissingRequiredProperty()
+        {
+            var json = "{}";
+            var obj = FallbackDictionaryTextEnumClass.FromJson(json);
+            Assert.That(obj, Is.Null, "Should return null when required property is missing.");
         }
     }
 }

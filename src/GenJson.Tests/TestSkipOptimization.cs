@@ -18,6 +18,9 @@ public class TestSkipOptimization
         // Expect NO count properties
         var expected = """{"List":[1,2],"Array":[3,4],"Dictionary":{"5":6}}""";
         Assert.That(json, Is.EqualTo(expected));
+
+        var utf8Json = obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
     }
 
     [Test]
@@ -30,6 +33,13 @@ public class TestSkipOptimization
         Assert.That(obj.List, Is.EqualTo(new List<int> { 1, 2 }));
         Assert.That(obj.Array, Is.EqualTo(new int[] { 3, 4 }));
         Assert.That(obj.Dictionary, Is.EqualTo(new Dictionary<string, int> { { "5", 6 } }));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = SkipOptimizationClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.List, Is.EqualTo(new List<int> { 1, 2 }));
+        Assert.That(utf8Obj.Array, Is.EqualTo(new int[] { 3, 4 }));
+        Assert.That(utf8Obj.Dictionary, Is.EqualTo(new Dictionary<string, int> { { "5", 6 } }));
     }
 
     [Test]
@@ -44,5 +54,12 @@ public class TestSkipOptimization
         Assert.That(obj.List, Is.EqualTo(new List<int> { 1, 2 }));
         Assert.That(obj.Array, Is.EqualTo(new int[] { 3, 4 }));
         Assert.That(obj.Dictionary, Is.EqualTo(new Dictionary<string, int> { { "5", 6 } }));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = SkipOptimizationClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.List, Is.EqualTo(new List<int> { 1, 2 }));
+        Assert.That(utf8Obj.Array, Is.EqualTo(new int[] { 3, 4 }));
+        Assert.That(utf8Obj.Dictionary, Is.EqualTo(new Dictionary<string, int> { { "5", 6 } }));
     }
 }

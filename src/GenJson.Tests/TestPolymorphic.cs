@@ -59,6 +59,11 @@ public class TestPolymorphic
         var baseObj2 = PolymorphicBaseNoAbstractRecord.FromJson(baseExpected)!;
         var baseObj2Json = baseObj2.ToJson();
         Assert.That(baseObj2Json, Is.EqualTo(baseExpected));
+
+        var utf8BaseExpected = System.Text.Encoding.UTF8.GetBytes(baseExpected);
+        var utf8BaseObj2 = PolymorphicBaseNoAbstractRecord.FromJsonUtf8(utf8BaseExpected)!;
+        var utf8BaseObj2Json = utf8BaseObj2.ToJsonUtf8();
+        Assert.That(utf8BaseObj2Json, Is.EqualTo(utf8BaseExpected));
     }
 
     [Test]
@@ -71,6 +76,11 @@ public class TestPolymorphic
         var obj2 = PolymorphicBaseNoAbstractRecord.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Obj2 = PolymorphicBaseNoAbstractRecord.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 
     [Test]
@@ -92,6 +102,11 @@ public class TestPolymorphic
         var baseObj2 = PolymorphicBaseRecord.FromJson(baseExpected)!;
         var baseObj2Json = baseObj2.ToJson();
         Assert.That(baseObj2Json, Is.EqualTo(baseExpected));
+
+        var utf8BaseExpected = System.Text.Encoding.UTF8.GetBytes(baseExpected);
+        var utf8BaseObj2 = PolymorphicBaseRecord.FromJsonUtf8(utf8BaseExpected)!;
+        var utf8BaseObj2Json = utf8BaseObj2.ToJsonUtf8();
+        Assert.That(utf8BaseObj2Json, Is.EqualTo(utf8BaseExpected));
     }
 
     [Test]
@@ -113,6 +128,11 @@ public class TestPolymorphic
         var baseObj2 = PolymorphicBaseRecord.FromJson(baseExpected)!;
         var baseObj2Json = baseObj2.ToJson();
         Assert.That(baseObj2Json, Is.EqualTo(baseExpected));
+
+        var utf8BaseExpected = System.Text.Encoding.UTF8.GetBytes(baseExpected);
+        var utf8BaseObj2 = PolymorphicBaseRecord.FromJsonUtf8(utf8BaseExpected)!;
+        var utf8BaseObj2Json = utf8BaseObj2.ToJsonUtf8();
+        Assert.That(utf8BaseObj2Json, Is.EqualTo(utf8BaseExpected));
     }
 
     [Test]
@@ -134,6 +154,11 @@ public class TestPolymorphic
         var baseObj2 = PolymorphicBaseClass.FromJson(baseExpected)!;
         var baseObj2Json = baseObj2.ToJson();
         Assert.That(baseObj2Json, Is.EqualTo(baseExpected));
+
+        var utf8BaseExpected = System.Text.Encoding.UTF8.GetBytes(baseExpected);
+        var utf8BaseObj2 = PolymorphicBaseClass.FromJsonUtf8(utf8BaseExpected)!;
+        var utf8BaseObj2Json = utf8BaseObj2.ToJsonUtf8();
+        Assert.That(utf8BaseObj2Json, Is.EqualTo(utf8BaseExpected));
     }
 
     [Test]
@@ -146,5 +171,10 @@ public class TestPolymorphic
         var obj2 = PolymorphicContainerRecord.FromJson(expected)!;
         var obj2Json = obj2.ToJson();
         Assert.That(obj2Json, Is.EqualTo(expected));
+
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        var utf8Obj2 = PolymorphicContainerRecord.FromJsonUtf8(utf8Expected)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 }

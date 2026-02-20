@@ -20,6 +20,12 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 
     [Test]
@@ -30,6 +36,12 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 
     [Test]
@@ -40,6 +52,12 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 
     [Test]
@@ -50,6 +68,12 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 
     [Test]
@@ -60,6 +84,12 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 
     [Test]
@@ -70,5 +100,11 @@ public class TestPropertyOrder
         Assert.That(obj, Is.Not.Null);
         Assert.That(obj.A, Is.EqualTo(1));
         Assert.That(obj.B, Is.EqualTo(2));
+
+        var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
+        var utf8Obj = PropertyOrderClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj, Is.Not.Null);
+        Assert.That(utf8Obj.A, Is.EqualTo(1));
+        Assert.That(utf8Obj.B, Is.EqualTo(2));
     }
 }

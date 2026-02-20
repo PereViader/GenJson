@@ -25,14 +25,16 @@ This project is compatible with both pure C# projects and Unity3D.
 
 ## [Benchmark](https://github.com/PereViader/GenJson/blob/main/src/GenJson.Benchmark/Program.cs)
 
-| Method                  | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Gen1   | Allocated [KB] |
-|------------------------ |-----------:|-----------:|------------:|-------:|-------:|---------------:|
-| GenJson_ToJson          |   977.3 ns |   19.44 ns |    20.80 ns | 0.0343 | 0.0000 |        1.72 KB |
-| MicrosoftJson_ToJson    | 1,203.1 ns |   24.03 ns |    23.60 ns | 0.0381 | 0.0000 |        1.92 KB |
-| NewtonsoftJson_ToJson   | 2,221.5 ns |   42.04 ns |    41.29 ns | 0.1183 | 0.0000 |        5.95 KB |
-| GenJson_FromJson        | 1,212.7 ns |   23.63 ns |    28.13 ns | 0.0477 | 0.0000 |        2.39 KB |
-| MicrosoftJson_FromJson  | 2,342.1 ns |   46.59 ns |    51.78 ns | 0.0610 | 0.0000 |           3 KB |
-| NewtonsoftJson_FromJson | 3,889.3 ns |   76.55 ns |    94.01 ns | 0.1678 | 0.0038 |        8.23 KB |
+| Method                     | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
+|--------------------------- |-----------:|-----------:|------------:|-------:|---------------:|
+| GenJson_ToJson             | 1,029.8 ns |   20.30 ns |    35.01 ns | 0.0343 |        1.72 KB |
+| MicrosoftJson_ToJson       | 1,197.2 ns |   23.36 ns |    31.19 ns | 0.0381 |        1.92 KB |
+| NewtonsoftJson_ToJson      | 2,327.3 ns |   45.57 ns |    55.97 ns | 0.1183 |        5.95 KB |
+| GenJson_FromJson           | 1,127.0 ns |   21.92 ns |    25.25 ns | 0.0439 |        2.16 KB |
+| MicrosoftJson_FromJson     | 2,447.2 ns |   47.78 ns |    46.92 ns | 0.0610 |           3 KB |
+| NewtonsoftJson_FromJson    | 4,020.5 ns |   79.68 ns |    94.85 ns | 0.1678 |        8.23 KB |
+| GenJson_FromJsonUtf8       | 1,119.5 ns |   22.32 ns |    22.92 ns | 0.0439 |        2.16 KB |
+| MicrosoftJson_FromJsonUtf8 | 2,331.4 ns |   44.92 ns |    64.42 ns | 0.0610 |           3 KB |
 
 ## Installation
 

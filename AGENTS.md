@@ -3,6 +3,7 @@
     - GenJson.Tests: The tests, can be ran to validate the code
     - GenJson.Generator: The source generator which will generate the code. Generated code will use the main library code.
 - The generator must use Microsoft.CodeAnalysis.CSharp version to 4.1.0
+- Do not upgrade the C# version or use C# 11+ features (like `required`). This generator must be compatible with Unity, and Unity is not fully compatible with C# 11.
 - The tests contain TestSourceGenerator which can be used to analyze the source generated code
 - Avoid memory allocations in generated code unless strictly necessary or for performance.
 - Prefer switch statements or expressions over if-else chains for handling multiple cases.
