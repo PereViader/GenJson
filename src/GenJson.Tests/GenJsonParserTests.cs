@@ -188,6 +188,20 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void MatchesKey_ByteSpan_HandlesSurrogatePairKeyFallback()
+        {
+            // The JSON contains the escaped unicode character for an emoji surrogate pair 😁
+            var json = System.Text.Encoding.UTF8.GetBytes("\"m\\uD83D\\uDE01y\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("m😁y").AsSpan();
+            int index = 0;
+
+            // This tests that the fallback correctly handles 4-byte surrogate characters
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "m😁y", expectedUtf8), Is.True);
+            Assert.That(index, Is.GreaterThan(0));
+            Assert.That(json[index], Is.EqualTo((byte)':'));
+        }
+
+        [Test]
         public void TrySkipValue_SkipsObject()
         {
             var json = "{\"a\":1,\"b\":[2,3]}next".AsSpan();

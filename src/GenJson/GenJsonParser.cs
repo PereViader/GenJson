@@ -942,10 +942,6 @@ namespace GenJson
 
                     b = json[index++];
 
-                    // Decode properly for escape
-                    // Since this is rare path in keys, fallback to decoding the key if needed?
-                    // But we already advanced index.
-                    // Just decode the escape char properly.
                     char unescaped;
                     switch ((char)b)
                     {
@@ -1013,21 +1009,7 @@ namespace GenJson
                     }
                     else
                     {
-                        // Non-ASCII. Fallback to full string decode for simplicity and correctness.
-                        // But we are in the middle of parsing.
-                        // We can try to decode next char from json.
-
-                        // Simple check: 
-                        // If we are at non-ascii, just assume mismatch for now in "fast" logic?
-                        // No, user might use non-ascii keys.
-
-                        // Try to match expected[expectedIndex] encoded as UTF8?
-                        // Or decode json char.
-
-                        // Let's decode one codepoint from JSON manually?
-                        // Or use Utf8Parser? No.
-                        // Bit manipulation for UTF8 is standard.
-
+                        // Decode one UTF-8 codepoint manually to match against the UTF-16 expected string
                         var codepoint = 0;
                         var extraBytes = 0;
                         if ((b & 0xE0) == 0xC0)
@@ -1069,7 +1051,6 @@ namespace GenJson
                             codepoint = (codepoint << 6) | (next & 0x3F);
                         }
 
-                        // Codepoint to char(s)
                         if (codepoint <= 0xFFFF)
                         {
                             if (expectedIndex >= expected.Length || expected[expectedIndex++] != (char)codepoint)
@@ -1080,15 +1061,20 @@ namespace GenJson
                         }
                         else
                         {
-                            // Surrogate pair in expected string?
-                            // expected is UTF-16
-                            // codepoint > 0xFFFF
-                            // TODO: Handle surrogate logic or just fail?
-                            // Standard JSON libraries handle this.
-                            // For now, let's just fail if complex unicode. this is edge case.
-                            // Or better: Use string comparison fallback.
-                            index = originalIndex;
-                            return false;
+                            codepoint -= 0x10000;
+                            char highSurrogate = (char)((codepoint >> 10) + 0xD800);
+                            char lowSurrogate = (char)((codepoint & 0x3FF) + 0xDC00);
+
+                            if (expectedIndex >= expected.Length || expected[expectedIndex++] != highSurrogate)
+                            {
+                                index = originalIndex;
+                                return false;
+                            }
+                            if (expectedIndex >= expected.Length || expected[expectedIndex++] != lowSurrogate)
+                            {
+                                index = originalIndex;
+                                return false;
+                            }
                         }
                     }
                 }
@@ -1464,7 +1450,6 @@ namespace GenJson
 
         public static bool TryParseNull(ReadOnlySpan<byte> json, ref int index)
         {
-            //TODO: maybe optimize the length
             if (json.Length - index >= 4 && json.Slice(index, 4).SequenceEqual(NullBytes))
             {
                 index += 4;
