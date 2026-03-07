@@ -59,7 +59,7 @@ namespace GenJson.Tests
             Assert.That(GenJsonSizeHelper.GetSize('\t'), Is.EqualTo(4));
             Assert.That(GenJsonSizeHelper.GetSize('\\'), Is.EqualTo(4));
             Assert.That(GenJsonSizeHelper.GetSize('\"'), Is.EqualTo(4));
-            Assert.That(GenJsonSizeHelper.GetSize('\0'), Is.EqualTo(4));
+            Assert.That(GenJsonSizeHelper.GetSize('\0'), Is.EqualTo(8));  // "\u0000" (2 quotes + \u0000 = 6 chars)
             Assert.That(GenJsonSizeHelper.GetSize('\x1f'), Is.EqualTo(8)); // \u001f
             Assert.That(GenJsonSizeHelper.GetSize('a'), Is.EqualTo(3));
         }
@@ -69,11 +69,12 @@ namespace GenJson.Tests
         {
             var input = "\n\r\t\\\"\0\u001fa";
             // Quotes: 2
-            // \n\r\t\\\"\0 each take 2 -> 6 * 2 = 12
+            // \n\r\t\\\" each take 2 -> 5 * 2 = 10
+            // \0 takes 6 (\u0000)
             // \x1f (control) takes 6 (\u001f)
             // 'a' takes 1
-            // Total: 2 + 12 + 6 + 1 = 21
-            Assert.That(GenJsonSizeHelper.GetSize(input.AsSpan()), Is.EqualTo(21));
+            // Total: 2 + 10 + 6 + 6 + 1 = 25
+            Assert.That(GenJsonSizeHelper.GetSize(input.AsSpan()), Is.EqualTo(25));
         }
 
         [Test]
@@ -123,6 +124,79 @@ namespace GenJson.Tests
             // '🚀' -> 4 (surrogate pair -> 4 bytes in utf8)
             // Total: 2 + 10 + 6 + 1 + 2 + 4 = 25
             Assert.That(GenJsonSizeHelper.GetSizeUtf8(input.AsSpan()), Is.EqualTo(25));
+        }
+        // ── Bug #5: GetSize(char '\0') returns 4 but GenJsonWriter emits 6 chars (\u0000) ────────
+
+        [Test]
+        public void GetSize_Char_NullCharMatchesWriterOutput()
+        {
+            // '\0' must be written as \u0000 (6 chars when quoted: "\u0000").
+            // GetSize(char) is used to pre-allocate the quoted serialization buffer.
+            // BUG: currently returns 4, but the writer emits 6 characters.
+            char c = '\0';
+            int reportedSize = GenJsonSizeHelper.GetSize(c);
+
+            Span<char> buffer = stackalloc char[32];
+            int index = 0;
+            GenJsonWriter.WriteString(buffer, ref index, c.ToString());
+            int actualSize = index; // includes surrounding quotes
+
+            Assert.That(reportedSize, Is.EqualTo(actualSize),
+                $"GetSize('\\0') returned {reportedSize} but GenJsonWriter wrote {actualSize} chars (Bug #5)");
+        }
+
+        [Test]
+        public void GetSize_String_NullCharMatchesWriterOutput()
+        {
+            // Same mismatch for GetSize(ReadOnlySpan<char>) when the string contains '\0'.
+            // GetSize(ReadOnlySpan<char>): '\0' => 2, but writer emits 6 bytes for \u0000.
+            var input = "\0";
+            int reportedSize = GenJsonSizeHelper.GetSize(input.AsSpan());
+
+            Span<char> buffer = stackalloc char[32];
+            int index = 0;
+            GenJsonWriter.WriteString(buffer, ref index, input);
+            int actualSize = index;
+
+            Assert.That(reportedSize, Is.EqualTo(actualSize),
+                $"GetSize span with '\\0' returned {reportedSize} but GenJsonWriter wrote {actualSize} chars (Bug #5)");
+        }
+
+        // ── Bug #6: GetSize(char '\0') vs GetSizeUtf8(char '\0') inconsistency ─────────────────
+
+        [Test]
+        public void GetSize_vs_GetSizeUtf8_NullChar_Consistent()
+        {
+            // '\0' is a control character. The UTF-8 writer also emits \u0000 (8 bytes when quoted).
+            // GetSizeUtf8('\0') should correctly return 8 (char.IsControl('\0') => true => 8).
+            // GetSize('\0') incorrectly returns 4 — they are inconsistent.
+            int charSize = GenJsonSizeHelper.GetSize('\0');
+            int utf8Size = GenJsonSizeHelper.GetSizeUtf8('\0');
+
+            // After fixing Bug #5, charSize should be 6 to match the writer.
+            // This test documents the current inconsistency.
+            Assert.That(utf8Size, Is.EqualTo(8), "GetSizeUtf8('\\0') should return 8 (quoted \\u0000 in UTF-8)");
+            Assert.That(charSize, Is.EqualTo(8), "GetSize('\\0') should return 8 (quoted \\u0000 in char span) (Bug #5 fixed)");
+        }
+
+        // ── Round-trip consistency: every special char's GetSize must match write output ────────
+
+        [Test]
+        public void GetSize_Char_EscapeSequences_AllMatchWriterOutput()
+        {
+            char[] specials = { '"', '\\', '\b', '\f', '\n', '\r', '\t', '\0', '\x01', '\x1f' };
+            Span<char> buffer = stackalloc char[32];
+            foreach (var c in specials)
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(c);
+
+                int index = 0;
+                GenJsonWriter.WriteString(buffer, ref index, c.ToString());
+                int actualSize = index;
+
+                Assert.That(reportedSize, Is.EqualTo(actualSize),
+                    $"GetSize('\\x{(int)c:x2}') = {reportedSize} but writer emitted {actualSize} chars");
+            }
         }
     }
 }

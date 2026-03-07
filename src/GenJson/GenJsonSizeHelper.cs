@@ -67,13 +67,15 @@ namespace GenJson
 
         public static int GetSize(char c) => c switch
         {
-            '\n' => 4, // \n
-            '\r' => 4, // \r
-            '\t' => 4, // \t
-            '\\' => 4, // \\
-            '\"' => 4, // \"
-            '\0' => 4, // \0
-            _ when char.IsControl(c) => 8, // \uXXXX format for other control chars
+            '\n' => 4, // "\n"  (2 quotes + 2 content chars)
+            '\r' => 4, // "\r"
+            '\t' => 4, // "\t"
+            '\b' => 4, // "\b"
+            '\f' => 4, // "\f"
+            '\\' => 4, // "\\"
+            '\"' => 4, // "\""
+            '\0' => 8, // "\u0000" — \0 is not a JSON escape; must use \u0000 (2 quotes + 6 content chars)
+            _ when char.IsControl(c) => 8, // "\uXXXX" (2 quotes + 6 content chars)
             _ => 3
         };
 
@@ -87,9 +89,11 @@ namespace GenJson
                     '\n' => 2, // \n
                     '\r' => 2, // \r
                     '\t' => 2, // \t
+                    '\b' => 2, // \b
+                    '\f' => 2, // \f
                     '\\' => 2, // \\
                     '\"' => 2, // \"
-                    '\0' => 2, // \0
+                    '\0' => 6, // \u0000 — null is not \0 in JSON, must be \u0000
                     _ when char.IsControl(c) => 6, // \uXXXX format for other control chars
                     _ => 1
                 };

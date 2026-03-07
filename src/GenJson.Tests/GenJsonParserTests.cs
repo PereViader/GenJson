@@ -598,5 +598,214 @@ namespace GenJson.Tests
             index = 0;
             Assert.That(GenJsonParser.MatchesKey("\"a\\".AsSpan(), ref index, "a"), Is.False);
         }
+        // ── Bug #1 / #2: TrySkipValue dead else branch & dead index >= Length check ───────────────
+
+        [Test]
+        public void TrySkipValue_InvalidLeadChar_ReturnsFalse()
+        {
+            // Characters that are not valid JSON value starters should return false.
+            // The dead else-branch would advance index and return true for non-delimiter chars.
+            int index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("@123".AsSpan(), ref index), Is.False);
+            Assert.That(index, Is.EqualTo(0), "index must not be advanced on failure");
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue(";".AsSpan(), ref index), Is.False);
+        }
+
+        [Test]
+        public void TrySkipValue_DelimiterAtStart_ReturnsFalse()
+        {
+            // A comma or closing bracket/brace is not a value; the dead else-branch
+            // returned false for these but only by coincidence via IsDelimiter — verify.
+            int index = 0;
+            Assert.That(GenJsonParser.TrySkipValue(",".AsSpan(), ref index), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("}".AsSpan(), ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("]".AsSpan(), ref index), Is.False);
+        }
+
+        // ── Bug #1 / #2: byte variant ────────────────────────────────────────────────────────────
+
+        [Test]
+        public void TrySkipValue_Utf8_InvalidLeadChar_ReturnsFalse()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TrySkipValue(System.Text.Encoding.UTF8.GetBytes("@123").AsSpan(), ref index), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue(System.Text.Encoding.UTF8.GetBytes(",").AsSpan(), ref index), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+        }
+
+        // ── Bug #3: TryParseStringSpan / TryParseString — \uXXXX advances index past end ────────
+
+        [Test]
+        public void TryParseStringSpan_TruncatedUnicodeEscape_IndexNotPastEnd()
+        {
+            // "\u00" — only 2 hex digits, closed without digits
+            var json = "\"a\\u00\"".AsSpan(); // 7 chars; \u sequence has only 2 hex digits
+            int index = 0;
+            bool success = GenJsonParser.TryParseStringSpan(json, ref index, out _, out _);
+            // May succeed or fail depending on implementation, but index must be <= json.Length
+            Assert.That(index, Is.LessThanOrEqualTo(json.Length), "index must not exceed span length after truncated \\uXXXX");
+        }
+
+        [Test]
+        public void TryParseString_TruncatedUnicodeEscape_IndexNotPastEnd()
+        {
+            // Raw truncated escape — no closing quote after the two hex digits
+            var json = "\"test\\u00".AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TryParseString(json, ref index, out _);
+            Assert.That(success, Is.False, "Should fail on truncated \\uXXXX");
+            Assert.That(index, Is.LessThanOrEqualTo(json.Length), "index must not exceed span length");
+        }
+
+        [Test]
+        public void TryParseString_TruncatedUnicodeEscape_Utf8_IndexNotPastEnd()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"test\\u00").AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TryParseString(json, ref index, out _);
+            Assert.That(success, Is.False);
+            Assert.That(index, Is.LessThanOrEqualTo(json.Length));
+        }
+
+        // ── Bug #7: char numeric parsers advance index on failure ────────────────────────────────
+
+        [Test]
+        public void TryParseInt_Overflow_IndexNotAdvanced()
+        {
+            // int.MaxValue + 1 = 2147483648, which overflows int — TryParse should fail.
+            // After failure, index must be restored to its initial position.
+            var json = "2147483648next".AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TryParseInt(json, ref index, out int _);
+            Assert.That(success, Is.False, "Should fail on overflow");
+            // BUG: currently index is advanced to 10. After fixing it should be 0.
+            Assert.That(index, Is.EqualTo(0), "index must be restored to 0 on failure (Bug #7)");
+        }
+
+        [Test]
+        public void TryParseLong_Overflow_IndexNotAdvanced()
+        {
+            // ulong max value overflows long
+            var json = "18446744073709551616next".AsSpan(); // > long.MaxValue
+            int index = 0;
+            bool success = GenJsonParser.TryParseLong(json, ref index, out long _);
+            Assert.That(success, Is.False);
+            Assert.That(index, Is.EqualTo(0), "index must be restored on failure (Bug #7)");
+        }
+
+        [Test]
+        public void TryParseDouble_InvalidInput_IndexNotAdvanced()
+        {
+            // A string completely invalid for floating point
+            var json = "abc".AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TryParseDouble(json, ref index, out double _);
+            Assert.That(success, Is.False);
+            Assert.That(index, Is.EqualTo(0), "index must not be advanced on failure (Bug #7)");
+        }
+
+        [Test]
+        public void TryParseInt_ValidValueFollowedByJunk_IndexAtEndOfNumber()
+        {
+            // Sanity check: successful parse must still correctly position index
+            var json = "42,next".AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TryParseInt(json, ref index, out int result);
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(42));
+            Assert.That(index, Is.EqualTo(2)); // positioned at ','
+        }
+
+        // ── Bug #8: MatchesKey (char) doesn't restore index on EOF mid-escape ───────────────────
+
+        [Test]
+        public void MatchesKey_EofMidEscape_IndexRestored()
+        {
+            // JSON ends right after the backslash — EOF mid-escape
+            var json = "\"a\\".AsSpan();
+            int index = 0;
+            bool result = GenJsonParser.MatchesKey(json, ref index, "a");
+            Assert.That(result, Is.False);
+            // BUG: currently index is NOT restored. After fixing it must be 0.
+            Assert.That(index, Is.EqualTo(0), "index must be restored to originalIndex on EOF mid-escape (Bug #8)");
+        }
+
+        [Test]
+        public void MatchesKey_Utf8_EofMidEscape_IndexRestored()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"a\\").AsSpan();
+            int index = 0;
+            bool result = GenJsonParser.MatchesKey(json, ref index, "a");
+            Assert.That(result, Is.False);
+            Assert.That(index, Is.EqualTo(0), "index must be restored on EOF mid-escape (byte variant)");
+        }
+
+        // ── Bug #9: TryFindProperty — dead index >= Length check (behavior sanity) ────────────
+
+        [Test]
+        public void TryFindProperty_EmptyObject_ReturnsFalse()
+        {
+            // An empty object should not find any key
+            Assert.That(GenJsonParser.TryFindProperty("{}".AsSpan(), 0, "key", out _), Is.False);
+        }
+
+        [Test]
+        public void TryFindProperty_LastProperty_ReturnsCorrectIndex()
+        {
+            var json = "{\"a\":1,\"b\":42}".AsSpan();
+            Assert.That(GenJsonParser.TryFindProperty(json, 0, "b", out int vi), Is.True);
+            Assert.That(json[vi], Is.EqualTo('4'));
+        }
+
+        [Test]
+        public void TryFindProperty_Utf8_EmptyObject_ReturnsFalse()
+        {
+            Assert.That(GenJsonParser.TryFindProperty(System.Text.Encoding.UTF8.GetBytes("{}").AsSpan(), 0, "key", out _), Is.False);
+        }
+
+        // ── Bug #15: TrySkipString doesn't skip hex digits after \u ──────────────────────────────
+
+        [Test]
+        public void TrySkipString_UnicodeEscape_SkipsCorrectly()
+        {
+            // String with \uXXXX escape — skip must land AFTER the full escape
+            var json = "\"\\u0041next\"after".AsSpan(); // \u0041 = 'A'
+            int index = 0;
+            bool success = GenJsonParser.TrySkipString(json, ref index);
+            Assert.That(success, Is.True);
+            // After skipping "\"\\u0041next\"", index should be at 'a' of "after"
+            Assert.That(json[index], Is.EqualTo('a'), "TrySkipString must skip past \\uXXXX hex digits (Bug #15)");
+        }
+
+        [Test]
+        public void TrySkipString_Utf8_UnicodeEscape_SkipsCorrectly()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"\\u0041next\"after").AsSpan();
+            int index = 0;
+            bool success = GenJsonParser.TrySkipString(json, ref index);
+            Assert.That(success, Is.True);
+            Assert.That(json[index], Is.EqualTo((byte)'a'), "byte TrySkipString must skip past \\uXXXX hex digits (Bug #15)");
+        }
+
+        [Test]
+        public void TrySkipString_MultipleUnicodeEscapes_SkipsCorrectly()
+        {
+            // Multiple consecutive \uXXXX escapes
+            var json = "\"\\u0041\\u0042\\u0043end\"X".AsSpan(); // ABC
+            int index = 0;
+            bool success = GenJsonParser.TrySkipString(json, ref index);
+            Assert.That(success, Is.True);
+            Assert.That(json[index], Is.EqualTo('X'));
+        }
     }
 }

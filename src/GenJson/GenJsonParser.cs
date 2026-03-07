@@ -42,7 +42,11 @@ namespace GenJson
                     escaped = true;
                     if (index >= json.Length) return false;
                     c = json[index++];
-                    if (c == 'u') index += 4;
+                    if (c == 'u')
+                    {
+                        if (index + 4 > json.Length) return false;
+                        index += 4;
+                    }
                 }
             }
 
@@ -77,7 +81,11 @@ namespace GenJson
                     escaped = true;
                     if (index >= json.Length) return false;
                     c = json[index++];
-                    if (c == 'u') index += 4;
+                    if (c == 'u')
+                    {
+                        if (index + 4 > json.Length) return false;
+                        index += 4;
+                    }
                 }
             }
 
@@ -252,7 +260,7 @@ namespace GenJson
 
                 if (c == '\\')
                 {
-                    if (index >= json.Length) return false;
+                    if (index >= json.Length) { index = originalIndex; return false; }
                     c = json[index++];
                     char unescaped;
                     switch (c)
@@ -386,6 +394,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -396,7 +405,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return int.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (int.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseUInt(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out uint? result)
@@ -410,6 +421,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -419,7 +431,9 @@ namespace GenJson
             var start = index;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return uint.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (uint.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseShort(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out short? result)
@@ -434,6 +448,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -444,7 +459,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return short.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (short.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseUShort(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out ushort? result)
@@ -458,6 +475,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -467,7 +485,9 @@ namespace GenJson
             var start = index;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return ushort.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (ushort.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseByte(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out byte? result)
@@ -481,6 +501,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -490,7 +511,9 @@ namespace GenJson
             var start = index;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return byte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (byte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseSByte(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out sbyte? result)
@@ -505,6 +528,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -515,7 +539,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return sbyte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (sbyte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseLong(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out long? result)
@@ -530,6 +556,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -540,7 +567,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return long.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (long.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseULong(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out ulong? result)
@@ -554,6 +583,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -563,7 +593,9 @@ namespace GenJson
             var start = index;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
             var slice = json.Slice(start, index - start);
-            return ulong.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+            if (ulong.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseDouble(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out double? result)
@@ -578,6 +610,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -588,7 +621,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
             var slice = json.Slice(start, index - start);
-            return double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            if (double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseFloat(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out float? result)
@@ -603,6 +638,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -613,7 +649,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
             var slice = json.Slice(start, index - start);
-            return float.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            if (float.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseDecimal(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out decimal? result)
@@ -628,6 +666,7 @@ namespace GenJson
                 return true;
             }
 
+            index = start;
             result = null;
             return false;
         }
@@ -638,7 +677,9 @@ namespace GenJson
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
             var slice = json.Slice(start, index - start);
-            return decimal.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            if (decimal.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            index = start;
+            return false;
         }
 
         public static bool TryParseNull(ReadOnlySpan<char> json, ref int index)
@@ -664,7 +705,6 @@ namespace GenJson
                 index++;
                 while (index < json.Length)
                 {
-                    if (index >= json.Length) return false;
                     if (json[index] == '}')
                     {
                         index++;
@@ -686,7 +726,6 @@ namespace GenJson
                 index++;
                 while (index < json.Length)
                 {
-                    if (index >= json.Length) return false;
                     if (json[index] == ']')
                     {
                         index++;
@@ -730,9 +769,7 @@ namespace GenJson
             }
             else
             {
-                if (IsDelimiter(c) && c != '-') return false;
-                index++;
-                return true;
+                return false;
             }
 
             return false;
@@ -1471,7 +1508,6 @@ namespace GenJson
                 index++;
                 while (index < json.Length)
                 {
-                    if (index >= json.Length) return false;
                     if (json[index] == '}')
                     {
                         index++;
@@ -1493,7 +1529,6 @@ namespace GenJson
                 index++;
                 while (index < json.Length)
                 {
-                    if (index >= json.Length) return false;
                     if (json[index] == ']')
                     {
                         index++;
@@ -1537,9 +1572,7 @@ namespace GenJson
             }
             else
             {
-                if (IsDelimiter(c) && c != '-') return false;
-                index++;
-                return true;
+                return false;
             }
 
             return false;
@@ -1621,7 +1654,7 @@ namespace GenJson
 
             while (index < json.Length)
             {
-                if (index >= json.Length || json[index] == '}') return false;
+                if (json[index] == '}') return false;
 
                 if (MatchesKey(json, ref index, propertyName))
                 {
