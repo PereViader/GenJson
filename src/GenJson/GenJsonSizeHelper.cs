@@ -73,7 +73,7 @@ namespace GenJson
             '\b' => 4, // "\b"
             '\f' => 4, // "\f"
             '\\' => 4, // "\\"
-            '\"' => 4, // "\""
+            '\"' => 4, // "\""  (2 quotes + 2 content chars)
             '\0' => 8, // "\u0000" — \0 is not a JSON escape; must use \u0000 (2 quotes + 6 content chars)
             _ when char.IsControl(c) => 8, // "\uXXXX" (2 quotes + 6 content chars)
             _ => 3

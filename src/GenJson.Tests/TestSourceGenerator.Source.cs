@@ -4,6 +4,14 @@ using System.Collections.Generic;
 #pragma warning disable CS8618
 namespace GenJson.Tests;
 
+public interface ITestGenJson
+{
+    string ToJson();
+    int CalculateJsonSize();
+    byte[] ToJsonUtf8();
+    int CalculateJsonSizeUtf8();
+}
+
 [GenJson]
 public partial class StringClass
 {
@@ -341,4 +349,78 @@ public partial class BaseScenario
 public partial class DerivedScenario : BaseScenario
 {
     public int DerivedProp { get; set; }
+}
+
+// ── STJ comparison edge-case types ────────────────────────────────────────
+// These cover a wide range of serialization edge cases for STJ comparison tests.
+// All tagged [GenJsonSkipCountOptimization] so the generator omits $Count properties.
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeStringClass : ITestGenJson
+{
+    public string Plain { get; init; } = "";
+    public string WithNewline { get; init; } = "";
+    public string WithTab { get; init; } = "";
+    public string WithCarriageReturn { get; init; } = "";
+    public string WithBackslash { get; init; } = "";
+    public string WithQuote { get; init; } = "";
+    public string WithUnicode { get; init; } = "";
+    public string Empty { get; init; } = "";
+    public string? Nullable { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeNumberClass : ITestGenJson
+{
+    public int IntMin { get; init; }
+    public int IntMax { get; init; }
+    public long LongMin { get; init; }
+    public long LongMax { get; init; }
+    public ulong ULongMax { get; init; }
+    public double DoubleZero { get; init; }
+    public double DoubleNegative { get; init; }
+    public double DoubleLarge { get; init; }
+    public float FloatSmall { get; init; }
+    public decimal DecimalPrecise { get; init; }
+    public int? NullableInt { get; init; }
+    public double? NullableDouble { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeCollectionClass : ITestGenJson
+{
+    public List<string> StringList { get; init; } = new();
+    public List<int> IntList { get; init; } = new();
+    public List<int>? NullList { get; init; }
+    public List<int> EmptyList { get; init; } = new();
+    public int[] IntArray { get; init; } = Array.Empty<int>();
+    public Dictionary<string, int> Dict { get; init; } = new();
+    public Dictionary<string, string> StringDict { get; init; } = new();
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeNestedClass : ITestGenJson
+{
+    public EdgeStringClass? Child { get; init; }
+    public EdgeStringClass? NullChild { get; init; }
+    public List<EdgeStringClass> Children { get; init; } = new();
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeBoolClass : ITestGenJson
+{
+    public bool True { get; init; }
+    public bool False { get; init; }
+    public bool? NullableBool { get; init; }
+    public bool? NullBool { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeControlCharClass : ITestGenJson
+{
+    public string WithNull { get; init; } = "";
+    public string WithCtrl1 { get; init; } = "";
+    public string WithCtrl1F { get; init; } = "";
+    public string WithEmoji { get; init; } = "";
+    public string WithMixed { get; init; } = "";
 }
