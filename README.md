@@ -11,7 +11,7 @@ This project is compatible with both pure C# projects and Unity3D.
 
 - **Compile-Time Generation**: No reflection overhead at runtime.
 - **Zero* Allocation Serialization**: Uses `Span` based string creation to write directly into the result string's memory, avoiding `StringBuilder` and intermediate string allocations for primitives.
-- **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` based parsing logic to avoid intermediate string allocations.
+- **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` and `ReadOnlySpan<byte>` (UTF-8) based parsing logic to avoid intermediate string allocations.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
@@ -223,14 +223,21 @@ var product = new Product
 
 // Zero-allocation serialization (allocates only the result string)
 string json = product.ToJson();
+
+// You can also serialize directly to a UTF-8 byte array
+byte[] utf8Json = product.ToJsonUtf8();
 ```
 
 ### 8. Deserialization
 
-The generator creates a static `FromJson` method on your class.
+The generator creates static `FromJson` and `FromJsonUtf8` methods on your class.
 
 ```csharp
 Product product = Product.FromJson(json);
+
+// You can also deserialize directly from a UTF-8 byte span or array
+byte[] utf8Json = ... // e.g. from a network stream
+Product productUtf8 = Product.FromJsonUtf8(utf8Json);
 ```
 
 > [!IMPORTANT]
