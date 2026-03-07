@@ -196,10 +196,10 @@ When an enum is used as a `Dictionary` key (e.g., `Dictionary<Status, int>`), an
 
 ### 6. Custom Conversion
 
-You can define custom logic for serializing and deserializing specific properties using the `[GenJsonConverter]` attribute.
+You can define custom logic for serializing and deserializing specific properties or entire types using the `[GenJsonConverter]` attribute.
 
-1.  Define a class with static methods `GetSize`, `WriteJson`, and `FromJson`.
-2.  Apply `[GenJsonConverter(typeof(YourConverter))]` to the property.
+1.  Define a class with static methods `GetSize`, `WriteJson`, and `FromJson` (and their UTF8 variants if needed).
+2.  Apply `[GenJsonConverter(typeof(YourConverter))]` to the property, class, or struct.
 
 ```csharp
 public static class MyCustomConverter
@@ -214,6 +214,25 @@ public partial class MyClass
 {
     [GenJsonConverter(typeof(MyCustomConverter))]
     public int MyProperty { get; set; }
+}
+```
+
+You can also apply it directly to a type, and override it on specific properties if needed:
+
+```csharp
+[GenJsonConverter(typeof(MyStructConverter))]
+public struct MyStruct
+{
+    public int Value { get; set; }
+}
+
+[GenJson]
+public partial class MyClass
+{
+    public MyStruct TypedProp { get; set; } // Uses MyStructConverter automatically
+    
+    [GenJsonConverter(typeof(AnotherConverter))]
+    public MyStruct OverriddenProp { get; set; } // Overrides with AnotherConverter
 }
 ```
 

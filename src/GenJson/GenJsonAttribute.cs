@@ -15,7 +15,7 @@ namespace GenJson
     /// Instead of using whatever default logic the generator would have used, it is going to use
     /// the static methods on the static class provided as a parameter
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter | AttributeTargets.Class | AttributeTargets.Struct)]
     public sealed class GenJsonConverterAttribute : Attribute
     {
         public GenJsonConverterAttribute(Type type)
