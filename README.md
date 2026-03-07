@@ -27,14 +27,21 @@ This project is compatible with both pure C# projects and Unity3D.
 
 | Method                     | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
 |--------------------------- |-----------:|-----------:|------------:|-------:|---------------:|
-| GenJson_ToJson             | 1,029.8 ns |   20.30 ns |    35.01 ns | 0.0343 |        1.72 KB |
-| MicrosoftJson_ToJson       | 1,197.2 ns |   23.36 ns |    31.19 ns | 0.0381 |        1.92 KB |
-| NewtonsoftJson_ToJson      | 2,327.3 ns |   45.57 ns |    55.97 ns | 0.1183 |        5.95 KB |
-| GenJson_FromJson           | 1,127.0 ns |   21.92 ns |    25.25 ns | 0.0439 |        2.16 KB |
-| MicrosoftJson_FromJson     | 2,447.2 ns |   47.78 ns |    46.92 ns | 0.0610 |           3 KB |
-| NewtonsoftJson_FromJson    | 4,020.5 ns |   79.68 ns |    94.85 ns | 0.1678 |        8.23 KB |
-| GenJson_FromJsonUtf8       | 1,119.5 ns |   22.32 ns |    22.92 ns | 0.0439 |        2.16 KB |
-| MicrosoftJson_FromJsonUtf8 | 2,331.4 ns |   44.92 ns |    64.42 ns | 0.0610 |           3 KB |
+| GenJson_ToJson             |   996.0 ns |   19.91 ns |    23.70 ns | 0.0343 |        1.72 KB |
+| MicrosoftJson_ToJson       | 1,212.3 ns |   23.66 ns |    25.31 ns | 0.0381 |        1.92 KB |
+| NewtonsoftJson_ToJson      | 2,277.3 ns |   44.80 ns |    56.66 ns | 0.1183 |        5.95 KB |
+| Utf8Json_ToJson            |   985.9 ns |   17.89 ns |    16.73 ns | 0.0324 |        1.63 KB |
+| GenJson_FromJson           | 1,077.7 ns |   20.89 ns |    26.42 ns | 0.0439 |        2.16 KB |
+| MicrosoftJson_FromJson     | 2,387.2 ns |   47.67 ns |    65.24 ns | 0.0610 |           3 KB |
+| NewtonsoftJson_FromJson    | 4,075.0 ns |   79.57 ns |   119.10 ns | 0.1678 |        8.23 KB |
+| Utf8Json_FromJson          | 1,717.2 ns |   34.28 ns |    32.06 ns | 0.0629 |        3.13 KB |
+| GenJson_FromJsonUtf8       | 1,020.9 ns |   20.20 ns |    31.45 ns | 0.0439 |        2.16 KB |
+| Utf8Json_FromJsonUtf8      | 1,635.8 ns |   26.82 ns |    23.78 ns | 0.0458 |         2.3 KB |
+| MicrosoftJson_FromJsonUtf8 | 2,316.8 ns |   44.93 ns |    58.43 ns | 0.0610 |           3 KB |
+
+- [System.Text.Json](https://learn.microsoft.com/en-us/dotnet/api/system.text.json)
+- [Newtonsoft.Json](https://www.newtonsoft.com/json)
+- [Utf8Json](https://github.com/Cryptisk/Utf8Json)
 
 ## Installation
 
