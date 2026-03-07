@@ -1262,15 +1262,8 @@ public class TestRuntime
     {
         void AssertInvalid<T>(System.Func<T> parseFunc)
         {
-            try
-            {
-                var result = parseFunc();
-                Assert.That(result, Is.Null, "Expected null or JsonParseException for malformed JSON.");
-            }
-            catch (JsonParseException)
-            {
-                // Both null and exception are acceptable behaviors for malformed JSON
-            }
+            var result = parseFunc();
+            Assert.That(result, Is.Null, "Expected null for malformed JSON.");
         }
 
         AssertInvalid(() => IntClass.FromJson(""));

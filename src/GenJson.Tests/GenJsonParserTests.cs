@@ -28,6 +28,29 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseString_ParsesAllEscapes()
+        {
+            var json = "\"hello\\n\\r\\t\\b\\f\\/\\\\\\u0031world\"".AsSpan();
+            int index = 0;
+            var success = GenJsonParser.TryParseString(json, ref index, out var result);
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo("hello\n\r\t\b\f/\\1world"));
+
+            // UnescapeString directly for long string fallback (>128 chars)
+            var longStrObj = new System.Text.StringBuilder("\"");
+            var expectedStr = new System.Text.StringBuilder();
+            for (int i = 0; i < 200; i++)
+            {
+                longStrObj.Append("\\n");
+                expectedStr.Append("\n");
+            }
+            longStrObj.Append("\"");
+            index = 0;
+            Assert.That(GenJsonParser.TryParseString(longStrObj.ToString().AsSpan(), ref index, out var longRes), Is.True);
+            Assert.That(longRes, Is.EqualTo(expectedStr.ToString()));
+        }
+
+        [Test]
         public void TryParseString_ParsesSingleUnicodeEscape()
         {
             var json = "\"\\u0041\"".AsSpan(); // 'A'
@@ -92,6 +115,18 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseString_InvalidEscapes_ReturnsFalse()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseString("\"hello \\".AsSpan(), ref index, out _), Is.False); // Incomplete escape at end
+
+            index = 0;
+            // Unescaped control characters < 32 inside strings are technically invalid per JSON spec,
+            // but parser allows parsing them anyway. However, it fails if it starts with quote and ends randomly.
+            Assert.That(GenJsonParser.TryParseString("\"hello \n".AsSpan(), ref index, out _), Is.False);
+        }
+
+        [Test]
         public void TryParseInt_ParsesIntegers()
         {
             var cases = new[] { ("123", 123), ("-123", -123), ("0", 0), ("2147483647", int.MaxValue), ("-2147483648", int.MinValue) };
@@ -105,6 +140,23 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseNumerics_Nullable_Invalid()
+        {
+            var json = "abc".AsSpan();
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseUInt(json, ref index, out uint? ui), Is.False);
+            Assert.That(GenJsonParser.TryParseShort(json, ref index, out short? s), Is.False);
+            Assert.That(GenJsonParser.TryParseUShort(json, ref index, out ushort? us), Is.False);
+            Assert.That(GenJsonParser.TryParseByte(json, ref index, out byte? b), Is.False);
+            Assert.That(GenJsonParser.TryParseSByte(json, ref index, out sbyte? sb), Is.False);
+            Assert.That(GenJsonParser.TryParseULong(json, ref index, out ulong? ul), Is.False);
+            Assert.That(GenJsonParser.TryParseDouble(json, ref index, out double? d), Is.False);
+            Assert.That(GenJsonParser.TryParseFloat(json, ref index, out float? f), Is.False);
+            Assert.That(GenJsonParser.TryParseDecimal(json, ref index, out decimal? dec), Is.False);
+        }
+
+        [Test]
         public void TryParseBoolean_ParsesBooleans()
         {
             int index = 0;
@@ -114,6 +166,14 @@ namespace GenJson.Tests
             index = 0;
             Assert.That(GenJsonParser.TryParseBoolean("false".AsSpan(), ref index, out bool f), Is.True);
             Assert.That(f, Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("true".AsSpan(), ref index, out bool? nt), Is.True);
+            Assert.That(nt, Is.True);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("false".AsSpan(), ref index, out bool? nf), Is.True);
+            Assert.That(nf, Is.False);
         }
 
         [Test]
@@ -140,6 +200,14 @@ namespace GenJson.Tests
             var json = "\"k\\u0065y\":123".AsSpan(); // "key"
             int index = 0;
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "key"), Is.True);
+        }
+
+        [Test]
+        public void MatchesKey_HandlesAllEscapedKey()
+        {
+            var json = "\"all\\n\\r\\t\\b\\f\\/\\\\\\u0031world\":123".AsSpan();
+            int index = 0;
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "all\n\r\t\b\f/\\1world"), Is.True);
         }
 
         [Test]
@@ -199,6 +267,83 @@ namespace GenJson.Tests
             Assert.That(GenJsonParser.MatchesKey(json, ref index, "m😁y", expectedUtf8), Is.True);
             Assert.That(index, Is.GreaterThan(0));
             Assert.That(json[index], Is.EqualTo((byte)':'));
+        }
+
+        [Test]
+        public void MatchesKey_ByteSpan_HandlesAllEscapedKey()
+        {
+            var json = System.Text.Encoding.UTF8.GetBytes("\"all\\n\\r\\t\\b\\f\\/\\\\\\u0031world\":123").AsSpan();
+            var expectedUtf8 = System.Text.Encoding.UTF8.GetBytes("all\n\r\t\b\f/\\1world").AsSpan();
+            int index = 0;
+            Assert.That(GenJsonParser.MatchesKey(json, ref index, "all\n\r\t\b\f/\\1world", expectedUtf8), Is.True);
+
+            var jsonErr = System.Text.Encoding.UTF8.GetBytes("\"all\\n\\u003Z\":123").AsSpan();
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(jsonErr, ref index, "all\n1", System.Text.Encoding.UTF8.GetBytes("all\n1").AsSpan()), Is.False); // invalid hex
+
+            var jsonErr2 = System.Text.Encoding.UTF8.GetBytes("\"all\\u00").AsSpan();
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(jsonErr2, ref index, "all1", System.Text.Encoding.UTF8.GetBytes("all1").AsSpan()), Is.False); // truncated hex
+
+            // Expected length mismatch in utf8 codepoint
+            var validMultibyte = System.Text.Encoding.UTF8.GetBytes("\"all\\n🚀\u00A9á\":123").AsSpan();
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(validMultibyte, ref index, "all\n🚀\u00A9", System.Text.Encoding.UTF8.GetBytes("all\n🚀\u00A9").AsSpan()), Is.False);
+
+            // Invalid utf8 continuation bytes
+            // 0xC0 requires 1 extra byte
+            var invalidUtf8_1 = new byte[] { (byte)'"', (byte)'a', (byte)'\\', (byte)'n', 0xC0, (byte)'"', (byte)':', (byte)'1' };
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(invalidUtf8_1.AsSpan(), ref index, "a\n\u0000", System.Text.Encoding.UTF8.GetBytes("a\n\u0000").AsSpan()), Is.False);
+
+            // 0xE0 requires 2 extra bytes, give it valid string but cut early
+            var invalidUtf8_2 = new byte[] { (byte)'"', (byte)'a', (byte)'\\', (byte)'n', 0xE0, 0x80, (byte)'"', (byte)':', (byte)'1' };
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(invalidUtf8_2.AsSpan(), ref index, "a\n\u0000", System.Text.Encoding.UTF8.GetBytes("a\n\u0000").AsSpan()), Is.False);
+
+            // 0xF0 requires 3 extra bytes, give it 2 invalid continuations
+            var invalidUtf8_3 = new byte[] { (byte)'"', (byte)'a', (byte)'\\', (byte)'n', 0xF0, 0x80, 0x00, (byte)'"', (byte)':', (byte)'1' };
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(invalidUtf8_3.AsSpan(), ref index, "a\n\u0000", System.Text.Encoding.UTF8.GetBytes("a\n\u0000").AsSpan()), Is.False);
+
+            // Completely invalid start byte > 128 but not matching any pattern
+            var invalidUtf8_4 = new byte[] { (byte)'"', (byte)'a', (byte)'\\', (byte)'n', 0xFF, (byte)'"', (byte)':', (byte)'1' };
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(invalidUtf8_4.AsSpan(), ref index, "a\n\u0000", System.Text.Encoding.UTF8.GetBytes("a\n\u0000").AsSpan()), Is.False);
+
+            // Give it a valid byte start 0xE0 (3 bytes valid prefix), but instead of a valid continuation 0x80..0xBF, give it something else.
+            var invalidUtf8_5 = new byte[] { (byte)'"', (byte)'a', (byte)'\\', (byte)'n', 0xE0, 0xFF, 0x80, (byte)'"', (byte)':', (byte)'1' };
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey(invalidUtf8_5.AsSpan(), ref index, "a\n\u0000", System.Text.Encoding.UTF8.GetBytes("a\n\u0000").AsSpan()), Is.False);
+        }
+
+        [Test]
+        public void TryParseStringSpan_InvalidStart_ReturnsFalse()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan("hello".AsSpan(), ref index, out _, out _), Is.False);
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan(System.Text.Encoding.UTF8.GetBytes("hello").AsSpan(), ref index, out _, out _), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan("\"hello\\".AsSpan(), ref index, out _, out _), Is.False);
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan(System.Text.Encoding.UTF8.GetBytes("\"hello\\").AsSpan(), ref index, out _, out _), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan("\"hello\\u0000".AsSpan(), ref index, out _, out _), Is.False); // missing end quote
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan(System.Text.Encoding.UTF8.GetBytes("\"hello\\u0000").AsSpan(), ref index, out _, out _), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan("\"hello\\n".AsSpan(), ref index, out _, out _), Is.False); // missing end quote normal escape
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan(System.Text.Encoding.UTF8.GetBytes("\"hello\\n").AsSpan(), ref index, out _, out _), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan("\"hello\\u0000\"".AsSpan(), ref index, out _, out _), Is.True); // valid match
+            index = 0;
+            Assert.That(GenJsonParser.TryParseStringSpan(System.Text.Encoding.UTF8.GetBytes("\"hello\\u0000\"").AsSpan(), ref index, out _, out _), Is.True);
         }
 
         [Test]
@@ -343,6 +488,115 @@ namespace GenJson.Tests
                 bool result = GenJsonParser.TryParseDecimal(input.AsSpan(), ref index, out decimal _);
                 Assert.That(result, Is.False, $"Should fail for {input}");
             }
+        }
+        [Test]
+        public void TryParseLong_ParsesValidAndInvalid()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseLong("12345678901234", ref index, out long l), Is.True);
+            Assert.That(l, Is.EqualTo(12345678901234));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseLong("-123", ref index, out long? nl), Is.True);
+            Assert.That(nl, Is.EqualTo(-123));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseLong("abc", ref index, out l), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseLong("abc", ref index, out nl), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_InvalidLength_ReturnsFalse()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseChar("\"abc\"", ref index, out char c), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar("\"\"", ref index, out char? nc), Is.False);
+        }
+
+        [Test]
+        public void TryParseBoolean_TrailingChars_ReturnsFalse()
+        {
+            int index = 0;
+            // "truex" is invalid because 'x' is not a delimiter
+            Assert.That(GenJsonParser.TryParseBoolean("truex", ref index, out bool b), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("falsey", ref index, out bool? nb), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("tru", ref index, out b), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("fals", ref index, out nb), Is.False);
+        }
+
+        [Test]
+        public void TrySkipValue_IncompleteJson_ReturnsFalse()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("{", ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("[", ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("\"incomplete", ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("\"incomplete\\", ref index), Is.False);
+
+            // Incomplete object keys/values
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("{\"a\"", ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("{\"a\":", ref index), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("{\"a\":1,", ref index), Is.False);
+
+            // Incomplete arrays
+            index = 0;
+            Assert.That(GenJsonParser.TrySkipValue("[1,", ref index), Is.False);
+        }
+
+        [Test]
+        public void Utils_MalformedJson_HandlesCorrectly()
+        {
+            Assert.That(GenJsonParser.CountListItems("[1,", 0), Is.EqualTo(1));
+            Assert.That(GenJsonParser.CountListItems("[\"incomplete\"", 0), Is.EqualTo(1));
+
+            Assert.That(GenJsonParser.CountDictionaryItems("{\"a\":1,", 0), Is.EqualTo(1));
+            Assert.That(GenJsonParser.CountDictionaryItems("{\"a", 0), Is.EqualTo(1));
+            Assert.That(GenJsonParser.CountDictionaryItems("{\"a\":", 0), Is.EqualTo(1));
+
+            Assert.That(GenJsonParser.TryFindProperty("{\"a", 0, "a", out int _), Is.False);
+            Assert.That(GenJsonParser.TryFindProperty("{\"a\":", 0, "b", out int _), Is.False);
+            Assert.That(GenJsonParser.TryFindProperty("{\"a\":1,", 0, "b", out int _), Is.False);
+        }
+
+        [Test]
+        public void MatchesKey_CharSpan_HandlesFallbacks()
+        {
+            // Branch: expected sequence ends before parsed sequence
+            int index = 0;
+            Assert.That(GenJsonParser.MatchesKey("\"abc\"".AsSpan(), ref index, "ab"), Is.False);
+
+            // Branch: expected sequence contains mismatch after escape
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey("\"a\\\"b\"".AsSpan(), ref index, "a\"c"), Is.False);
+
+            // Branch: unknown escape character just treats it as character
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey("\"a\\xb\"".AsSpan(), ref index, "axb"), Is.True);
+
+            // Branch: EOF mid-escape
+            index = 0;
+            Assert.That(GenJsonParser.MatchesKey("\"a\\".AsSpan(), ref index, "a"), Is.False);
         }
     }
 }

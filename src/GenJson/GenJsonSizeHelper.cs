@@ -102,79 +102,50 @@ namespace GenJson
         public static int GetSize(double value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture))
-            {
-                return written;
-            }
-
-            return value.ToString("R", CultureInfo.InvariantCulture).Length;
+            value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture);
+            return written;
         }
 
         public static int GetSize(float value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture))
-            {
-                return written;
-            }
-
-            return value.ToString("R", CultureInfo.InvariantCulture).Length;
+            value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture);
+            return written;
         }
 
         public static int GetSize(decimal value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "G", CultureInfo.InvariantCulture))
-            {
-                return written;
-            }
-
-            return value.ToString("G", CultureInfo.InvariantCulture).Length;
+            value.TryFormat(buffer, out int written, "G", CultureInfo.InvariantCulture);
+            return written;
         }
 
         public static int GetSize(DateTime value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture))
-            {
-                return written + 2;
-            }
-
-            return value.ToString("O", CultureInfo.InvariantCulture).Length + 2;
+            value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture);
+            return written + 2;
         }
 
         public static int GetSize(DateTimeOffset value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture))
-            {
-                return written + 2;
-            }
-
-            return value.ToString("O", CultureInfo.InvariantCulture).Length + 2;
+            value.TryFormat(buffer, out int written, "O", CultureInfo.InvariantCulture);
+            return written + 2;
         }
 
         public static int GetSize(TimeSpan value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written, "c", CultureInfo.InvariantCulture))
-            {
-                return written + 2;
-            }
-
-            return value.ToString("c", CultureInfo.InvariantCulture).Length + 2;
+            value.TryFormat(buffer, out int written, "c", CultureInfo.InvariantCulture);
+            return written + 2;
         }
 
         public static int GetSize(Version value)
         {
             Span<char> buffer = stackalloc char[128];
-            if (value.TryFormat(buffer, out int written))
-            {
-                return written + 2;
-            }
-
-            return value.ToString().Length + 2;
-
+            value.TryFormat(buffer, out int written);
+            return written + 2;
         }
 
         public static int GetSizeUtf8(byte value) => GetSize(value); // ASCII
