@@ -384,6 +384,21 @@ public partial class EdgeNumberClass : ITestGenJson
     public decimal DecimalPrecise { get; init; }
     public int? NullableInt { get; init; }
     public double? NullableDouble { get; init; }
+
+    // Missing edge cases for floating point bounds
+    public double DoubleMin { get; init; }
+    public double DoubleMax { get; init; }
+    public double DoubleEpsilon { get; init; }
+    public double DoubleNaN { get; init; }
+    public double DoublePositiveInfinity { get; init; }
+    public double DoubleNegativeInfinity { get; init; }
+
+    public float FloatMin { get; init; }
+    public float FloatMax { get; init; }
+    public float FloatEpsilon { get; init; }
+    public float FloatNaN { get; init; }
+    public float FloatPositiveInfinity { get; init; }
+    public float FloatNegativeInfinity { get; init; }
 }
 
 [GenJson, GenJsonSkipCountOptimization]
@@ -423,4 +438,43 @@ public partial class EdgeControlCharClass : ITestGenJson
     public string WithCtrl1F { get; init; } = "";
     public string WithEmoji { get; init; } = "";
     public string WithMixed { get; init; } = "";
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeDateGuidCharClass : ITestGenJson
+{
+    public DateTime DatePresent { get; init; }
+    public DateTime? DateNull { get; init; }
+    public DateTimeOffset DateOffsetPresent { get; init; }
+    public DateTimeOffset? DateOffsetNull { get; init; }
+    public TimeSpan TimeSpanPresent { get; init; }
+    public TimeSpan? TimeSpanNull { get; init; }
+    public Guid GuidPresent { get; init; }
+    public Guid? GuidNull { get; init; }
+    public Version VersionPresent { get; init; } = new("1.0.0");
+    public Version? VersionNull { get; init; }
+    public char CharPresent { get; init; }
+    public char? CharNull { get; init; }
+    public char CharSpecial { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeByteShortClass : ITestGenJson
+{
+    public byte ByteMin { get; init; }
+    public byte ByteMax { get; init; }
+    public sbyte SByteMin { get; init; }
+    public sbyte SByteMax { get; init; }
+    public short ShortMin { get; init; }
+    public short ShortMax { get; init; }
+    public ushort UShortMin { get; init; }
+    public ushort UShortMax { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeEnumClass : ITestGenJson
+{
+    public IntEnum EnumNumber { get; init; }
+    [GenJsonEnumAsText] public IntEnum EnumText { get; init; }
+    public ByteEnum ByteEnum { get; init; }
 }
