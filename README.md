@@ -39,6 +39,9 @@ This project is compatible with both pure C# projects and Unity3D.
 | Utf8Json_FromJsonUtf8      | 1,635.8 ns |   26.82 ns |    23.78 ns | 0.0458 |         2.3 KB |
 | MicrosoftJson_FromJsonUtf8 | 2,316.8 ns |   44.93 ns |    58.43 ns | 0.0610 |           3 KB |
 
+<img width="1408" height="768" alt="image" src="https://github.com/user-attachments/assets/a0d1ccf9-1914-4483-b7ac-037f8fc6732b" />
+
+
 - [System.Text.Json](https://learn.microsoft.com/en-us/dotnet/api/system.text.json)
 - [Newtonsoft.Json](https://www.newtonsoft.com/json)
 - [Utf8Json](https://github.com/Cryptisk/Utf8Json)
