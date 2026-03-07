@@ -73,8 +73,8 @@ Install from [OpenUPM](https://openupm.com/packages/com.pereviader.genjson.unity
 
 - Add the `[GenJson]` attribute to any class, record, or struct you wish to serialize. 
 - The type must be `partial`.
-- Non-record types must have a parameterless constructor (implicit or explicit).
-- Record types support primary constructors.
+- All types (classes, records, and structs) support parameterized constructors and primary constructors.
+- If no parameterized constructor is used, a parameterless constructor (implicit or explicit) must be available.
 
 ```csharp
 using GenJson;

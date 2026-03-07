@@ -198,65 +198,62 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var constructorArgs = new List<PropertyData>();
         var utilizedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (typeDeclaration is RecordDeclarationSyntax)
+        var ctor = typeSymbol.Constructors
+            .OrderByDescending(c => c.Parameters.Length)
+            .FirstOrDefault();
+        if (ctor is { Parameters.Length: > 0 })
         {
-            var ctor = typeSymbol.Constructors
-                .OrderByDescending(c => c.Parameters.Length)
-                .FirstOrDefault();
-            if (ctor is { Parameters.Length: > 0 })
+            foreach (var param in ctor.Parameters)
             {
-                foreach (var param in ctor.Parameters)
+                var propData = GetPropertyForParameter(param, propertiesMap, context.SemanticModel.Compilation);
+
+                if (propData != null)
                 {
-                    var propData = GetPropertyForParameter(param, propertiesMap, context.SemanticModel.Compilation);
+                    // We found a matching property (either direct or via base)
+                    // Re-evaluate types/names in context of the parameter
+                    var originalSymbol = propertiesMap[propData.Name].Symbol;
 
-                    if (propData != null)
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type);
+                    // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any, 
+                    // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
+                    // GetJsonName checks param first, then property.
+                    // If param C has no attributes, it returns "C" (param.Name) by default in some logic? 
+                    // Wait, GetJsonName(prop, param): checks Attr on Prop. checks Attr on Param. 
+                    // If neither, returns prop.Name.
+                    // So for C -> A mapping: Prop is A. Param is C.
+                    // If C has no Attr, GetJsonName returns "A". Perfect.
+                    var newJsonName = GetJsonName(originalSymbol, param);
+
+                    var newPropData = propData with { Type = newType, JsonName = newJsonName, ConstructorParamName = param.Name };
+
+                    // If param name differs from property name (mapping), remove the param-named property if it exists
+                    // This prevents serializing 'C' when it just maps to base 'A'
+                    if (!StringComparer.OrdinalIgnoreCase.Equals(param.Name, propData.Name) && propertiesMap.TryGetValue(param.Name, out var selfProp))
                     {
-                        // We found a matching property (either direct or via base)
-                        // Re-evaluate types/names in context of the parameter
-                        var originalSymbol = propertiesMap[propData.Name].Symbol;
-
-                        var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type);
-                        // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any, 
-                        // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
-                        // GetJsonName checks param first, then property.
-                        // If param C has no attributes, it returns "C" (param.Name) by default in some logic? 
-                        // Wait, GetJsonName(prop, param): checks Attr on Prop. checks Attr on Param. 
-                        // If neither, returns prop.Name.
-                        // So for C -> A mapping: Prop is A. Param is C.
-                        // If C has no Attr, GetJsonName returns "A". Perfect.
-                        var newJsonName = GetJsonName(originalSymbol, param);
-
-                        var newPropData = propData with { Type = newType, JsonName = newJsonName, ConstructorParamName = param.Name };
-
-                        // If param name differs from property name (mapping), remove the param-named property if it exists
-                        // This prevents serializing 'C' when it just maps to base 'A'
-                        if (param.Name != propData.Name && propertiesMap.TryGetValue(param.Name, out var selfProp))
-                        {
-                            properties.Remove(selfProp.Data);
-                        }
-
-                        // Update the main list with new data to keep consistency
-                        var index = properties.IndexOf(propData);
-                        if (index >= 0)
-                        {
-                            properties[index] = newPropData;
-                        }
-
-                        // Add to constructor args with the NAME OF THE PROPERTY (because we parse properties by JSON key -> _PropName)
-                        // Yes, we need to pass _PropName to constructor.
-                        // But wait.
-                        // If we map Param C -> Property A.
-                        // We parse JSON key "A" -> variable `_A`.
-                        // Constructor expects `_A`.
-                        // But generated code loop:
-                        // foreach(var arg in data.ConstructorArgs.Value) { append("_" + arg.Name) }
-                        // arg.Name must be "A".
-                        // newPropData.Name is "A". 
-                        // Correct.
-
-                        constructorArgs.Add(newPropData);
-                        utilizedPropertyNames.Add(propData.Name);
+                        properties.Remove(selfProp.Data);
                     }
+
+                    // Update the main list with new data to keep consistency
+                    var index = properties.IndexOf(propData);
+                    if (index >= 0)
+                    {
+                        properties[index] = newPropData;
+                    }
+
+                    // Add to constructor args with the NAME OF THE PROPERTY (because we parse properties by JSON key -> _PropName)
+                    // Yes, we need to pass _PropName to constructor.
+                    // But wait.
+                    // If we map Param C -> Property A.
+                    // We parse JSON key "A" -> variable `_A`.
+                    // Constructor expects `_A`.
+                    // But generated code loop:
+                    // foreach(var arg in data.ConstructorArgs.Value) { append("_" + arg.Name) }
+                    // arg.Name must be "A".
+                    // newPropData.Name is "A". 
+                    // Correct.
+
+                    constructorArgs.Add(newPropData);
+                    utilizedPropertyNames.Add(propData.Name);
                 }
             }
         }
@@ -349,14 +346,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             var syntaxRef = containingType.DeclaringSyntaxReferences.FirstOrDefault();
             if (syntaxRef != null)
             {
-                var typeDecl = syntaxRef.GetSyntax() as RecordDeclarationSyntax;
-                if (typeDecl != null && typeDecl.ParameterList != null)
+                var typeDecl = syntaxRef.GetSyntax() as TypeDeclarationSyntax;
+                var parameterList = typeDecl?.ChildNodes().OfType<ParameterListSyntax>().FirstOrDefault();
+                if (typeDecl != null && parameterList != null)
                 {
                     // Find index of parameter in declaration
                     int paramIndex = -1;
-                    for (int i = 0; i < typeDecl.ParameterList.Parameters.Count; i++)
+                    for (int i = 0; i < parameterList.Parameters.Count; i++)
                     {
-                        if (typeDecl.ParameterList.Parameters[i].Identifier.Text == parameter.Name)
+                        if (parameterList.Parameters[i].Identifier.Text == parameter.Name)
                         {
                             paramIndex = i;
                             break;
@@ -621,6 +619,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.Append(data.ClassName);
         sb.AppendLine();
         sb.AppendLine("    {");
+
+
 
 
 
@@ -2642,9 +2642,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.Append(data.ClassName);
 
         var ctorArgs = data.ConstructorArgs.Value;
-        bool isRecord = data.Keyword.IndexOf("record", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
-        if (isRecord && ctorArgs.Count > 0)
+        if (ctorArgs.Count > 0)
         {
             sb.AppendLine("(");
             for (int i = 0; i < ctorArgs.Count; i++)
@@ -2667,26 +2666,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         var initProps = data.InitProperties.Value;
-        bool hasCtorArgsAsInit = !isRecord && ctorArgs.Count > 0;
 
-        if (initProps.Count > 0 || hasCtorArgsAsInit)
+        if (initProps.Count > 0)
         {
             sb.AppendLine();
             sb.Append(indent);
             sb.AppendLine("{");
-
-            if (hasCtorArgsAsInit)
-            {
-                foreach (var prop in ctorArgs)
-                {
-                    sb.Append(indent);
-                    sb.Append("    ");
-                    sb.Append(prop.Name);
-                    sb.Append(" = _");
-                    sb.Append(prop.Name);
-                    sb.AppendLine(",");
-                }
-            }
 
             foreach (var prop in initProps)
             {
