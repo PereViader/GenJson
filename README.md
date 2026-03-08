@@ -32,9 +32,9 @@ This project is compatible with both pure C# projects and Unity3D.
 | MicrosoftJson_ToJson       | 1,221.7 ns |   24.36 ns |    27.08 ns | 1,215.8 ns | 0.0381 |        1.92 KB |
 | NewtonsoftJson_ToJson      | 2,443.1 ns |   47.77 ns |    93.18 ns | 2,425.9 ns | 0.1183 |        5.95 KB |
 | GenJson_FromJson           | 1,083.1 ns |   21.64 ns |    40.11 ns | 1,075.1 ns | 0.0439 |        2.16 KB |
+| Utf8Json_FromJson          | 1,823.1 ns |   36.08 ns |    58.27 ns | 1,821.0 ns | 0.0629 |        3.13 KB |
 | MicrosoftJson_FromJson     | 2,548.9 ns |   49.40 ns |    78.36 ns | 2,538.5 ns | 0.0610 |           3 KB |
 | NewtonsoftJson_FromJson    | 4,264.8 ns |   84.11 ns |   194.95 ns | 4,198.3 ns | 0.1678 |        8.23 KB |
-| Utf8Json_FromJson          | 1,823.1 ns |   36.08 ns |    58.27 ns | 1,821.0 ns | 0.0629 |        3.13 KB |
 | GenJson_FromJsonUtf8       | 1,066.4 ns |   20.48 ns |    25.90 ns | 1,067.2 ns | 0.0439 |        2.16 KB |
 | Utf8Json_FromJsonUtf8      | 1,720.1 ns |   34.03 ns |    51.97 ns | 1,712.4 ns | 0.0458 |         2.3 KB |
 | MicrosoftJson_FromJsonUtf8 | 2,523.8 ns |   49.93 ns |    86.13 ns | 2,503.5 ns | 0.0610 |           3 KB |
