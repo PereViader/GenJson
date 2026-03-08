@@ -21,7 +21,9 @@ This project is compatible with both pure C# projects and Unity3D.
   - Enums: Serialized as backing type (default) or string
   - Nested Objects: Recursive serialization of complex object graphs
 
-> Zero-allocation* means that no unnecessary memory allocations are performed. Only the resulting strings are allocated.
+> `DateOnly` and `TimeOnly` are **not supported** (requires .NET 6+; the library targets netstandard2.1)
+
+> Zero-allocation* means that no unnecessary memory allocations are performed. Only the resulting objects are allocated.
 
 ## [Benchmark](https://github.com/PereViader/GenJson/blob/main/src/GenJson.Benchmark/Program.cs)
 
