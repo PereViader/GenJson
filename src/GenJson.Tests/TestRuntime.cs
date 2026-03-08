@@ -803,6 +803,41 @@ public class TestRuntime
     }
 
     [Test]
+    public void TestUriClass()
+    {
+        var obj = new UriClass()
+        {
+            Present = new Uri("https://example.com/path?q=1"),
+            NullablePresent = new Uri("http://sub.example.org"),
+            NullableNull = null
+        };
+        var json = obj.ToJson();
+        var expected = """{"Present":"https://example.com/path?q=1","NullablePresent":"http://sub.example.org"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = UriClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = UriClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
+
+        Assert.That(UriClass.FromJson("{}"), Is.Null);
+        Assert.That(UriClass.FromJsonUtf8("{}"u8), Is.Null);
+    }
+
+    [Test]
     public void TestByteEnumClass()
     {
         var obj = new ByteEnumClass()

@@ -63,6 +63,12 @@ public abstract record GenJsonDataType
         private Version() { }
     }
 
+    public sealed record Uri : GenJsonDataType
+    {
+        public static readonly Uri Instance = new();
+        private Uri() { }
+    }
+
     public sealed record Object(string TypeName) : GenJsonDataType; // Another GenJson class
 
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
@@ -482,6 +488,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case "global::System.Version":
             case "System.Version":
                 return GenJsonDataType.Version.Instance;
+            case "global::System.Uri":
+            case "System.Uri":
+                return GenJsonDataType.Uri.Instance;
         }
 
         if (HasGenJsonAttribute(type))
@@ -736,6 +745,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.Version:
                 sb.Append(indent);
                 sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.Version.TryParse({targetVar}_str, out System.Version? {targetVar}_val))");
+                sb.Append($" return null;"); sb.AppendLine();
+                sb.Append(indent);
+                sb.AppendLine($"{targetVar} = {targetVar}_val;");
+                break;
+
+            case GenJsonDataType.Uri:
+                sb.Append(indent);
+                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.Uri.TryCreate({targetVar}_str, System.UriKind.RelativeOrAbsolute, out System.Uri? {targetVar}_val))");
                 sb.Append($" return null;"); sb.AppendLine();
                 sb.Append(indent);
                 sb.AppendLine($"{targetVar} = {targetVar}_val;");
@@ -1027,6 +1044,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     {
                         switch (d.KeyType)
                         {
+                            case GenJsonDataType.Uri:
+                                {
+                                    sb.Append(loopIndent);
+                                    string uriKeyStr = isUtf8
+                                        ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})"
+                                        : $"({escapedVar} ? global::GenJson.GenJsonParser.UnescapeString({keyStrVar}) : new string({keyStrVar}))";
+                                    sb.AppendLine($"if (!System.Uri.TryCreate({uriKeyStr}, System.UriKind.RelativeOrAbsolute, out {keyVar})) return null;");
+                                }
+                                break;
                             case GenJsonDataType.String:
                                 sb.Append(loopIndent);
                                 sb.AppendLine($"{keyVar} = {escapedVar} ? global::GenJson.GenJsonParser.{(isUtf8 ? "UnescapeStringUtf8" : "UnescapeString")}({keyStrVar}) : {(isUtf8 ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})" : $"new string({keyStrVar})")};");
@@ -1166,6 +1192,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.DateTime:
             case GenJsonDataType.DateTimeOffset:
             case GenJsonDataType.Version:
+            case GenJsonDataType.Uri:
             case GenJsonDataType.TimeSpan:
                 sb.Append(indent);
                 sb.Append($"size += {sizeHelper}(");
@@ -1567,6 +1594,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("}");
                 break;
 
+            case GenJsonDataType.Uri:
+                sb.Append(indent);
+                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                sb.Append(valueAccessor);
+                sb.AppendLine(".OriginalString);");
+                break;
+
             case GenJsonDataType.Guid:
             case GenJsonDataType.Version: // Version doesn't support Utf8Formatter directly?
             case GenJsonDataType.TimeSpan:
@@ -1749,6 +1783,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     {
                         case GenJsonDataType.Enum en:
                             GenerateEnumWriteLogic(sb, en, $"{kvpVar}.Key", loopIndentDict, isUtf8, forceQuotes: true);
+                            break;
+                        case GenJsonDataType.Uri:
+                            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                            sb.Append(kvpVar);
+                            sb.AppendLine(".Key.OriginalString);");
                             break;
                         case GenJsonDataType.Primitive:
                         case GenJsonDataType.FloatingPoint:

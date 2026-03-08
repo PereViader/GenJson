@@ -278,6 +278,8 @@ namespace GenJson
             return written + 2;
         }
 
+        public static int GetSize(Uri value) => GetSize(value.OriginalString.AsSpan());
+
         public static int GetSizeUtf8(byte value) => GetSize(value); // ASCII
         public static int GetSizeUtf8(sbyte value) => GetSize(value);
         public static int GetSizeUtf8(short value) => GetSize(value);
@@ -295,6 +297,7 @@ namespace GenJson
         public static int GetSizeUtf8(DateTimeOffset value) => GetSize(value);
         public static int GetSizeUtf8(TimeSpan value) => GetSize(value);
         public static int GetSizeUtf8(Version value) => GetSize(value);
+        public static int GetSizeUtf8(Uri value) => GetSizeUtf8(value.OriginalString.AsSpan());
 
         public static int GetSizeUtf8(char c)
         {

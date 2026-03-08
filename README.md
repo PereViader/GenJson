@@ -15,7 +15,7 @@ This project is compatible with both pure C# projects and Unity3D.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
-  - Standard Structs: `Guid`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
+  - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
   - Dictionaries: `IReadOnlyDictionary<K, V>` 
   - Collections: `IEnumerable<T>`
   - Enums: Serialized as backing type (default) or string

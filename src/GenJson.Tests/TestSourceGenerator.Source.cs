@@ -156,6 +156,14 @@ public partial class VersionClass
     public Version? NullableNull { get; init; }
 }
 
+[GenJson]
+public partial class UriClass
+{
+    public Uri Present { get; init; }
+    public Uri? NullablePresent { get; init; }
+    public Uri? NullableNull { get; init; }
+}
+
 public enum IntEnum
 {
     One = 1,
