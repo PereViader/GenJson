@@ -25,22 +25,19 @@ This project is compatible with both pure C# projects and Unity3D.
 
 ## [Benchmark](https://github.com/PereViader/GenJson/blob/main/src/GenJson.Benchmark/Program.cs)
 
-| Method                     | Mean [ns]  | Error [ns] | StdDev [ns] | Gen0   | Allocated [KB] |
-|--------------------------- |-----------:|-----------:|------------:|-------:|---------------:|
-| GenJson_ToJson             |   996.0 ns |   19.91 ns |    23.70 ns | 0.0343 |        1.72 KB |
-| MicrosoftJson_ToJson       | 1,212.3 ns |   23.66 ns |    25.31 ns | 0.0381 |        1.92 KB |
-| NewtonsoftJson_ToJson      | 2,277.3 ns |   44.80 ns |    56.66 ns | 0.1183 |        5.95 KB |
-| Utf8Json_ToJson            |   985.9 ns |   17.89 ns |    16.73 ns | 0.0324 |        1.63 KB |
-| GenJson_FromJson           | 1,077.7 ns |   20.89 ns |    26.42 ns | 0.0439 |        2.16 KB |
-| MicrosoftJson_FromJson     | 2,387.2 ns |   47.67 ns |    65.24 ns | 0.0610 |           3 KB |
-| NewtonsoftJson_FromJson    | 4,075.0 ns |   79.57 ns |   119.10 ns | 0.1678 |        8.23 KB |
-| Utf8Json_FromJson          | 1,717.2 ns |   34.28 ns |    32.06 ns | 0.0629 |        3.13 KB |
-| GenJson_FromJsonUtf8       | 1,020.9 ns |   20.20 ns |    31.45 ns | 0.0439 |        2.16 KB |
-| Utf8Json_FromJsonUtf8      | 1,635.8 ns |   26.82 ns |    23.78 ns | 0.0458 |         2.3 KB |
-| MicrosoftJson_FromJsonUtf8 | 2,316.8 ns |   44.93 ns |    58.43 ns | 0.0610 |           3 KB |
-
-<img width="1408" height="768" alt="image" src="https://github.com/user-attachments/assets/a0d1ccf9-1914-4483-b7ac-037f8fc6732b" />
-
+| Method                     | Mean [ns]  | Error [ns] | StdDev [ns] | Median     | Gen0   | Allocated [KB] |
+|--------------------------- |-----------:|-----------:|------------:|-----------:|-------:|---------------:|
+| GenJson_ToJson             |   984.7 ns |   19.53 ns |    33.72 ns |   981.8 ns | 0.0343 |        1.72 KB |
+| Utf8Json_ToJson            | 1,093.0 ns |   21.77 ns |    38.70 ns | 1,095.2 ns | 0.0324 |        1.63 KB |
+| MicrosoftJson_ToJson       | 1,221.7 ns |   24.36 ns |    27.08 ns | 1,215.8 ns | 0.0381 |        1.92 KB |
+| NewtonsoftJson_ToJson      | 2,443.1 ns |   47.77 ns |    93.18 ns | 2,425.9 ns | 0.1183 |        5.95 KB |
+| GenJson_FromJson           | 1,083.1 ns |   21.64 ns |    40.11 ns | 1,075.1 ns | 0.0439 |        2.16 KB |
+| MicrosoftJson_FromJson     | 2,548.9 ns |   49.40 ns |    78.36 ns | 2,538.5 ns | 0.0610 |           3 KB |
+| NewtonsoftJson_FromJson    | 4,264.8 ns |   84.11 ns |   194.95 ns | 4,198.3 ns | 0.1678 |        8.23 KB |
+| Utf8Json_FromJson          | 1,823.1 ns |   36.08 ns |    58.27 ns | 1,821.0 ns | 0.0629 |        3.13 KB |
+| GenJson_FromJsonUtf8       | 1,066.4 ns |   20.48 ns |    25.90 ns | 1,067.2 ns | 0.0439 |        2.16 KB |
+| Utf8Json_FromJsonUtf8      | 1,720.1 ns |   34.03 ns |    51.97 ns | 1,712.4 ns | 0.0458 |         2.3 KB |
+| MicrosoftJson_FromJsonUtf8 | 2,523.8 ns |   49.93 ns |    86.13 ns | 2,503.5 ns | 0.0610 |           3 KB |
 
 - [System.Text.Json](https://learn.microsoft.com/en-us/dotnet/api/system.text.json)
 - [Newtonsoft.Json](https://www.newtonsoft.com/json)

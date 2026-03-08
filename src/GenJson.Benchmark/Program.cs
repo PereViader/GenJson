@@ -62,6 +62,12 @@ public class BenchmarkToJson
     }
 
     [Benchmark]
+    public string Utf8Json_ToJson()
+    {
+        return Utf8Json.JsonSerializer.ToJsonString(RootObject);
+    }
+
+    [Benchmark]
     public string MicrosoftJson_ToJson()
     {
         return System.Text.Json.JsonSerializer.Serialize(RootObject);
@@ -71,12 +77,6 @@ public class BenchmarkToJson
     public string NewtonsoftJson_ToJson()
     {
         return Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
-    }
-
-    [Benchmark]
-    public string Utf8Json_ToJson()
-    {
-        return Utf8Json.JsonSerializer.ToJsonString(RootObject);
     }
 
     [Benchmark]

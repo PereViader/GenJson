@@ -6,14 +6,306 @@ namespace GenJson.Tests
     [TestFixture]
     public class GenJsonSizeHelperTests
     {
-        [Test]
-        public void GetSize_Int_ReturnsCorrectSize()
+        public static System.Collections.Generic.IEnumerable<byte> ByteTestValues()
         {
-            Assert.That(GenJsonSizeHelper.GetSize(0), Is.EqualTo(1));
-            Assert.That(GenJsonSizeHelper.GetSize(5), Is.EqualTo(1));
-            Assert.That(GenJsonSizeHelper.GetSize(10), Is.EqualTo(2));
-            Assert.That(GenJsonSizeHelper.GetSize(100), Is.EqualTo(3));
-            Assert.That(GenJsonSizeHelper.GetSize(-5), Is.EqualTo(2)); // -5 -> 1 + size(5) = 2
+            yield return byte.MinValue;
+            yield return byte.MaxValue;
+            for (int i = 0; i <= 2; i++)
+            {
+                byte val = (byte)Math.Pow(10, i);
+                yield return val;
+                if (val > 1) yield return (byte)(val - 1);
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<sbyte> SByteTestValues()
+        {
+            yield return sbyte.MinValue;
+            yield return sbyte.MaxValue;
+            for (int i = 0; i <= 2; i++)
+            {
+                sbyte val = (sbyte)Math.Pow(10, i);
+                yield return val;
+                yield return (sbyte)(-val);
+                if (val > 1)
+                {
+                    yield return (sbyte)(val - 1);
+                    yield return (sbyte)(-(val - 1));
+                }
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<short> ShortTestValues()
+        {
+            yield return short.MinValue;
+            yield return short.MaxValue;
+            for (int i = 0; i <= 4; i++)
+            {
+                short val = (short)Math.Pow(10, i);
+                yield return val;
+                yield return (short)(-val);
+                if (val > 1)
+                {
+                    yield return (short)(val - 1);
+                    yield return (short)(-(val - 1));
+                }
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<ushort> UShortTestValues()
+        {
+            yield return ushort.MinValue;
+            yield return ushort.MaxValue;
+            for (int i = 0; i <= 4; i++)
+            {
+                ushort val = (ushort)Math.Pow(10, i);
+                yield return val;
+                if (val > 1) yield return (ushort)(val - 1);
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<int> IntTestValues()
+        {
+            yield return int.MinValue;
+            yield return int.MaxValue;
+            for (int i = 0; i <= 9; i++)
+            {
+                int val = (int)Math.Pow(10, i);
+                yield return val;
+                yield return -val;
+                if (val > 1)
+                {
+                    yield return val - 1;
+                    yield return -(val - 1);
+                }
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<uint> UIntTestValues()
+        {
+            yield return uint.MinValue;
+            yield return uint.MaxValue;
+            for (int i = 0; i <= 9; i++)
+            {
+                uint val = (uint)Math.Pow(10, i);
+                yield return val;
+                if (val > 1) yield return val - 1;
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<long> LongTestValues()
+        {
+            yield return long.MinValue;
+            yield return long.MaxValue;
+            for (int i = 0; i <= 18; i++)
+            {
+                long val = (long)Math.Pow(10, i);
+                yield return val;
+                yield return -val;
+                if (val > 1)
+                {
+                    yield return val - 1;
+                    yield return -(val - 1);
+                }
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<ulong> ULongTestValues()
+        {
+            yield return ulong.MinValue;
+            yield return ulong.MaxValue;
+            for (int i = 0; i <= 19; i++)
+            {
+                if (i == 19)
+                {
+                    yield return 10000000000000000000ul;
+                    yield return 9999999999999999999ul;
+                    continue;
+                }
+                ulong val = (ulong)Math.Pow(10, i);
+                yield return val;
+                if (val > 1) yield return val - 1;
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<float> FloatTestValues()
+        {
+            yield return float.MinValue;
+            yield return float.MaxValue;
+            yield return float.NaN;
+            yield return float.PositiveInfinity;
+            yield return float.NegativeInfinity;
+            yield return float.Epsilon;
+            yield return 0f;
+            yield return -0f;
+            for (int i = -38; i <= 38; i += 4)
+            {
+                yield return (float)Math.Pow(10, i);
+                yield return (float)-Math.Pow(10, i);
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<double> DoubleTestValues()
+        {
+            yield return double.MinValue;
+            yield return double.MaxValue;
+            yield return double.NaN;
+            yield return double.PositiveInfinity;
+            yield return double.NegativeInfinity;
+            yield return double.Epsilon;
+            yield return 0d;
+            yield return -0d;
+            for (int i = -308; i <= 308; i += 30) // sample exponents
+            {
+                yield return Math.Pow(10, i);
+                yield return -Math.Pow(10, i);
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<decimal> DecimalTestValues()
+        {
+            yield return decimal.MinValue;
+            yield return decimal.MaxValue;
+            yield return decimal.MinusOne;
+            yield return decimal.One;
+            yield return decimal.Zero;
+            for (int i = 0; i <= 28; i++)
+            {
+                // To avoid decimal OverflowException with Math.Pow, we build parsing strings
+                string s = "1" + new string('0', i);
+                if (decimal.TryParse(s, out decimal d))
+                {
+                    yield return d;
+                    yield return -d;
+                }
+                string decStr = "0." + new string('0', i > 0 ? i - 1 : 0) + "1";
+                if (decimal.TryParse(decStr, out decimal f))
+                {
+                    yield return f;
+                    yield return -f;
+                }
+            }
+        }
+
+        [Test]
+        public void GetSize_Byte_AllMagnitudes()
+        {
+            foreach (var value in ByteTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_SByte_AllMagnitudes()
+        {
+            foreach (var value in SByteTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Short_AllMagnitudes()
+        {
+            foreach (var value in ShortTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_UShort_AllMagnitudes()
+        {
+            foreach (var value in UShortTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Int_AllMagnitudes()
+        {
+            foreach (var value in IntTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_UInt_AllMagnitudes()
+        {
+            foreach (var value in UIntTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Long_AllMagnitudes()
+        {
+            foreach (var value in LongTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_ULong_AllMagnitudes()
+        {
+            foreach (var value in ULongTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Float_AllMagnitudes()
+        {
+            foreach (var value in FloatTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Double_AllMagnitudes()
+        {
+            foreach (var value in DoubleTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
+        }
+
+        [Test]
+        public void GetSize_Decimal_AllMagnitudes()
+        {
+            foreach (var value in DecimalTestValues())
+            {
+                int reportedSize = GenJsonSizeHelper.GetSize(value);
+                int actualSize = value.ToString("G", System.Globalization.CultureInfo.InvariantCulture).Length;
+                Assert.That(reportedSize, Is.EqualTo(actualSize));
+            }
         }
 
         [Test]
@@ -31,25 +323,7 @@ namespace GenJson.Tests
             Assert.That(GenJsonSizeHelper.GetSize(false), Is.EqualTo(5)); // false
         }
 
-        [Test]
-        public void GetSize_Double_HandlesSpecialValues()
-        {
-            // JSON does not standardly support NaN/Infinity, but let's check what GetSize returns
-            // It relies on Utf8Formatter or string.Create usually.
-            // If it returns a size, it means it would be written.
-            Assert.That(GenJsonSizeHelper.GetSize(double.NaN), Is.GreaterThan(0));
-            Assert.That(GenJsonSizeHelper.GetSize(double.PositiveInfinity), Is.GreaterThan(0));
-            Assert.That(GenJsonSizeHelper.GetSize(double.NegativeInfinity), Is.GreaterThan(0));
-        }
 
-        [Test]
-        public void GetSize_MinMax_ReturnsCorrectSize()
-        {
-            Assert.That(GenJsonSizeHelper.GetSize(int.MinValue), Is.EqualTo(11)); // -2147483648
-            Assert.That(GenJsonSizeHelper.GetSize(int.MaxValue), Is.EqualTo(10)); // 2147483647
-            Assert.That(GenJsonSizeHelper.GetSize(long.MinValue), Is.EqualTo(20)); // -9223372036854775808
-            Assert.That(GenJsonSizeHelper.GetSize(long.MaxValue), Is.EqualTo(19)); // 9223372036854775807
-        }
 
         [Test]
         public void GetSize_Char_Escapes()

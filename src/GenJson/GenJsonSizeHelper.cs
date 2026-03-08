@@ -9,58 +9,184 @@ namespace GenJson
     {
         public static int GetSize(byte value)
         {
-            Span<char> buffer = stackalloc char[3];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            if (value < 10) return 1;
+            if (value < 100) return 2;
+            return 3;
         }
 
         public static int GetSize(sbyte value)
         {
-            Span<char> buffer = stackalloc char[4];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            uint v = (uint)(value >= 0 ? value : -value);
+            int size = value >= 0 ? 0 : 1;
+            if (v < 10) return size + 1;
+            if (v < 100) return size + 2;
+            return size + 3;
         }
 
         public static int GetSize(short value)
         {
-            Span<char> buffer = stackalloc char[6];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            uint v = (uint)(value >= 0 ? value : -value);
+            int size = value >= 0 ? 0 : 1;
+            if (v < 100)
+            {
+                if (v < 10) return size + 1;
+                return size + 2;
+            }
+            if (v < 1000) return size + 3;
+            if (v < 10000) return size + 4;
+            return size + 5;
         }
 
         public static int GetSize(ushort value)
         {
-            Span<char> buffer = stackalloc char[5];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            if (value < 100)
+            {
+                if (value < 10) return 1;
+                return 2;
+            }
+            if (value < 1000) return 3;
+            if (value < 10000) return 4;
+            return 5;
         }
 
         public static int GetSize(int value)
         {
-            Span<char> buffer = stackalloc char[11];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            uint v = (uint)(value >= 0 ? value : -value);
+            int size = value >= 0 ? 0 : 1;
+            if (v < 10000)
+            {
+                if (v < 100)
+                {
+                    if (v < 10) return size + 1;
+                    return size + 2;
+                }
+                if (v < 1000) return size + 3;
+                return size + 4;
+            }
+            if (v < 10000000)
+            {
+                if (v < 100000) return size + 5;
+                if (v < 1000000) return size + 6;
+                return size + 7;
+            }
+            if (v < 100000000) return size + 8;
+            if (v < 1000000000) return size + 9;
+            return size + 10;
         }
 
         public static int GetSize(uint value)
         {
-            Span<char> buffer = stackalloc char[10];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            if (value < 10000)
+            {
+                if (value < 100)
+                {
+                    if (value < 10) return 1;
+                    return 2;
+                }
+                if (value < 1000) return 3;
+                return 4;
+            }
+            if (value < 10000000)
+            {
+                if (value < 100000) return 5;
+                if (value < 1000000) return 6;
+                return 7;
+            }
+            if (value < 100000000) return 8;
+            if (value < 1000000000) return 9;
+            return 10;
         }
 
         public static int GetSize(long value)
         {
-            Span<char> buffer = stackalloc char[20];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            ulong v = (ulong)(value >= 0 ? value : -value);
+            int size = value >= 0 ? 0 : 1;
+            if (v < 1000000000ul)
+            {
+                if (v < 10000)
+                {
+                    if (v < 100)
+                    {
+                        if (v < 10) return size + 1;
+                        return size + 2;
+                    }
+                    if (v < 1000) return size + 3;
+                    return size + 4;
+                }
+                if (v < 10000000)
+                {
+                    if (v < 100000) return size + 5;
+                    if (v < 1000000) return size + 6;
+                    return size + 7;
+                }
+                if (v < 100000000) return size + 8;
+                return size + 9;
+            }
+            if (v < 100000000000000ul)
+            {
+                if (v < 100000000000ul)
+                {
+                    if (v < 10000000000ul) return size + 10;
+                    return size + 11;
+                }
+                if (v < 1000000000000ul) return size + 12;
+                if (v < 10000000000000ul) return size + 13;
+                return size + 14;
+            }
+            if (v < 100000000000000000ul)
+            {
+                if (v < 1000000000000000ul) return size + 15;
+                if (v < 10000000000000000ul) return size + 16;
+                return size + 17;
+            }
+            if (v < 1000000000000000000ul) return size + 18;
+            if (v < 10000000000000000000ul) return size + 19;
+            return size + 20;
         }
 
         public static int GetSize(ulong value)
         {
-            Span<char> buffer = stackalloc char[20];
-            value.TryFormat(buffer, out int charsWritten);
-            return charsWritten;
+            if (value < 1000000000ul)
+            {
+                if (value < 10000)
+                {
+                    if (value < 100)
+                    {
+                        if (value < 10) return 1;
+                        return 2;
+                    }
+                    if (value < 1000) return 3;
+                    return 4;
+                }
+                if (value < 10000000)
+                {
+                    if (value < 100000) return 5;
+                    if (value < 1000000) return 6;
+                    return 7;
+                }
+                if (value < 100000000) return 8;
+                return 9;
+            }
+            if (value < 100000000000000ul)
+            {
+                if (value < 100000000000ul)
+                {
+                    if (value < 10000000000ul) return 10;
+                    return 11;
+                }
+                if (value < 1000000000000ul) return 12;
+                if (value < 10000000000000ul) return 13;
+                return 14;
+            }
+            if (value < 100000000000000000ul)
+            {
+                if (value < 1000000000000000ul) return 15;
+                if (value < 10000000000000000ul) return 16;
+                return 17;
+            }
+            if (value < 1000000000000000000ul) return 18;
+            if (value < 10000000000000000000ul) return 19;
+            return 20;
         }
 
         public static int GetSize(bool value) => value ? 4 : 5; // "true" or "false"
