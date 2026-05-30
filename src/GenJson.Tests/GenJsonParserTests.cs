@@ -127,6 +127,33 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseString_InvalidJsonEscape_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString("\"\\x\"".AsSpan(), ref index, out _), Is.False);
+        }
+
+        [Test]
+        public void TryParseString_MalformedUnicodeWithNonHexDigits_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.That(GenJsonParser.TryParseString("\"\\u00ZZ\"".AsSpan(), ref index, out _), Is.False);
+            });
+        }
+
+        [Test]
+        public void TryParseString_RawControlCharacter_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString("\"hello\nworld\"".AsSpan(), ref index, out _), Is.False);
+        }
+
+        [Test]
         public void TryParseInt_ParsesIntegers()
         {
             var cases = new[] { ("123", 123), ("-123", -123), ("0", 0), ("2147483647", int.MaxValue), ("-2147483648", int.MinValue) };
@@ -518,6 +545,58 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseChar_InvalidJsonEscape_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar("\"\\x\"", ref index, out char c), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar("\"\\x\"", ref index, out char? nc), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_MalformedUnicodeWithNonHexDigits_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.That(GenJsonParser.TryParseChar("\"\\u00ZZ\"", ref index, out char c), Is.False);
+            });
+
+            index = 0;
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.That(GenJsonParser.TryParseChar("\"\\u00ZZ\"", ref index, out char? nc), Is.False);
+            });
+        }
+
+        [Test]
+        public void TryParseChar_RawControlCharacter_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar("\"\n\"", ref index, out char c), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar("\"\n\"", ref index, out char? nc), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_InvalidLength_DoesNotConsumeToken()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar("\"AB\",", ref index, out char c), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar("\"\",", ref index, out char? nc), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+        }
+
+        [Test]
         public void TryParseBoolean_TrailingChars_ReturnsFalse()
         {
             int index = 0;
@@ -750,7 +829,44 @@ namespace GenJson.Tests
             Assert.That(index, Is.EqualTo(0), "index must be restored on EOF mid-escape (byte variant)");
         }
 
+        [Test]
+        public void MatchesKey_Char_MalformedUnicodeEscape_ReturnsFalse()
+        {
+            int index = 0;
+            // Truncated \u
+            var jsonTruncated = "\"a\\u00\"".AsSpan();
+            bool result1 = GenJsonParser.MatchesKey(jsonTruncated, ref index, "a");
+            Assert.That(result1, Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            // Invalid hex digits after \u
+            index = 0;
+            var jsonInvalidHex = "\"a\\u00ZZ\"".AsSpan();
+            bool result2 = GenJsonParser.MatchesKey(jsonInvalidHex, ref index, "a");
+            Assert.That(result2, Is.False);
+            Assert.That(index, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void MatchesKey_Byte_MalformedUnicodeEscape_ReturnsFalse()
+        {
+            int index = 0;
+            // Truncated \u
+            var jsonTruncated = System.Text.Encoding.UTF8.GetBytes("\"a\\u00\"").AsSpan();
+            bool result1 = GenJsonParser.MatchesKey(jsonTruncated, ref index, "a");
+            Assert.That(result1, Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            // Invalid hex digits after \u
+            index = 0;
+            var jsonInvalidHex = System.Text.Encoding.UTF8.GetBytes("\"a\\u00ZZ\"").AsSpan();
+            bool result2 = GenJsonParser.MatchesKey(jsonInvalidHex, ref index, "a");
+            Assert.That(result2, Is.False);
+            Assert.That(index, Is.EqualTo(0));
+        }
+
         // ── Bug #9: TryFindProperty — dead index >= Length check (behavior sanity) ────────────
+
 
         [Test]
         public void TryFindProperty_EmptyObject_ReturnsFalse()

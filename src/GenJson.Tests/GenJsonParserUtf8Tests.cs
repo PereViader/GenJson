@@ -171,6 +171,41 @@ namespace GenJson.Tests
         }
 
         [Test]
+        public void TryParseString_Utf8_EscapedStringPreservesNonAscii()
+        {
+            var json = Utf8("\"é\\n\"");
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString(json, ref index, out string? str), Is.True);
+            Assert.That(str, Is.EqualTo("é\n"));
+            Assert.That(index, Is.EqualTo(json.Length));
+        }
+
+        [Test]
+        public void TryParseString_Utf8_InvalidJsonEscape_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString(Utf8("\"\\x\""), ref index, out _), Is.False);
+        }
+
+        [Test]
+        public void TryParseString_Utf8_MalformedUnicodeWithNonHexDigits_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString(Utf8("\"\\u00ZZ\""), ref index, out _), Is.False);
+        }
+
+        [Test]
+        public void TryParseString_Utf8_RawControlCharacter_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseString(Utf8("\"hello\nworld\""), ref index, out _), Is.False);
+        }
+
+        [Test]
         public void TryParseBoolean_Utf8_ValidAndInvalid()
         {
             var json = Utf8("true,false,tru,fals,truex,falsey");
@@ -218,6 +253,58 @@ namespace GenJson.Tests
             index += 4; // Skip ,"AB"
 
             Assert.That(GenJsonParser.TryParseChar(json, ref index, out c), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_Utf8_InvalidJsonEscape_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"\\x\""), ref index, out char c), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"\\x\""), ref index, out char? nc), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_Utf8_MalformedUnicodeWithNonHexDigits_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.That(GenJsonParser.TryParseChar(Utf8("\"\\u00ZZ\""), ref index, out char c), Is.False);
+            });
+
+            index = 0;
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.That(GenJsonParser.TryParseChar(Utf8("\"\\u00ZZ\""), ref index, out char? nc), Is.False);
+            });
+        }
+
+        [Test]
+        public void TryParseChar_Utf8_RawControlCharacter_ReturnsFalse()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"\n\""), ref index, out char c), Is.False);
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"\n\""), ref index, out char? nc), Is.False);
+        }
+
+        [Test]
+        public void TryParseChar_Utf8_InvalidLength_DoesNotConsumeToken()
+        {
+            int index = 0;
+
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"AB\","), ref index, out char c), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseChar(Utf8("\"\","), ref index, out char? nc), Is.False);
+            Assert.That(index, Is.EqualTo(0));
         }
 
         [Test]

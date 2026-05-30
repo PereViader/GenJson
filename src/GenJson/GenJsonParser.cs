@@ -42,11 +42,23 @@ namespace GenJson
                     escaped = true;
                     if (index >= json.Length) return false;
                     c = json[index++];
+                    if (!IsValidJsonEscape(c)) return false;
                     if (c == 'u')
                     {
                         if (index + 4 > json.Length) return false;
+                        if (!IsHexDigit(json[index]) ||
+                            !IsHexDigit(json[index + 1]) ||
+                            !IsHexDigit(json[index + 2]) ||
+                            !IsHexDigit(json[index + 3]))
+                        {
+                            return false;
+                        }
                         index += 4;
                     }
+                }
+                else if (c < ' ')
+                {
+                    return false;
                 }
             }
 
@@ -81,11 +93,23 @@ namespace GenJson
                     escaped = true;
                     if (index >= json.Length) return false;
                     c = json[index++];
+                    if (!IsValidJsonEscape(c)) return false;
                     if (c == 'u')
                     {
                         if (index + 4 > json.Length) return false;
+                        if (!IsHexDigit(json[index]) ||
+                            !IsHexDigit(json[index + 1]) ||
+                            !IsHexDigit(json[index + 2]) ||
+                            !IsHexDigit(json[index + 3]))
+                        {
+                            return false;
+                        }
                         index += 4;
                     }
+                }
+                else if (c < ' ')
+                {
+                    return false;
                 }
             }
 
@@ -164,31 +188,40 @@ namespace GenJson
                 int readIdx = 0;
                 while (readIdx < input.Length)
                 {
-                    var c = (char)input[readIdx++];
-                    if (c == '\\')
+                    var chunkStart = readIdx;
+                    while (readIdx < input.Length && input[readIdx] != (byte)'\\')
                     {
-                        c = (char)input[readIdx++];
-                        switch (c)
-                        {
-                            case '"': rented[written++] = '"'; break;
-                            case '\\': rented[written++] = '\\'; break;
-                            case '/': rented[written++] = '/'; break;
-                            case 'b': rented[written++] = '\b'; break;
-                            case 'f': rented[written++] = '\f'; break;
-                            case 'n': rented[written++] = '\n'; break;
-                            case 'r': rented[written++] = '\r'; break;
-                            case 't': rented[written++] = '\t'; break;
-                            case 'u':
-                                Span<char> hexChars = stackalloc char[4];
-                                for (int i = 0; i < 4; i++) hexChars[i] = (char)input[readIdx++];
-                                rented[written++] = (char)int.Parse(hexChars, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                                break;
-                            default: rented[written++] = c; break;
-                        }
+                        readIdx++;
                     }
-                    else
+
+                    if (readIdx > chunkStart)
                     {
-                        rented[written++] = c;
+                        written += Encoding.UTF8.GetChars(input.Slice(chunkStart, readIdx - chunkStart), rented.AsSpan(written));
+                    }
+
+                    if (readIdx >= input.Length)
+                    {
+                        break;
+                    }
+
+                    readIdx++;
+                    var c = (char)input[readIdx++];
+                    switch (c)
+                    {
+                        case '"': rented[written++] = '"'; break;
+                        case '\\': rented[written++] = '\\'; break;
+                        case '/': rented[written++] = '/'; break;
+                        case 'b': rented[written++] = '\b'; break;
+                        case 'f': rented[written++] = '\f'; break;
+                        case 'n': rented[written++] = '\n'; break;
+                        case 'r': rented[written++] = '\r'; break;
+                        case 't': rented[written++] = '\t'; break;
+                        case 'u':
+                            Span<char> hexChars = stackalloc char[4];
+                            for (int i = 0; i < 4; i++) hexChars[i] = (char)input[readIdx++];
+                            rented[written++] = (char)int.Parse(hexChars, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                            break;
+                        default: rented[written++] = c; break;
                     }
                 }
                 return new string(rented, 0, written);
@@ -274,6 +307,19 @@ namespace GenJson
                         case 'r': unescaped = '\r'; break;
                         case 't': unescaped = '\t'; break;
                         case 'u':
+                            if (index + 4 > json.Length)
+                            {
+                                index = originalIndex;
+                                return false;
+                            }
+                            if (!IsHexDigit(json[index]) ||
+                                !IsHexDigit(json[index + 1]) ||
+                                !IsHexDigit(json[index + 2]) ||
+                                !IsHexDigit(json[index + 3]))
+                            {
+                                index = originalIndex;
+                                return false;
+                            }
                             var hexSequence = json.Slice(index, 4);
                             index += 4;
                             unescaped = (char)int.Parse(hexSequence, NumberStyles.HexNumber,
@@ -360,8 +406,10 @@ namespace GenJson
 
         public static bool TryParseChar(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out char? result)
         {
+            var originalIndex = index;
             if (!TryParseString(json, ref index, out var s) || s.Length != 1)
             {
+                index = originalIndex;
                 result = null;
                 return false;
             }
@@ -372,8 +420,10 @@ namespace GenJson
 
         public static bool TryParseChar(ReadOnlySpan<char> json, ref int index, out char result)
         {
+            var originalIndex = index;
             if (!TryParseString(json, ref index, out var s) || s.Length != 1)
             {
+                index = originalIndex;
                 result = default;
                 return false;
             }
@@ -884,7 +934,24 @@ namespace GenJson
                 {
                     escaped = true;
                     if (index >= json.Length) return false;
-                    index++;
+                    c = json[index++];
+                    if (!IsValidJsonEscape(c)) return false;
+                    if (c == (byte)'u')
+                    {
+                        if (index + 4 > json.Length) return false;
+                        if (!IsHexDigit(json[index]) ||
+                            !IsHexDigit(json[index + 1]) ||
+                            !IsHexDigit(json[index + 2]) ||
+                            !IsHexDigit(json[index + 3]))
+                        {
+                            return false;
+                        }
+                        index += 4;
+                    }
+                }
+                else if (c < 0x20)
+                {
+                    return false;
                 }
             }
 
@@ -917,7 +984,24 @@ namespace GenJson
                 {
                     escaped = true;
                     if (index >= json.Length) return false;
-                    index++;
+                    c = json[index++];
+                    if (!IsValidJsonEscape(c)) return false;
+                    if (c == (byte)'u')
+                    {
+                        if (index + 4 > json.Length) return false;
+                        if (!IsHexDigit(json[index]) ||
+                            !IsHexDigit(json[index + 1]) ||
+                            !IsHexDigit(json[index + 2]) ||
+                            !IsHexDigit(json[index + 3]))
+                        {
+                            return false;
+                        }
+                        index += 4;
+                    }
+                }
+                else if (c < 0x20)
+                {
+                    return false;
                 }
             }
 
@@ -1212,8 +1296,10 @@ namespace GenJson
 
         public static bool TryParseChar(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out char? result)
         {
+            var originalIndex = index;
             if (!TryParseString(json, ref index, out var s) || s!.Length != 1)
             {
+                index = originalIndex;
                 result = null;
                 return false;
             }
@@ -1223,8 +1309,10 @@ namespace GenJson
 
         public static bool TryParseChar(ReadOnlySpan<byte> json, ref int index, out char result)
         {
+            var originalIndex = index;
             if (!TryParseString(json, ref index, out var s) || s!.Length != 1)
             {
+                index = originalIndex;
                 result = default;
                 return false;
             }
@@ -1690,6 +1778,58 @@ namespace GenJson
         private static bool IsDelimiter(byte c)
         {
             return c == ',' || c == '}' || c == ']';
+        }
+
+        private static bool IsValidJsonEscape(char c)
+        {
+            switch (c)
+            {
+                case '"':
+                case '\\':
+                case '/':
+                case 'b':
+                case 'f':
+                case 'n':
+                case 'r':
+                case 't':
+                case 'u':
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsValidJsonEscape(byte c)
+        {
+            switch (c)
+            {
+                case (byte)'"':
+                case (byte)'\\':
+                case (byte)'/':
+                case (byte)'b':
+                case (byte)'f':
+                case (byte)'n':
+                case (byte)'r':
+                case (byte)'t':
+                case (byte)'u':
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsHexDigit(char c)
+        {
+            return (c >= '0' && c <= '9') ||
+                   (c >= 'a' && c <= 'f') ||
+                   (c >= 'A' && c <= 'F');
+        }
+
+        private static bool IsHexDigit(byte c)
+        {
+            return (c >= (byte)'0' && c <= (byte)'9') ||
+                   (c >= (byte)'a' && c <= (byte)'f') ||
+                   (c >= (byte)'A' && c <= (byte)'F');
         }
     }
 }
