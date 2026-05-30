@@ -1,6 +1,7 @@
-﻿// See https://aka.ms/new-console-template for more information
+// See https://aka.ms/new-console-template for more information
 
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
@@ -10,6 +11,7 @@ using Perfolizer.Metrology;
 
 BenchmarkRunner.Run(typeof(BenchmarkToJson).Assembly, ManualConfig
     .Create(DefaultConfig.Instance)
+    .AddColumn(StatisticColumn.Median)
     .WithSummaryStyle(new SummaryStyle(
         cultureInfo: System.Globalization.CultureInfo.InvariantCulture,
         printUnitsInHeader: true,
@@ -61,23 +63,23 @@ public class BenchmarkToJson
         return RootObject.ToJson();
     }
 
-    // [Benchmark]
-    // public string Utf8Json_ToJson()
-    // {
-    //     return Utf8Json.JsonSerializer.ToJsonString(RootObject);
-    // }
-    //
-    // [Benchmark]
-    // public string MicrosoftJson_ToJson()
-    // {
-    //     return System.Text.Json.JsonSerializer.Serialize(RootObject);
-    // }
-    //
-    // [Benchmark]
-    // public string NewtonsoftJson_ToJson()
-    // {
-    //     return Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
-    // }
+    [Benchmark]
+    public string Utf8Json_ToJson()
+    {
+        return Utf8Json.JsonSerializer.ToJsonString(RootObject);
+    }
+
+    [Benchmark]
+    public string MicrosoftJson_ToJson()
+    {
+        return System.Text.Json.JsonSerializer.Serialize(RootObject);
+    }
+
+    [Benchmark]
+    public string NewtonsoftJson_ToJson()
+    {
+        return Newtonsoft.Json.JsonConvert.SerializeObject(RootObject);
+    }
 
     [Benchmark]
     public RootObject GenJson_FromJson()
@@ -85,23 +87,23 @@ public class BenchmarkToJson
         return RootObject.FromJson(GenJson)!;
     }
 
-    // [Benchmark]
-    // public RootObject MicrosoftJson_FromJson()
-    // {
-    //     return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJson)!;
-    // }
-    //
-    // [Benchmark]
-    // public RootObject NewtonsoftJson_FromJson()
-    // {
-    //     return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
-    // }
-    //
-    // [Benchmark]
-    // public RootObject Utf8Json_FromJson()
-    // {
-    //     return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonString)!;
-    // }
+    [Benchmark]
+    public RootObject MicrosoftJson_FromJson()
+    {
+        return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJson)!;
+    }
+
+    [Benchmark]
+    public RootObject NewtonsoftJson_FromJson()
+    {
+        return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
+    }
+
+    [Benchmark]
+    public RootObject Utf8Json_FromJson()
+    {
+        return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonString)!;
+    }
 
     [Benchmark]
     public RootObject GenJson_FromJsonUtf8()
@@ -109,17 +111,17 @@ public class BenchmarkToJson
         return RootObject.FromJsonUtf8(GenJsonUtf8)!;
     }
 
-    // [Benchmark]
-    // public RootObject Utf8Json_FromJsonUtf8()
-    // {
-    //     return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonUtf8)!;
-    // }
-    //
-    // [Benchmark]
-    // public RootObject MicrosoftJson_FromJsonUtf8()
-    // {
-    //     return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJsonUtf8)!;
-    // }
+    [Benchmark]
+    public RootObject Utf8Json_FromJsonUtf8()
+    {
+        return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonUtf8)!;
+    }
+
+    [Benchmark]
+    public RootObject MicrosoftJson_FromJsonUtf8()
+    {
+        return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJsonUtf8)!;
+    }
 
     private static readonly RootObject RootObject = new()
     {
