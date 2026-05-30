@@ -923,5 +923,139 @@ namespace GenJson.Tests
             Assert.That(success, Is.True);
             Assert.That(json[index], Is.EqualTo('X'));
         }
+
+        [Test]
+        public void TryParseNumerics_CharSpan_OverflowAndRestoration()
+        {
+            // uint overflow
+            int idx = 0;
+            Assert.That(GenJsonParser.TryParseUInt("4294967296next".AsSpan(), ref idx, out uint _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            // short overflow
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseShort("32768next".AsSpan(), ref idx, out short _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseShort("-32769next".AsSpan(), ref idx, out short _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            // ushort overflow
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseUShort("65536next".AsSpan(), ref idx, out ushort _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            // byte overflow
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseByte("256next".AsSpan(), ref idx, out byte _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            // sbyte overflow
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseSByte("128next".AsSpan(), ref idx, out sbyte _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseSByte("-129next".AsSpan(), ref idx, out sbyte _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            // decimal overflow (decimal.MaxValue = 79228162514264337593543950335)
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDecimal("79228162514264337593543950336next".AsSpan(), ref idx, out decimal _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TryParseNumerics_CharSpan_NullableRestorationOnFailure()
+        {
+            int idx = 0;
+            Assert.That(GenJsonParser.TryParseInt("abc".AsSpan(), ref idx, out int? intRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(intRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseUInt("abc".AsSpan(), ref idx, out uint? uintRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(uintRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseShort("abc".AsSpan(), ref idx, out short? shortRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(shortRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseUShort("abc".AsSpan(), ref idx, out ushort? ushortRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(ushortRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseByte("abc".AsSpan(), ref idx, out byte? byteRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(byteRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseSByte("abc".AsSpan(), ref idx, out sbyte? sbyteRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(sbyteRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseLong("abc".AsSpan(), ref idx, out long? longRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(longRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseULong("abc".AsSpan(), ref idx, out ulong? ulongRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(ulongRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseFloat("abc".AsSpan(), ref idx, out float? floatRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(floatRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDouble("abc".AsSpan(), ref idx, out double? doubleRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(doubleRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDecimal("abc".AsSpan(), ref idx, out decimal? decimalRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(decimalRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseBoolean("abc".AsSpan(), ref idx, out bool? boolRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(boolRes, Is.Null);
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseChar("abc".AsSpan(), ref idx, out char? charRes), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+            Assert.That(charRes, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_CharSpan_WhitespaceBehavior()
+        {
+            // Confirm that the source parser does not skip whitespace and returns false when leading whitespace is present
+            int idx = 0;
+            Assert.That(GenJsonParser.TryParseInt(" 123".AsSpan(), ref idx, out int _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDouble(" 1.23".AsSpan(), ref idx, out double _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseBoolean(" true".AsSpan(), ref idx, out bool _), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseNull(" null".AsSpan(), ref idx), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+
+            idx = 0;
+            Assert.That(GenJsonParser.TryExpect(" [".AsSpan(), ref idx, '['), Is.False);
+            Assert.That(idx, Is.EqualTo(0));
+        }
     }
 }
