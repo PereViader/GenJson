@@ -281,7 +281,15 @@ namespace GenJson.Tests
             foreach (var value in FloatTestValues())
             {
                 int reportedSize = GenJsonSizeHelper.GetSize(value);
-                int actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                int actualSize;
+                if (float.IsNaN(value) || float.IsInfinity(value))
+                {
+                    actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length + 2; // +2 for quotes
+                }
+                else
+                {
+                    actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                }
                 Assert.That(reportedSize, Is.EqualTo(actualSize));
             }
         }
@@ -292,7 +300,15 @@ namespace GenJson.Tests
             foreach (var value in DoubleTestValues())
             {
                 int reportedSize = GenJsonSizeHelper.GetSize(value);
-                int actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                int actualSize;
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                {
+                    actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length + 2; // +2 for quotes
+                }
+                else
+                {
+                    actualSize = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Length;
+                }
                 Assert.That(reportedSize, Is.EqualTo(actualSize));
             }
         }

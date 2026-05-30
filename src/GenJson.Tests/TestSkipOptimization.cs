@@ -45,7 +45,7 @@ public class TestSkipOptimization
     [Test]
     public void TestDeserialization_IgnoresCountPropertyIfPresent()
     {
-        // Even if count property is present in JSON (e.g. from older version or other system), 
+        // Even if count property is present in JSON (e.g. from older version or other system),
         // it should be treated as unknown property and ignored since we are skipping optimization.
         var json = """{"$List":2,"List":[1,2],"$Array":2,"Array":[3,4],"$Dictionary":1,"Dictionary":{"5":6}}""";
         var obj = SkipOptimizationClass.FromJson(json)!;

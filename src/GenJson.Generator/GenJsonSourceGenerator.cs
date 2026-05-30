@@ -220,11 +220,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     var originalSymbol = propertiesMap[propData.Name].Symbol;
 
                     var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type);
-                    // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any, 
+                    // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
-                    // If param C has no attributes, it returns "C" (param.Name) by default in some logic? 
-                    // Wait, GetJsonName(prop, param): checks Attr on Prop. checks Attr on Param. 
+                    // If param C has no attributes, it returns "C" (param.Name) by default in some logic?
+                    // Wait, GetJsonName(prop, param): checks Attr on Prop. checks Attr on Param.
                     // If neither, returns prop.Name.
                     // So for C -> A mapping: Prop is A. Param is C.
                     // If C has no Attr, GetJsonName returns "A". Perfect.
@@ -255,7 +255,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     // But generated code loop:
                     // foreach(var arg in data.ConstructorArgs.Value) { append("_" + arg.Name) }
                     // arg.Name must be "A".
-                    // newPropData.Name is "A". 
+                    // newPropData.Name is "A".
                     // Correct.
 
                     constructorArgs.Add(newPropData);
@@ -1569,6 +1569,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.FloatingPoint fp:
                 sb.Append(indent);
                 sb.AppendLine("{");
+
+                string? floatType = fp.TypeName.EndsWith("Double") || fp.TypeName.EndsWith("double") ? "double" :
+                                   fp.TypeName.EndsWith("Single") || fp.TypeName.EndsWith("float") ? "float" : null;
+
+                if (floatType != null)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine($"    bool isSpecial = {floatType}.IsNaN({valueAccessor}) || {floatType}.IsInfinity({valueAccessor});");
+                    sb.Append(indent);
+                    sb.AppendLine($"    if (isSpecial) {(isUtf8 ? "span[index++] = (byte)'\"';" : "span[index++] = '\"';")}");
+                }
+
                 sb.Append(indent);
                 sb.Append("    if (!");
 
@@ -1590,6 +1602,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("    }");
                 sb.Append(indent);
                 sb.AppendLine("    index += written;");
+
+                if (floatType != null)
+                {
+                    sb.Append(indent);
+                    sb.AppendLine($"    if (isSpecial) {(isUtf8 ? "span[index++] = (byte)'\"';" : "span[index++] = '\"';")}");
+                }
+
                 sb.Append(indent);
                 sb.AppendLine("}");
                 break;
@@ -2381,7 +2400,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             // For now, let's just attempt to find it proactively if we suspect derived type?
             // Actually, simplest is to just parse normally and if we encounter discriminator, switch?
             // But constructor structure requires values.
-            // Strategy: 
+            // Strategy:
             // 1. Scan for discriminator property first (inefficient but correct for polymorphism without rewriting parser flow completely).
             // 2. Or assume if it exists it is first? JSON standard doesn't guarantee order.
             // Let's stick to the previous logic which seemed to try to find property.

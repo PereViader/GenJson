@@ -79,7 +79,7 @@ namespace GenJson.Tests
 
             var success = GenJsonParser.TryParseString(json, ref index, out var result);
 
-            // The original code would fail this by returning "The cat said " 
+            // The original code would fail this by returning "The cat said "
             // and leaving index at the first \"
             Assert.That(success, Is.True, "Parser should succeed");
             Assert.That(result, Is.EqualTo("The cat said \"Meow\" and ran away"), "Result should contain the full unescaped string");
@@ -1056,6 +1056,42 @@ namespace GenJson.Tests
             idx = 0;
             Assert.That(GenJsonParser.TryExpect(" [".AsSpan(), ref idx, '['), Is.False);
             Assert.That(idx, Is.EqualTo(0));
+        }
+        [Test]
+        public void TryParseDouble_QuotedInvalidFloat_FailsCorrectly()
+        {
+            var jsonBytes = System.Text.Encoding.UTF8.GetBytes("\"123.4.5\"");
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseDouble(jsonBytes, ref index, out double _), Is.False);
+            
+            index = 0;
+            Assert.That(GenJsonParser.TryParseFloat(jsonBytes, ref index, out float _), Is.False);
+            
+            index = 0;
+            Assert.That(GenJsonParser.TryParseDecimal(jsonBytes, ref index, out decimal _), Is.False);
+            
+            jsonBytes = System.Text.Encoding.UTF8.GetBytes("\"123.4 \"");
+            index = 0;
+            Assert.That(GenJsonParser.TryParseDouble(jsonBytes, ref index, out double _), Is.False);
+        }
+
+        [Test]
+        public void TryParseDoubleByte_NaN_Infinity_DoesNotAllocate()
+        {
+            var jsonBytes = System.Text.Encoding.UTF8.GetBytes("\"NaN\"");
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseDouble(jsonBytes, ref index, out double d), Is.True);
+            Assert.That(double.IsNaN(d), Is.True);
+            
+            jsonBytes = System.Text.Encoding.UTF8.GetBytes("\"Infinity\"");
+            index = 0;
+            Assert.That(GenJsonParser.TryParseDouble(jsonBytes, ref index, out d), Is.True);
+            Assert.That(double.IsPositiveInfinity(d), Is.True);
+            
+            jsonBytes = System.Text.Encoding.UTF8.GetBytes("\"-Infinity\"");
+            index = 0;
+            Assert.That(GenJsonParser.TryParseDouble(jsonBytes, ref index, out d), Is.True);
+            Assert.That(double.IsNegativeInfinity(d), Is.True);
         }
     }
 }

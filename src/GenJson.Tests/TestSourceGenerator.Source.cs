@@ -385,6 +385,8 @@ public partial class EdgeNumberClass : ITestGenJson
     public long LongMin { get; init; }
     public long LongMax { get; init; }
     public ulong ULongMax { get; init; }
+    public uint UIntMin { get; init; }
+    public uint UIntMax { get; init; }
     public double DoubleZero { get; init; }
     public double DoubleNegative { get; init; }
     public double DoubleLarge { get; init; }
@@ -393,7 +395,6 @@ public partial class EdgeNumberClass : ITestGenJson
     public int? NullableInt { get; init; }
     public double? NullableDouble { get; init; }
 
-    // Missing edge cases for floating point bounds
     public double DoubleMin { get; init; }
     public double DoubleMax { get; init; }
     public double DoubleEpsilon { get; init; }
@@ -419,6 +420,7 @@ public partial class EdgeCollectionClass : ITestGenJson
     public int[] IntArray { get; init; } = Array.Empty<int>();
     public Dictionary<string, int> Dict { get; init; } = new();
     public Dictionary<string, string> StringDict { get; init; } = new();
+    public List<List<int>> NestedIntList { get; init; } = new();
 }
 
 [GenJson, GenJsonSkipCountOptimization]
@@ -464,6 +466,78 @@ public partial class EdgeDateGuidCharClass : ITestGenJson
     public char CharPresent { get; init; }
     public char? CharNull { get; init; }
     public char CharSpecial { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeDateTimeKindClass : ITestGenJson
+{
+    public DateTime Utc { get; init; }
+    public DateTime Local { get; init; }
+    public DateTime Unspecified { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeDateTimeOffsetExtraClass : ITestGenJson
+{
+    public DateTimeOffset ZeroOffset { get; init; }
+    public DateTimeOffset NegativeOffset { get; init; }
+    public DateTimeOffset LargePositiveOffset { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeTimeSpanClass : ITestGenJson
+{
+    public TimeSpan Zero { get; init; }
+    public TimeSpan Negative { get; init; }
+    public TimeSpan SubSecond { get; init; }
+    public TimeSpan MaxValue { get; init; }
+    public TimeSpan MinValue { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeGuidClass : ITestGenJson
+{
+    public Guid Empty { get; init; }
+    public Guid AllFs { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeVersionClass : ITestGenJson
+{
+    public Version TwoComponent { get; init; } = new(1, 0);
+    public Version ThreeComponent { get; init; } = new(1, 2, 3);
+    public Version FourComponent { get; init; } = new(1, 2, 3, 4);
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeUriClass : ITestGenJson
+{
+    public Uri HttpUri { get; init; } = new("http://example.com");
+    public Uri HttpsUri { get; init; } = new("https://example.com/path?q=1&r=2");
+    public Uri? NullableUri { get; init; }
+    public Uri UriWithSpecialChars { get; init; } = new("https://example.com/path with spaces", UriKind.Absolute);
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeDecimalClass : ITestGenJson
+{
+    public decimal Zero { get; init; }
+    public decimal One { get; init; }
+    public decimal MinusOne { get; init; }
+    public decimal MaxValue { get; init; }
+    public decimal MinValue { get; init; }
+    public decimal Precise { get; init; }
+}
+
+[GenJson, GenJsonSkipCountOptimization]
+public partial class EdgeCharEdgeClass : ITestGenJson
+{
+    public char NullChar { get; init; }      // '\0'
+    public char MaxChar { get; init; }       // '\uffff'
+    public char BackslashChar { get; init; } // '\\'
+    public char QuoteChar { get; init; }     // '"'
+    public char DelChar { get; init; }       // '\x7f' — boundary between control and printable
+    public char SpaceChar { get; init; }     // ' ' — lowest printable ASCII
 }
 
 [GenJson, GenJsonSkipCountOptimization]

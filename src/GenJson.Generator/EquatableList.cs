@@ -29,6 +29,6 @@ public class EquatableList<T>(List<T> list) : IEquatable<EquatableList<T>>
         }
         return hash;
     }
-    
+
     public override int GetHashCode() => _hashCodeCache;
 }

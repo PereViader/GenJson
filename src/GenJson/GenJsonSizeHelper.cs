@@ -200,6 +200,7 @@ namespace GenJson
             '\f' => 4, // "\f"
             '\\' => 4, // "\\"
             '\"' => 4, // "\""  (2 quotes + 2 content chars)
+            '\uffff' => 8, // "\uffff" (2 quotes + 6 content chars)
             '\0' => 8, // "\u0000" — \0 is not a JSON escape; must use \u0000 (2 quotes + 6 content chars)
             _ when char.IsControl(c) => 8, // "\uXXXX" (2 quotes + 6 content chars)
             _ => 3
@@ -219,6 +220,7 @@ namespace GenJson
                     '\f' => 2, // \f
                     '\\' => 2, // \\
                     '\"' => 2, // \"
+                    '\uffff' => 6, // \uffff
                     '\0' => 6, // \u0000 — null is not \0 in JSON, must be \u0000
                     _ when char.IsControl(c) => 6, // \uXXXX format for other control chars
                     _ => 1
@@ -233,6 +235,7 @@ namespace GenJson
         {
             Span<char> buffer = stackalloc char[128];
             value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture);
+            if (double.IsNaN(value) || double.IsInfinity(value)) return written + 2;
             return written;
         }
 
@@ -240,6 +243,7 @@ namespace GenJson
         {
             Span<char> buffer = stackalloc char[128];
             value.TryFormat(buffer, out int written, "R", CultureInfo.InvariantCulture);
+            if (float.IsNaN(value) || float.IsInfinity(value)) return written + 2;
             return written;
         }
 

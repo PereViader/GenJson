@@ -18,6 +18,15 @@ namespace GenJson
                 else if (c == '\n') { span[index++] = '\\'; span[index++] = 'n'; }
                 else if (c == '\r') { span[index++] = '\\'; span[index++] = 'r'; }
                 else if (c == '\t') { span[index++] = '\\'; span[index++] = 't'; }
+                else if (c == char.MaxValue)
+                {
+                    span[index++] = '\\';
+                    span[index++] = 'u';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                }
                 else if (c < ' ')
                 {
                     span[index++] = '\\';
@@ -44,7 +53,7 @@ namespace GenJson
             for (int i = 0; i < value.Length; i++)
             {
                 char c = value[i];
-                if (c == '"' || c == '\\' || c < ' ')
+                if (c == '"' || c == '\\' || c < ' ' || c == char.MaxValue)
                 {
                     // Write previous chunk
                     if (i > start)
@@ -64,6 +73,13 @@ namespace GenJson
                         case '\n': span[index++] = (byte)'n'; break;
                         case '\r': span[index++] = (byte)'r'; break;
                         case '\t': span[index++] = (byte)'t'; break;
+                        case '\uffff':
+                            span[index++] = (byte)'u';
+                            span[index++] = (byte)'f';
+                            span[index++] = (byte)'f';
+                            span[index++] = (byte)'f';
+                            span[index++] = (byte)'f';
+                            break;
                         default: // Control < 32
                             span[index++] = (byte)'u';
                             span[index++] = (byte)'0';

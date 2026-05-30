@@ -650,17 +650,11 @@ namespace GenJson
 
         public static bool TryParseDouble(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out double? result)
         {
-            var start = index;
-            if (index < json.Length && json[index] == '-') index++;
-            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseDouble(json, ref index, out double val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -670,25 +664,60 @@ namespace GenJson
             var start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (double.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == '-') curr++;
+                bool isNamed = false;
+                if (curr < json.Length && (json[curr] == 'I' || json[curr] == 'N'))
+                {
+                    isNamed = true;
+                    while (curr < json.Length && ((json[curr] >= 'a' && json[curr] <= 'z') || (json[curr] >= 'A' && json[curr] <= 'Z'))) curr++;
+                }
+                else
+                {
+                    while (curr < json.Length && (char.IsDigit(json[curr]) || json[curr] == '.' || json[curr] == 'e' || json[curr] == 'E' || json[curr] == '+' || json[curr] == '-')) curr++;
+                }
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (isNamed)
+                    {
+                        if (sliceFallback.SequenceEqual("NaN".AsSpan())) { result = double.NaN; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual("Infinity".AsSpan()) || sliceFallback.SequenceEqual("+Infinity".AsSpan())) { result = double.PositiveInfinity; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual("-Infinity".AsSpan())) { result = double.NegativeInfinity; index = curr + 1; return true; }
+                    }
+                    else
+                    {
+                        if (double.TryParse(sliceFallback, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
+                        {
+                            index = curr + 1;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 
         public static bool TryParseFloat(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out float? result)
         {
-            var start = index;
-            if (index < json.Length && json[index] == '-') index++;
-            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (float.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseFloat(json, ref index, out float val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -698,25 +727,60 @@ namespace GenJson
             var start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (float.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (float.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == '-') curr++;
+                bool isNamed = false;
+                if (curr < json.Length && (json[curr] == 'I' || json[curr] == 'N'))
+                {
+                    isNamed = true;
+                    while (curr < json.Length && ((json[curr] >= 'a' && json[curr] <= 'z') || (json[curr] >= 'A' && json[curr] <= 'Z'))) curr++;
+                }
+                else
+                {
+                    while (curr < json.Length && (char.IsDigit(json[curr]) || json[curr] == '.' || json[curr] == 'e' || json[curr] == 'E' || json[curr] == '+' || json[curr] == '-')) curr++;
+                }
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (isNamed)
+                    {
+                        if (sliceFallback.SequenceEqual("NaN".AsSpan())) { result = float.NaN; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual("Infinity".AsSpan()) || sliceFallback.SequenceEqual("+Infinity".AsSpan())) { result = float.PositiveInfinity; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual("-Infinity".AsSpan())) { result = float.NegativeInfinity; index = curr + 1; return true; }
+                    }
+                    else
+                    {
+                        if (float.TryParse(sliceFallback, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
+                        {
+                            index = curr + 1;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 
         public static bool TryParseDecimal(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out decimal? result)
         {
-            var start = index;
-            if (index < json.Length && json[index] == '-') index++;
-            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (decimal.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseDecimal(json, ref index, out decimal val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -726,9 +790,32 @@ namespace GenJson
             var start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == 'e' || json[index] == 'E' || json[index] == '+' || json[index] == '-')) index++;
-            var slice = json.Slice(start, index - start);
-            if (decimal.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (decimal.TryParse(slice, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == '-') curr++;
+                while (curr < json.Length && (char.IsDigit(json[curr]) || json[curr] == '.' || json[curr] == 'e' || json[curr] == 'E' || json[curr] == '+' || json[curr] == '-')) curr++;
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (decimal.TryParse(sliceFallback, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 
@@ -1437,13 +1524,11 @@ namespace GenJson
 
         public static bool TryParseSByte(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out sbyte? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out sbyte varRes, out var bytesConsumed))
+            if (TryParseSByte(json, ref index, out sbyte val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1455,18 +1540,35 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == (byte)'-') curr++;
+                while (curr < json.Length && (json[curr] >= (byte)'0' && json[curr] <= (byte)'9')) curr++;
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
         public static bool TryParseLong(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out long? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out long varRes, out var bytesConsumed))
+            if (TryParseLong(json, ref index, out long val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1478,18 +1580,35 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == (byte)'-') curr++;
+                while (curr < json.Length && (json[curr] >= (byte)'0' && json[curr] <= (byte)'9')) curr++;
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
         public static bool TryParseULong(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out ulong? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out ulong varRes, out var bytesConsumed))
+            if (TryParseULong(json, ref index, out ulong val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1501,18 +1620,34 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                while (curr < json.Length && (json[curr] >= (byte)'0' && json[curr] <= (byte)'9')) curr++;
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
         public static bool TryParseDouble(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out double? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out double varRes, out var bytesConsumed))
+            if (TryParseDouble(json, ref index, out double val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1524,18 +1659,59 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == (byte)'-') curr++;
+
+                bool isNamed = false;
+                if (curr < json.Length && (json[curr] == (byte)'I' || json[curr] == (byte)'N'))
+                {
+                    isNamed = true;
+                    while (curr < json.Length && ((json[curr] >= (byte)'a' && json[curr] <= (byte)'z') || (json[curr] >= (byte)'A' && json[curr] <= (byte)'Z'))) curr++;
+                }
+                else
+                {
+                    while (curr < json.Length && ((json[curr] >= (byte)'0' && json[curr] <= (byte)'9') || json[curr] == (byte)'.' || json[curr] == (byte)'e' || json[curr] == (byte)'E' || json[curr] == (byte)'+' || json[curr] == (byte)'-')) curr++;
+                }
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (isNamed)
+                    {
+                        ReadOnlySpan<byte> nanBytes = new byte[] { (byte)'N', (byte)'a', (byte)'N' };
+                        ReadOnlySpan<byte> infinityBytes = new byte[] { (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+                        ReadOnlySpan<byte> plusInfinityBytes = new byte[] { (byte)'+', (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+                        ReadOnlySpan<byte> minusInfinityBytes = new byte[] { (byte)'-', (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+
+                        if (sliceFallback.SequenceEqual(nanBytes)) { result = double.NaN; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual(infinityBytes) || sliceFallback.SequenceEqual(plusInfinityBytes)) { result = double.PositiveInfinity; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual(minusInfinityBytes)) { result = double.NegativeInfinity; index = curr + 1; return true; }
+                    }
+                    else
+                    {
+                        if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                        {
+                            index = curr + 1;
+                            return true;
+                        }
+                    }
+                }
+            }
+
             return false;
         }
 
         public static bool TryParseFloat(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out float? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out float varRes, out var bytesConsumed))
+            if (TryParseFloat(json, ref index, out float val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1547,18 +1723,59 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == (byte)'-') curr++;
+
+                bool isNamed = false;
+                if (curr < json.Length && (json[curr] == (byte)'I' || json[curr] == (byte)'N'))
+                {
+                    isNamed = true;
+                    while (curr < json.Length && ((json[curr] >= (byte)'a' && json[curr] <= (byte)'z') || (json[curr] >= (byte)'A' && json[curr] <= (byte)'Z'))) curr++;
+                }
+                else
+                {
+                    while (curr < json.Length && ((json[curr] >= (byte)'0' && json[curr] <= (byte)'9') || json[curr] == (byte)'.' || json[curr] == (byte)'e' || json[curr] == (byte)'E' || json[curr] == (byte)'+' || json[curr] == (byte)'-')) curr++;
+                }
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (isNamed)
+                    {
+                        ReadOnlySpan<byte> nanBytes = new byte[] { (byte)'N', (byte)'a', (byte)'N' };
+                        ReadOnlySpan<byte> infinityBytes = new byte[] { (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+                        ReadOnlySpan<byte> plusInfinityBytes = new byte[] { (byte)'+', (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+                        ReadOnlySpan<byte> minusInfinityBytes = new byte[] { (byte)'-', (byte)'I', (byte)'n', (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'t', (byte)'y' };
+
+                        if (sliceFallback.SequenceEqual(nanBytes)) { result = float.NaN; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual(infinityBytes) || sliceFallback.SequenceEqual(plusInfinityBytes)) { result = float.PositiveInfinity; index = curr + 1; return true; }
+                        if (sliceFallback.SequenceEqual(minusInfinityBytes)) { result = float.NegativeInfinity; index = curr + 1; return true; }
+                    }
+                    else
+                    {
+                        if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                        {
+                            index = curr + 1;
+                            return true;
+                        }
+                    }
+                }
+            }
+
             return false;
         }
 
         public static bool TryParseDecimal(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out decimal? result)
         {
-            if (Utf8Parser.TryParse(json.Slice(index), out decimal varRes, out var bytesConsumed))
+            if (TryParseDecimal(json, ref index, out decimal val))
             {
-                index += bytesConsumed;
-                result = varRes;
+                result = val;
                 return true;
             }
-
             result = null;
             return false;
         }
@@ -1570,6 +1787,25 @@ namespace GenJson
                 index += bytesConsumed;
                 return true;
             }
+
+            if (index < json.Length && json[index] == (byte)'"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == (byte)'-') curr++;
+                while (curr < json.Length && ((json[curr] >= (byte)'0' && json[curr] <= (byte)'9') || json[curr] == (byte)'.' || json[curr] == (byte)'e' || json[curr] == (byte)'E' || json[curr] == (byte)'+' || json[curr] == (byte)'-')) curr++;
+
+                if (curr < json.Length && json[curr] == (byte)'"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (Utf8Parser.TryParse(sliceFallback, out result, out int consumed) && consumed == sliceFallback.Length)
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
