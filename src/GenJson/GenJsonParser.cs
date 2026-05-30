@@ -118,6 +118,34 @@ namespace GenJson
 
 
 
+        private static char ParseHexFour(ReadOnlySpan<char> span)
+        {
+            var val = 0;
+            for (var i = 0; i < 4; i++)
+            {
+                var h = span[i];
+                val <<= 4;
+                if (h >= '0' && h <= '9') val |= h - '0';
+                else if (h >= 'a' && h <= 'f') val |= h - 'a' + 10;
+                else if (h >= 'A' && h <= 'F') val |= h - 'A' + 10;
+            }
+            return (char)val;
+        }
+
+        private static char ParseHexFour(ReadOnlySpan<byte> span)
+        {
+            var val = 0;
+            for (var i = 0; i < 4; i++)
+            {
+                var h = span[i];
+                val <<= 4;
+                if (h >= '0' && h <= '9') val |= h - '0';
+                else if (h >= 'a' && h <= 'f') val |= h - 'a' + 10;
+                else if (h >= 'A' && h <= 'F') val |= h - 'A' + 10;
+            }
+            return (char)val;
+        }
+
         public static string UnescapeString(ReadOnlySpan<char> input)
         {
             var maxLen = input.Length;
@@ -163,8 +191,7 @@ namespace GenJson
                         case 'u':
                             var hexSequence = input.Slice(readIdx, 4);
                             readIdx += 4;
-                            output[writeIdx++] = (char)int.Parse(hexSequence, NumberStyles.HexNumber,
-                                CultureInfo.InvariantCulture);
+                            output[writeIdx++] = ParseHexFour(hexSequence);
                             break;
                         default: output[writeIdx++] = c; break;
                     }
@@ -178,58 +205,71 @@ namespace GenJson
             return writeIdx;
         }
 
-
         public static string UnescapeStringUtf8(ReadOnlySpan<byte> input)
         {
-            var rented = ArrayPool<char>.Shared.Rent(input.Length);
+            var maxLen = input.Length;
+            if (maxLen <= 128)
+            {
+                Span<char> buffer = stackalloc char[maxLen];
+                var written = UnescapeUtf8Into(input, buffer);
+                return new string(buffer.Slice(0, written));
+            }
+
+            var rented = ArrayPool<char>.Shared.Rent(maxLen);
             try
             {
-                int written = 0;
-                int readIdx = 0;
-                while (readIdx < input.Length)
-                {
-                    var chunkStart = readIdx;
-                    while (readIdx < input.Length && input[readIdx] != (byte)'\\')
-                    {
-                        readIdx++;
-                    }
-
-                    if (readIdx > chunkStart)
-                    {
-                        written += Encoding.UTF8.GetChars(input.Slice(chunkStart, readIdx - chunkStart), rented.AsSpan(written));
-                    }
-
-                    if (readIdx >= input.Length)
-                    {
-                        break;
-                    }
-
-                    readIdx++;
-                    var c = (char)input[readIdx++];
-                    switch (c)
-                    {
-                        case '"': rented[written++] = '"'; break;
-                        case '\\': rented[written++] = '\\'; break;
-                        case '/': rented[written++] = '/'; break;
-                        case 'b': rented[written++] = '\b'; break;
-                        case 'f': rented[written++] = '\f'; break;
-                        case 'n': rented[written++] = '\n'; break;
-                        case 'r': rented[written++] = '\r'; break;
-                        case 't': rented[written++] = '\t'; break;
-                        case 'u':
-                            Span<char> hexChars = stackalloc char[4];
-                            for (int i = 0; i < 4; i++) hexChars[i] = (char)input[readIdx++];
-                            rented[written++] = (char)int.Parse(hexChars, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                            break;
-                        default: rented[written++] = c; break;
-                    }
-                }
+                var written = UnescapeUtf8Into(input, rented);
                 return new string(rented, 0, written);
             }
             finally
             {
                 ArrayPool<char>.Shared.Return(rented);
             }
+        }
+
+        private static int UnescapeUtf8Into(ReadOnlySpan<byte> input, Span<char> output)
+        {
+            int written = 0;
+            int readIdx = 0;
+            while (readIdx < input.Length)
+            {
+                var chunkStart = readIdx;
+                while (readIdx < input.Length && input[readIdx] != (byte)'\\')
+                {
+                    readIdx++;
+                }
+
+                if (readIdx > chunkStart)
+                {
+                    written += Encoding.UTF8.GetChars(input.Slice(chunkStart, readIdx - chunkStart), output.Slice(written));
+                }
+
+                if (readIdx >= input.Length)
+                {
+                    break;
+                }
+
+                readIdx++;
+                var c = (char)input[readIdx++];
+                switch (c)
+                {
+                    case '"': output[written++] = '"'; break;
+                    case '\\': output[written++] = '\\'; break;
+                    case '/': output[written++] = '/'; break;
+                    case 'b': output[written++] = '\b'; break;
+                    case 'f': output[written++] = '\f'; break;
+                    case 'n': output[written++] = '\n'; break;
+                    case 'r': output[written++] = '\r'; break;
+                    case 't': output[written++] = '\t'; break;
+                    case 'u':
+                        var hexSequence = input.Slice(readIdx, 4);
+                        readIdx += 4;
+                        output[written++] = ParseHexFour(hexSequence);
+                        break;
+                    default: output[written++] = c; break;
+                }
+            }
+            return written;
         }
 
 
@@ -827,6 +867,118 @@ namespace GenJson
                 return true;
             }
 
+            return false;
+        }
+
+        public static bool TryParseGuid(ReadOnlySpan<char> json, ref int index, out Guid result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeString(span);
+                return Guid.TryParse(s, out result);
+            }
+            return Guid.TryParse(span, out result);
+        }
+
+        public static bool TryParseDateTime(ReadOnlySpan<char> json, ref int index, out DateTime result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeString(span);
+                return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out result);
+            }
+            return DateTime.TryParse(span, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out result);
+        }
+
+        public static bool TryParseDateTimeOffset(ReadOnlySpan<char> json, ref int index, out DateTimeOffset result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeString(span);
+                return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+            }
+            return DateTimeOffset.TryParse(span, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+        }
+
+        public static bool TryParseTimeSpan(ReadOnlySpan<char> json, ref int index, out TimeSpan result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeString(span);
+                return TimeSpan.TryParse(s, out result);
+            }
+            return TimeSpan.TryParse(span, out result);
+        }
+
+        public static bool TryParseVersion(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out Version? result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeString(span);
+                return Version.TryParse(s, out result);
+            }
+            return Version.TryParse(span, out result);
+        }
+
+        public static bool TryParseUri(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out Uri? result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            string s = escaped ? UnescapeString(span) : new string(span);
+            return Uri.TryCreate(s, UriKind.RelativeOrAbsolute, out result);
+        }
+
+        public static bool TryParseGuid(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out Guid? result)
+        {
+            if (TryParseGuid(json, ref index, out Guid val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseDateTime(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out DateTime? result)
+        {
+            if (TryParseDateTime(json, ref index, out DateTime val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseDateTimeOffset(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out DateTimeOffset? result)
+        {
+            if (TryParseDateTimeOffset(json, ref index, out DateTimeOffset val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseTimeSpan(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out TimeSpan? result)
+        {
+            if (TryParseTimeSpan(json, ref index, out TimeSpan val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
             return false;
         }
 
@@ -1817,6 +1969,148 @@ namespace GenJson
                 return true;
             }
 
+            return false;
+        }
+
+        public static bool TryParseGuid(ReadOnlySpan<byte> json, ref int index, out Guid result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeStringUtf8(span);
+                return Guid.TryParse(s, out result);
+            }
+            if (Utf8Parser.TryParse(span, out result, out var bytesConsumed) && bytesConsumed == span.Length)
+            {
+                return true;
+            }
+            var str = Encoding.UTF8.GetString(span);
+            return Guid.TryParse(str, out result);
+        }
+
+        public static bool TryParseDateTime(ReadOnlySpan<byte> json, ref int index, out DateTime result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeStringUtf8(span);
+                return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out result);
+            }
+            if (Utf8Parser.TryParse(span, out result, out var bytesConsumed, 'O') && bytesConsumed == span.Length)
+            {
+                return true;
+            }
+            var str = Encoding.UTF8.GetString(span);
+            return DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out result);
+        }
+
+        public static bool TryParseDateTimeOffset(ReadOnlySpan<byte> json, ref int index, out DateTimeOffset result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeStringUtf8(span);
+                return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+            }
+            if (Utf8Parser.TryParse(span, out result, out var bytesConsumed, 'O') && bytesConsumed == span.Length)
+            {
+                return true;
+            }
+            var str = Encoding.UTF8.GetString(span);
+            return DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+        }
+
+        public static bool TryParseTimeSpan(ReadOnlySpan<byte> json, ref int index, out TimeSpan result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeStringUtf8(span);
+                return TimeSpan.TryParse(s, out result);
+            }
+            if (Utf8Parser.TryParse(span, out result, out var bytesConsumed, 'c') && bytesConsumed == span.Length)
+            {
+                return true;
+            }
+            var str = Encoding.UTF8.GetString(span);
+            return TimeSpan.TryParse(str, out result);
+        }
+
+        public static bool TryParseVersion(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out Version? result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            if (escaped)
+            {
+                var s = UnescapeStringUtf8(span);
+                return Version.TryParse(s, out result);
+            }
+            if (span.Length <= 64)
+            {
+                Span<char> chars = stackalloc char[span.Length];
+                int written = Encoding.UTF8.GetChars(span, chars);
+                return Version.TryParse(chars.Slice(0, written), out result);
+            }
+            else
+            {
+                var str = Encoding.UTF8.GetString(span);
+                return Version.TryParse(str, out result);
+            }
+        }
+
+        public static bool TryParseUri(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out Uri? result)
+        {
+            result = default;
+            if (!TryParseStringSpan(json, ref index, out var span, out var escaped)) return false;
+            string s = escaped ? UnescapeStringUtf8(span) : Encoding.UTF8.GetString(span);
+            return Uri.TryCreate(s, UriKind.RelativeOrAbsolute, out result);
+        }
+
+        public static bool TryParseGuid(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out Guid? result)
+        {
+            if (TryParseGuid(json, ref index, out Guid val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseDateTime(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out DateTime? result)
+        {
+            if (TryParseDateTime(json, ref index, out DateTime val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseDateTimeOffset(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out DateTimeOffset? result)
+        {
+            if (TryParseDateTimeOffset(json, ref index, out DateTimeOffset val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        public static bool TryParseTimeSpan(ReadOnlySpan<byte> json, ref int index, [NotNullWhen(true)] out TimeSpan? result)
+        {
+            if (TryParseTimeSpan(json, ref index, out TimeSpan val))
+            {
+                result = val;
+                return true;
+            }
+            result = null;
             return false;
         }
 

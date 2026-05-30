@@ -712,50 +712,38 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             case GenJsonDataType.Guid:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.Guid.TryParse({targetVar}_str, out System.Guid {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseGuid(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.DateTime:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.DateTime.TryParse({targetVar}_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out System.DateTime {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseDateTime(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.TimeSpan:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.TimeSpan.TryParse({targetVar}_str, out System.TimeSpan {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseTimeSpan(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.DateTimeOffset:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.DateTimeOffset.TryParse({targetVar}_str, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out System.DateTimeOffset {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseDateTimeOffset(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.Version:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.Version.TryParse({targetVar}_str, out System.Version? {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseVersion(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.Uri:
                 sb.Append(indent);
-                sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}String(json, ref index, out var {targetVar}_str) || !System.Uri.TryCreate({targetVar}_str, System.UriKind.RelativeOrAbsolute, out System.Uri? {targetVar}_val))");
+                sb.Append($"if (!global::GenJson.GenJsonParser.TryParseUri(json, ref index, out {targetVar}))");
                 sb.Append($" return null;"); sb.AppendLine();
-                sb.Append(indent);
-                sb.AppendLine($"{targetVar} = {targetVar}_val;");
                 break;
 
             case GenJsonDataType.Enum en:
@@ -2379,6 +2367,17 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 var bytes = System.Text.Encoding.UTF8.GetBytes(prop.JsonName);
                 sb.Append(string.Join(", ", bytes));
                 sb.AppendLine($" }};");
+
+                if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+                {
+                    sb.Append(indent);
+                    sb.Append($"System.ReadOnlySpan<byte> _Utf8_count_");
+                    sb.Append(prop.Name);
+                    sb.Append($" = new byte[] {{ ");
+                    var countBytes = System.Text.Encoding.UTF8.GetBytes("$" + prop.JsonName);
+                    sb.Append(string.Join(", ", countBytes));
+                    sb.AppendLine($" }};");
+                }
             }
             if (data.PolymorphicDiscriminatorProp != null)
             {
@@ -2557,9 +2556,19 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             {
                 sb.Append(indent);
                 sb.Append("    if (");
-                sb.Append("global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
-                sb.Append(prop.JsonName);
-                sb.AppendLine("\"))");
+                if (isUtf8)
+                {
+                    sb.Append("global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
+                    sb.Append(prop.JsonName);
+                    sb.Append($"\", _Utf8_count_{prop.Name}");
+                    sb.AppendLine("))");
+                }
+                else
+                {
+                    sb.Append("global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
+                    sb.Append(prop.JsonName);
+                    sb.AppendLine("\"))");
+                }
                 sb.Append(indent);
                 sb.AppendLine("    {");
                 sb.Append(indent);

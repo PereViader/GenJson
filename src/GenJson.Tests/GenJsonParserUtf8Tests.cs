@@ -538,5 +538,63 @@ namespace GenJson.Tests
             Assert.That(GenJsonParser.TryExpect(Utf8(" ["), ref idx, (byte)'['), Is.False);
             Assert.That(idx, Is.EqualTo(0));
         }
+
+        [Test]
+        public void TryParse_Utf8_SpanParserHelpers_Correctness()
+        {
+            // Guid
+            var guid = Guid.NewGuid();
+            var jsonGuid = Utf8($"\"{guid}\"");
+            int idx = 0;
+            Assert.That(GenJsonParser.TryParseGuid(jsonGuid, ref idx, out Guid parsedGuid), Is.True);
+            Assert.That(parsedGuid, Is.EqualTo(guid));
+            Assert.That(idx, Is.EqualTo(jsonGuid.Length));
+
+            // Nullable Guid
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseGuid(jsonGuid, ref idx, out Guid? parsedGuidNullable), Is.True);
+            Assert.That(parsedGuidNullable, Is.EqualTo(guid));
+
+            // Escaped Guid
+            var escapedGuid = Utf8($"\"\\u007b{guid}\\u007d\""); // '{' and '}' escaped around the guid
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseGuid(escapedGuid, ref idx, out Guid parsedEscapedGuid), Is.True);
+            Assert.That(parsedEscapedGuid, Is.EqualTo(Guid.Parse($"{{{guid}}}")));
+
+            // DateTime
+            var dt = new DateTime(2025, 5, 30, 22, 0, 0, DateTimeKind.Utc);
+            var jsonDt = Utf8($"\"{dt:O}\"");
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDateTime(jsonDt, ref idx, out DateTime parsedDt), Is.True);
+            Assert.That(parsedDt, Is.EqualTo(dt));
+
+            // DateTimeOffset
+            var dto = new DateTimeOffset(2025, 5, 30, 22, 0, 0, TimeSpan.FromHours(2));
+            var jsonDto = Utf8($"\"{dto:O}\"");
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseDateTimeOffset(jsonDto, ref idx, out DateTimeOffset parsedDto), Is.True);
+            Assert.That(parsedDto, Is.EqualTo(dto));
+
+            // TimeSpan
+            var ts = TimeSpan.FromMinutes(123);
+            var jsonTs = Utf8($"\"{ts:c}\"");
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseTimeSpan(jsonTs, ref idx, out TimeSpan parsedTs), Is.True);
+            Assert.That(parsedTs, Is.EqualTo(ts));
+
+            // Version
+            var ver = new Version(1, 2, 3, 4);
+            var jsonVer = Utf8($"\"{ver}\"");
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseVersion(jsonVer, ref idx, out Version? parsedVer), Is.True);
+            Assert.That(parsedVer, Is.EqualTo(ver));
+
+            // Uri
+            var uri = new Uri("https://example.com/api?param=1");
+            var jsonUri = Utf8($"\"{uri}\"");
+            idx = 0;
+            Assert.That(GenJsonParser.TryParseUri(jsonUri, ref idx, out Uri? parsedUri), Is.True);
+            Assert.That(parsedUri, Is.EqualTo(uri));
+        }
     }
 }
