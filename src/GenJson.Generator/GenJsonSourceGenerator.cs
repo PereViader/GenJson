@@ -91,7 +91,6 @@ public record ClassData(
     bool HasGenJsonBase,
     bool IsNullableContext,
     string? PolymorphicDiscriminatorProp,
-    bool SkipCountOptimization,
     EquatableList<DerivedTypeData> DerivedTypes);
 
 public record DerivedTypeData(string TypeName, string DiscriminatorValue, bool IsIntDiscriminator);
@@ -335,9 +334,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
-        bool skipCountOptimization = typeSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonSkipCountOptimizationAttribute");
-
-        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, skipCountOptimization, new EquatableList<DerivedTypeData>(derivedTypes));
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
     }
 
     private static PropertyData? GetPropertyForParameter(
@@ -761,7 +758,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(targetVar);
                 sb.Append(" = ");
                 sb.Append(o.TypeName); // Assuming generated class has Parse
-                sb.Append($".{parseMethod}(json, ref index);");
+                sb.Append($".{parseMethod}(json, ref index, useCountOptimization);");
                 sb.AppendLine();
                 break;
 
@@ -1194,7 +1191,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.Append("size += ");
                 sb.Append(valueAccessor);
-                sb.AppendLine($".{calcMethod}();");
+                sb.AppendLine($".{calcMethod}(useCountOptimization);");
                 break;
 
             case GenJsonDataType.Nullable nullable:
@@ -1655,7 +1652,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             case GenJsonDataType.Object:
                 sb.Append(indent);
                 sb.Append(valueAccessor);
-                sb.AppendLine($".{writeMethod}(span, ref index);");
+                sb.AppendLine($".{writeMethod}(span, ref index, useCountOptimization);");
                 break;
 
             case GenJsonDataType.Nullable nullable:
@@ -1895,7 +1892,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        public ");
         sb.Append(newModifier);
-        sb.AppendLine($"int {methodName}()");
+        sb.AppendLine($"int {methodName}(bool useCountOptimization = false)");
         sb.AppendLine("        {");
         if (data.DerivedTypes.Value.Count > 0)
         {
@@ -1909,7 +1906,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 var discKey = data.PolymorphicDiscriminatorProp ?? "$type";
                 int overhead = (isUtf8 ? System.Text.Encoding.UTF8.GetByteCount(discKey) : discKey.Length) + 3 + 1;
                 overhead += isUtf8 ? System.Text.Encoding.UTF8.GetByteCount(derived.DiscriminatorValue) : derived.DiscriminatorValue.Length; // discriminator value includes quotes if string, so byte count is safe
-                sb.AppendLine($"                    return d" + derivedIdx + $".{methodName}() + " + overhead + ";");
+                sb.AppendLine($"                    return d" + derivedIdx + $".{methodName}(useCountOptimization) + " + overhead + ";");
             }
             sb.AppendLine("                default:");
             if (data.IsAbstract)
@@ -1957,63 +1954,77 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             sb.Append(indent);
             sb.AppendLine("propertyCount++;");
-            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
+            if (prop.Type is GenJsonDataType.Enumerable en)
             {
                 int countOverhead = (isUtf8 ? System.Text.Encoding.UTF8.GetByteCount(prop.JsonName) : prop.JsonName.Length) + 4; // "$Name":
+                sb.Append(indent);
+                sb.AppendLine("if (useCountOptimization)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                string subIndent = indent + "    ";
                 if (en.IsArray)
                 {
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append("size += ");
                     sb.Append(countOverhead);
                     sb.AppendLine(";");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append($"size += {sizeHelper}(this.");
                     sb.Append(prop.Name);
                     sb.AppendLine(".Length);");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("size += 1;"); // Comma
                 }
                 else
                 {
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("{");
-                    GenerateGetCollectionCount(sb, indent, prop.Name, en.ElementTypeName);
+                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.ElementTypeName);
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    if (_count >= 0)");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    {");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append("        size += ");
                     sb.Append(countOverhead);
                     sb.AppendLine(";");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine($"        size += {sizeHelper}(_count);");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("        size += 1;");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    }");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("}");
                 }
+                sb.Append(indent);
+                sb.AppendLine("}");
             }
-            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
+            else if (prop.Type is GenJsonDataType.Dictionary)
             {
                 int countOverhead = (isUtf8 ? System.Text.Encoding.UTF8.GetByteCount(prop.JsonName) : prop.JsonName.Length) + 4; // "$Name":
                 sb.Append(indent);
+                sb.AppendLine("if (useCountOptimization)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                string subIndent = indent + "    ";
+                sb.Append(subIndent);
                 sb.Append("size += ");
                 sb.Append(countOverhead);
                 sb.AppendLine(";");
 
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.Append($"size += {sizeHelper}(this.");
                 sb.Append(prop.Name);
                 sb.AppendLine(".Count);");
 
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.AppendLine("size += 1;"); // Comma
+                sb.Append(indent);
+                sb.AppendLine("}");
             }
 
             sb.Append(indent);
@@ -2039,24 +2050,24 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     {
         string methodName = isUtf8 ? "ToJsonUtf8" : "ToJson";
         string returnType = isUtf8 ? "byte[]" : "string";
-        string methodSig = $"public {newModifier}{returnType} {methodName}()";
+        string methodSig = $"public {newModifier}{returnType} {methodName}(bool useCountOptimization = false)";
 
         sb.AppendLine($"        {methodSig}");
         sb.AppendLine("        {");
         if (isUtf8)
         {
-            sb.AppendLine("            var bytes = new byte[CalculateJsonSizeUtf8()];");
+            sb.AppendLine("            var bytes = new byte[CalculateJsonSizeUtf8(useCountOptimization)];");
             sb.AppendLine("            System.Span<byte> span = bytes;");
             sb.AppendLine("            int index = 0;");
-            sb.AppendLine("            WriteJsonUtf8(span, ref index);");
+            sb.AppendLine("            WriteJsonUtf8(span, ref index, useCountOptimization);");
             sb.AppendLine("            return bytes;");
         }
         else
         {
-            sb.AppendLine("            return string.Create(CalculateJsonSize(), this, (span, state) =>");
+            sb.AppendLine("            return string.Create(CalculateJsonSize(useCountOptimization), (this, useCountOptimization), (span, state) =>");
             sb.AppendLine("            {");
             sb.AppendLine("                int index = 0;");
-            sb.AppendLine("                state.WriteJson(span, ref index);");
+            sb.AppendLine("                state.Item1.WriteJson(span, ref index, state.Item2);");
             sb.AppendLine("            });");
         }
         sb.AppendLine("        }");
@@ -2072,7 +2083,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        public ");
         sb.Append(newModifier);
-        sb.AppendLine($"void {methodName}({spanType} span, ref int index)");
+        sb.AppendLine($"void {methodName}({spanType} span, ref int index, bool useCountOptimization = false)");
         sb.AppendLine("        {");
         if (data.DerivedTypes.Value.Count > 0)
         {
@@ -2098,7 +2109,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine("                    global::GenJson.GenJsonWriter.WriteString(span, ref index, " + derived.DiscriminatorValue + ");");
                 }
                 sb.AppendLine(isUtf8 ? "                    span[index++] = (byte)',';" : "                    span[index++] = ',';");
-                sb.AppendLine("                    d" + derivedIdx + $".{methodContent}(span, ref index);");
+                sb.AppendLine("                    d" + derivedIdx + $".{methodContent}(span, ref index, useCountOptimization);");
                 sb.AppendLine(isUtf8 ? "                    span[index++] = (byte)'}';" : "                    span[index++] = '}';");
                 sb.AppendLine("                    return;");
                 sb.AppendLine("                }");
@@ -2128,7 +2139,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
         sb.AppendLine(isUtf8 ? "            span[index++] = (byte)'{';" : "            span[index++] = '{';");
-        sb.AppendLine($"            {methodContent}(span, ref index);");
+        sb.AppendLine($"            {methodContent}(span, ref index, useCountOptimization);");
         sb.AppendLine(isUtf8 ? "            span[index++] = (byte)'}';" : "            span[index++] = '}';");
         sb.AppendLine("        }");
 
@@ -2143,7 +2154,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        public ");
         sb.Append(newModifier);
-        sb.AppendLine($"void {methodName}({spanType} span, ref int index)");
+        sb.AppendLine($"void {methodName}({spanType} span, ref int index, bool useCountOptimization = false)");
         sb.AppendLine("        {");
         bool needFirstSpan = allProperties.Count > 1 && allProperties[0].IsNullable;
         if (needFirstSpan)
@@ -2202,84 +2213,98 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 else stateSpan = 1;
             }
 
-            if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Enumerable en)
+            if (prop.Type is GenJsonDataType.Enumerable en)
             {
+                sb.Append(indent);
+                sb.AppendLine("if (useCountOptimization)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                string subIndent = indent + "    ";
                 if (en.IsArray)
                 {
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
                     sb.Append(prop.JsonName);
                     sb.AppendLine("\");");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine(isUtf8 ? "span[index++] = (byte)':';" : "span[index++] = ':';");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append("{ if (!this.");
                     sb.Append(prop.Name);
                     sb.AppendLine(".Length.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    index += written; }");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine(isUtf8 ? "span[index++] = (byte)',';" : "span[index++] = ',';");
                 }
                 else
                 {
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("{");
-                    GenerateGetCollectionCount(sb, indent, prop.Name, en.ElementTypeName);
+                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.ElementTypeName);
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    if (_count >= 0)");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    {");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
                     sb.Append(prop.JsonName);
                     sb.AppendLine("\");");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine(isUtf8 ? "        span[index++] = (byte)':';" : "        span[index++] = ':';");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("            { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("            index += written; }");
 
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine(isUtf8 ? "        span[index++] = (byte)',';" : "        span[index++] = ',';");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("    }");
-                    sb.Append(indent);
+                    sb.Append(subIndent);
                     sb.AppendLine("}");
                 }
+                sb.Append(indent);
+                sb.AppendLine("}");
             }
-            else if (!data.SkipCountOptimization && prop.Type is GenJsonDataType.Dictionary)
+            else if (prop.Type is GenJsonDataType.Dictionary)
             {
                 sb.Append(indent);
+                sb.AppendLine("if (useCountOptimization)");
+                sb.Append(indent);
+                sb.AppendLine("{");
+                string subIndent = indent + "    ";
+                sb.Append(subIndent);
                 sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
                 sb.Append(prop.JsonName);
                 sb.AppendLine("\");");
 
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.AppendLine(isUtf8 ? "span[index++] = (byte)':';" : "span[index++] = ':';");
 
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.Append("{ if (!this.");
                 sb.Append(prop.Name);
                 sb.AppendLine(".Count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.AppendLine("    index += written; }");
 
-                sb.Append(indent);
+                sb.Append(subIndent);
                 sb.AppendLine(isUtf8 ? "span[index++] = (byte)',';" : "span[index++] = ',';");
+                sb.Append(indent);
+                sb.AppendLine("}");
             }
 
             sb.Append(indent);
@@ -2319,18 +2344,10 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        public static ");
         sb.Append(newModifier);
-        sb.AppendLine(data.ClassName + $"? {methodName}({inputType} json)");
+        sb.AppendLine(data.ClassName + $"? {methodName}({inputType} json, bool useCountOptimization = false)");
         sb.AppendLine("        {");
-        if (isUtf8)
-        {
-            sb.AppendLine($"            int index = 0;");
-            sb.AppendLine($"            return {parseMethod}(json, ref index);");
-        }
-        else
-        {
-            sb.AppendLine($"            int index = 0;");
-            sb.AppendLine($"            return {parseMethod}(json, ref index);");
-        }
+        sb.AppendLine($"            int index = 0;");
+        sb.AppendLine($"            return {parseMethod}(json, ref index, useCountOptimization);");
         sb.AppendLine("        }");
         sb.AppendLine();
     }
@@ -2344,7 +2361,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         sb.Append("        internal static ");
         sb.Append(newModifier);
-        sb.AppendLine(data.ClassName + $"? {methodName}({spanType} json, ref int index)");
+        sb.AppendLine(data.ClassName + $"? {methodName}({spanType} json, ref int index, bool useCountOptimization = false)");
         sb.AppendLine("        {");
 
         // Ensure Expect '{'
@@ -2368,7 +2385,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(string.Join(", ", bytes));
                 sb.AppendLine($" }};");
 
-                if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+                if (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)
                 {
                     sb.Append(indent);
                     sb.Append($"System.ReadOnlySpan<byte> _Utf8_count_");
@@ -2436,7 +2453,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.AppendLine("                int i = index - 1;");
                 sb.Append(indent);
-                sb.AppendLine($"                var result = {derived.TypeName}.{methodName}(json, ref i);");
+                sb.AppendLine($"                var result = {derived.TypeName}.{methodName}(json, ref i, useCountOptimization);");
                 sb.Append(indent);
                 sb.AppendLine("                index = i;");
                 sb.Append(indent);
@@ -2470,7 +2487,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(indent);
                     sb.AppendLine("                        int i = index - 1;");
                     sb.Append(indent);
-                    sb.AppendLine($"                        var result = {derived.TypeName}.{methodName}(json, ref i);");
+                    sb.AppendLine($"                        var result = {derived.TypeName}.{methodName}(json, ref i, useCountOptimization);");
                     sb.Append(indent);
                     sb.AppendLine("                        index = i;");
                     sb.Append(indent);
@@ -2503,7 +2520,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(prop.Name);
             sb.AppendLine(" = default;");
 
-            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+            if (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)
             {
                 sb.Append(indent);
                 sb.Append("int _");
@@ -2552,10 +2569,10 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         // Optimization: Linear independent ifs
         foreach (var prop in allProperties)
         {
-            if (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary))
+            if (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)
             {
                 sb.Append(indent);
-                sb.Append("    if (");
+                sb.Append("    if (useCountOptimization && ");
                 if (isUtf8)
                 {
                     sb.Append("global::GenJson.GenJsonParser.MatchesKey(json, ref index, \"$");
@@ -2614,7 +2631,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(indent);
             sb.AppendLine($"        if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, {(isUtf8 ? "(byte)':'" : "':'")})) return null;");
 
-            GenerateParseValue(sb, prop.Type, "_" + prop.Name, indent + "        ", 0, isUtf8, (!data.SkipCountOptimization && (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary)) ? $"_{prop.Name}_count" : null);
+            GenerateParseValue(sb, prop.Type, "_" + prop.Name, indent + "        ", 0, isUtf8, (prop.Type is GenJsonDataType.Enumerable or GenJsonDataType.Dictionary) ? $"(useCountOptimization ? _{prop.Name}_count : -1)" : null);
 
             if (data.IsNullableContext && !prop.IsNullable)
             {

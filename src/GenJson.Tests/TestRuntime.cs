@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
@@ -947,25 +947,25 @@ public class TestRuntime
             NullableArrayNull = null,
             NullableListNull = null,
         };
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[1,2],"$ArrayPresent":1,"ArrayPresent":[3],"$ListPresent":1,"ListPresent":[4],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":[5],"$NullableArrayPresent":1,"NullableArrayPresent":[6],"$NullableListPresent":1,"NullableListPresent":[7]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableIntClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = EnumerableIntClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = EnumerableIntClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = EnumerableIntClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
@@ -987,25 +987,25 @@ public class TestRuntime
             NullableArrayNull = null,
             NullableListNull = null,
         };
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$EnumerablePresent":2,"EnumerablePresent":["1","2"],"$ArrayPresent":1,"ArrayPresent":["3"],"$ListPresent":1,"ListPresent":["4"],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":["5"],"$NullableArrayPresent":1,"NullableArrayPresent":["6"],"$NullableListPresent":1,"NullableListPresent":["7"]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableStringClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = EnumerableStringClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = EnumerableStringClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = EnumerableStringClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableIntClass.FromJson("{}"), Is.Null);
@@ -1027,25 +1027,25 @@ public class TestRuntime
             NullableArrayNull = null,
             NullableListNull = null,
         };
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[{"Value":1},{"Value":2}],"$ArrayPresent":1,"ArrayPresent":[{}],"$ListPresent":1,"ListPresent":[{}],"$NullableEnumerablePresent":1,"NullableEnumerablePresent":[{}],"$NullableArrayPresent":1,"NullableArrayPresent":[{}],"$NullableListPresent":1,"NullableListPresent":[{}]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumerableParentClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = EnumerableParentClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = EnumerableParentClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = EnumerableParentClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumerableParentClass.FromJson("{}"), Is.Null);
@@ -1059,25 +1059,25 @@ public class TestRuntime
         {
             EnumerablePresent = [[new EmptyClass() { Value = 1 }, new EmptyClass()], [new EmptyClass(), new EmptyClass() { Value = 2 }]],
         };
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$EnumerablePresent":2,"EnumerablePresent":[[{"Value":1},{}],[{},{"Value":2}]]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = NestedEnumerableClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = NestedEnumerableClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = NestedEnumerableClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = NestedEnumerableClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(NestedEnumerableClass.FromJson("{}"), Is.Null);
@@ -1097,25 +1097,25 @@ public class TestRuntime
             NullableDictionaryIntIntNull = null
         };
 
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$PresentIntInt":2,"PresentIntInt":{"1":2,"3":4},"$PresentIntString":1,"PresentIntString":{"5":"6"},"$PresentStringInt":1,"PresentStringInt":{"7":8},"$PresentIntEnumerableInt":1,"PresentIntEnumerableInt":{"9":[10]},"$PresentDictionaryIntEmptyClasses":1,"PresentDictionaryIntEmptyClasses":{"11":{"Value":12}}}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = DictionaryClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = DictionaryClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = DictionaryClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = DictionaryClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(DictionaryClass.FromJson("{}"), Is.Null);
@@ -1129,25 +1129,25 @@ public class TestRuntime
         {
             Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass() } } } },
         };
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$Present":1,"Present":{"1":{"2":{"Value":3},"4":{}}}}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = NestedDictionaryClass.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = NestedDictionaryClass.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = NestedDictionaryClass.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = NestedDictionaryClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(NestedDictionaryClass.FromJson("{}"), Is.Null);

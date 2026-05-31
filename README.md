@@ -45,7 +45,7 @@ This project is compatible with both pure C# projects and Unity3D.
 - [Newtonsoft.Json](https://www.newtonsoft.com/json)
 - [Utf8Json](https://github.com/Cryptisk/Utf8Json)
 
-Note: GenJson_ToJson consumes slightly more memory than Utf8Json_ToJson due to GenJson adding an extra `$Count` property so that the receiving end can optimize the deserialization of the collections.
+Note: When count optimization is enabled (by passing useCountOptimization: true), GenJson_ToJson consumes slightly more memory than Utf8Json_ToJson due to GenJson adding an extra `$Count` property so that the receiving end can optimize the deserialization of the collections.
 
 ## Installation
 
@@ -256,6 +256,9 @@ string json = product.ToJson();
 
 // You can also serialize directly to a UTF-8 byte array
 byte[] utf8Json = product.ToJsonUtf8();
+
+// You can enable collection count optimization by passing useCountOptimization: true
+string optimizedJson = product.ToJson(useCountOptimization: true);
 ```
 
 ### 8. Deserialization
@@ -268,6 +271,9 @@ Product product = Product.FromJson(json);
 // You can also deserialize directly from a UTF-8 byte span or array
 byte[] utf8Json = ... // e.g. from a network stream
 Product productUtf8 = Product.FromJsonUtf8(utf8Json);
+
+// If the JSON was serialized with count optimization, pass useCountOptimization: true to utilize it
+Product productOptimized = Product.FromJson(optimizedJson, useCountOptimization: true);
 ```
 
 > [!IMPORTANT]
@@ -359,25 +365,26 @@ public partial class Cat : Animal
 GenJson optimizes collection deserialization (Lists, Arrays, Dictionaries) by pre-allocating the collection with the exact size. This avoids resizing overhead during population.
 
 **How it works:**
-- **Serialization**: The generator automatically emits a hidden property named after the collection with a `$` prefix (e.g., `"$MyList": 5`) immediately before the collection property.
-- **Deserialization**: The parser reads this count property first and initializes the collection with the correct capacity (e.g., `new List<int>(5)`).
+- **Serialization**: When `useCountOptimization: true` is passed, the generator automatically emits a hidden property named after the collection with a `$` prefix (e.g., `"$MyList": 5`) immediately before the collection property.
+- **Deserialization**: When `useCountOptimization: true` is passed, the parser reads this count property first and initializes the collection with the correct capacity (e.g., `new List<int>(5)`).
 
 > [!NOTE]
-> GenJson can still parse standard JSON without the count property. If the property is missing, it will automatically fall back to counting the elements of the collection before doing the allocation.
+> GenJson can still parse standard JSON without the count property. If the property is missing, or if `useCountOptimization` is `false`, it will automatically fall back to counting the elements of the collection before doing the allocation.
 
-**Disabling Optimization:**
-To maintain strictly standard JSON or avoid extra metadata properties, apply the [GenJsonSkipCountOptimization] attribute to your class or struct.
+**Enabling Optimization:**
+By default, count optimization is disabled to maintain strictly standard JSON and avoid extra metadata properties. To enable it, pass `useCountOptimization: true` to the serialization and deserialization methods.
 
 > [!TIP] 
-> If the receiving end doesn't use count metadata, disabling this optimization speeds up ToJson execution and reduces memory allocations.
+> If the receiving end doesn't use count metadata, leaving count optimization disabled (the default) speeds up ToJson execution and reduces memory allocations.
 
 ```csharp
-[GenJson]
-[GenJsonSkipCountOptimization] // Disables usage of $MyList property
-public partial class MyClass
-{
-    public List<int> MyList { get; set; }
-}
+var myObj = new MyClass { MyList = new List<int> { 1, 2, 3 } };
+
+// Serialize with count optimization (emits "$MyList": 3 in JSON)
+string json = myObj.ToJson(useCountOptimization: true);
+
+// Deserialize using count optimization (utilizes "$MyList": 3 to pre-allocate)
+var deserialized = MyClass.FromJson(json, useCountOptimization: true);
 ```
 
 ## How It Works

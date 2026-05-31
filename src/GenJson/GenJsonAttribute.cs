@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace GenJson
 {
@@ -114,14 +114,5 @@ namespace GenJson
 
         public Type Type { get; }
         public object? TypeDiscriminatorValue { get; }
-    }
-    /// <summary>
-    /// This attribute can be used to skip the count optimization for collections.
-    /// When applied to a class or struct, the generator will not emit the $PropertyName count property
-    /// and will not look for it during deserialization.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public sealed class GenJsonSkipCountOptimizationAttribute : Attribute
-    {
     }
 }

@@ -77,13 +77,13 @@ namespace GenJson.Tests
             var json = """{"Value":{"Zero":0,"First":1,"Second":2,"Third":3}}""";
             var obj = FallbackDictionaryTextEnumClass.FromJson(json);
             Assert.That(obj, Is.Not.Null);
-            var result = obj!.ToJson();
+            var result = obj!.ToJson(useCountOptimization: true);
             var expected = """{"$Value":2,"Value":{"First":1,"Second":2}}""";
             Assert.That(result, Is.EqualTo(expected));
 
             var utf8Json = System.Text.Encoding.UTF8.GetBytes(json);
             var utf8Obj = FallbackDictionaryTextEnumClass.FromJsonUtf8(utf8Json);
-            var utf8Result = utf8Obj!.ToJsonUtf8();
+            var utf8Result = utf8Obj!.ToJsonUtf8(useCountOptimization: true);
             Assert.That(utf8Result, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
         }
 

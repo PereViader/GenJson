@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 #pragma warning disable CS8618
@@ -6,10 +6,10 @@ namespace GenJson.Tests;
 
 public interface ITestGenJson
 {
-    string ToJson();
-    int CalculateJsonSize();
-    byte[] ToJsonUtf8();
-    int CalculateJsonSizeUtf8();
+    string ToJson(bool useCountOptimization = false);
+    int CalculateJsonSize(bool useCountOptimization = false);
+    byte[] ToJsonUtf8(bool useCountOptimization = false);
+    int CalculateJsonSizeUtf8(bool useCountOptimization = false);
 }
 
 [GenJson]
@@ -361,9 +361,9 @@ public partial class DerivedScenario : BaseScenario
 
 // ── STJ comparison edge-case types ────────────────────────────────────────
 // These cover a wide range of serialization edge cases for STJ comparison tests.
-// All tagged [GenJsonSkipCountOptimization] so the generator omits $Count properties.
+// By default, the generator now omits $Count properties.
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeStringClass : ITestGenJson
 {
     public string Plain { get; init; } = "";
@@ -377,7 +377,7 @@ public partial class EdgeStringClass : ITestGenJson
     public string? Nullable { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeNumberClass : ITestGenJson
 {
     public int IntMin { get; init; }
@@ -410,7 +410,7 @@ public partial class EdgeNumberClass : ITestGenJson
     public float FloatNegativeInfinity { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeCollectionClass : ITestGenJson
 {
     public List<string> StringList { get; init; } = new();
@@ -423,7 +423,7 @@ public partial class EdgeCollectionClass : ITestGenJson
     public List<List<int>> NestedIntList { get; init; } = new();
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeNestedClass : ITestGenJson
 {
     public EdgeStringClass? Child { get; init; }
@@ -431,7 +431,7 @@ public partial class EdgeNestedClass : ITestGenJson
     public List<EdgeStringClass> Children { get; init; } = new();
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeBoolClass : ITestGenJson
 {
     public bool True { get; init; }
@@ -440,7 +440,7 @@ public partial class EdgeBoolClass : ITestGenJson
     public bool? NullBool { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeControlCharClass : ITestGenJson
 {
     public string WithNull { get; init; } = "";
@@ -450,7 +450,7 @@ public partial class EdgeControlCharClass : ITestGenJson
     public string WithMixed { get; init; } = "";
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeDateGuidCharClass : ITestGenJson
 {
     public DateTime DatePresent { get; init; }
@@ -468,7 +468,7 @@ public partial class EdgeDateGuidCharClass : ITestGenJson
     public char CharSpecial { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeDateTimeKindClass : ITestGenJson
 {
     public DateTime Utc { get; init; }
@@ -476,7 +476,7 @@ public partial class EdgeDateTimeKindClass : ITestGenJson
     public DateTime Unspecified { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeDateTimeOffsetExtraClass : ITestGenJson
 {
     public DateTimeOffset ZeroOffset { get; init; }
@@ -484,7 +484,7 @@ public partial class EdgeDateTimeOffsetExtraClass : ITestGenJson
     public DateTimeOffset LargePositiveOffset { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeTimeSpanClass : ITestGenJson
 {
     public TimeSpan Zero { get; init; }
@@ -494,14 +494,14 @@ public partial class EdgeTimeSpanClass : ITestGenJson
     public TimeSpan MinValue { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeGuidClass : ITestGenJson
 {
     public Guid Empty { get; init; }
     public Guid AllFs { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeVersionClass : ITestGenJson
 {
     public Version TwoComponent { get; init; } = new(1, 0);
@@ -509,7 +509,7 @@ public partial class EdgeVersionClass : ITestGenJson
     public Version FourComponent { get; init; } = new(1, 2, 3, 4);
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeUriClass : ITestGenJson
 {
     public Uri HttpUri { get; init; } = new("http://example.com");
@@ -518,7 +518,7 @@ public partial class EdgeUriClass : ITestGenJson
     public Uri UriWithSpecialChars { get; init; } = new("https://example.com/path with spaces", UriKind.Absolute);
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeDecimalClass : ITestGenJson
 {
     public decimal Zero { get; init; }
@@ -529,7 +529,7 @@ public partial class EdgeDecimalClass : ITestGenJson
     public decimal Precise { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeCharEdgeClass : ITestGenJson
 {
     public char NullChar { get; init; }      // '\0'
@@ -540,7 +540,7 @@ public partial class EdgeCharEdgeClass : ITestGenJson
     public char SpaceChar { get; init; }     // ' ' — lowest printable ASCII
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeByteShortClass : ITestGenJson
 {
     public byte ByteMin { get; init; }
@@ -553,7 +553,7 @@ public partial class EdgeByteShortClass : ITestGenJson
     public ushort UShortMax { get; init; }
 }
 
-[GenJson, GenJsonSkipCountOptimization]
+[GenJson]
 public partial class EdgeEnumClass : ITestGenJson
 {
     public IntEnum EnumNumber { get; init; }

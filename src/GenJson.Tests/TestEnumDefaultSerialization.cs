@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace GenJson.Tests;
@@ -80,25 +80,25 @@ public class TestEnumDefaultSerialization
             [DefaultAsNumberEnum.One, DefaultAsNumberEnum.Two],
             [DefaultAsTextEnum.One, DefaultAsTextEnum.Two]
             );
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$Number":2,"Number":[1,2],"$Text":2,"Text":["One","Two"]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumList.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = EnumList.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = EnumList.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = EnumList.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumList.FromJson("{}"), Is.Null);
@@ -118,25 +118,25 @@ public class TestEnumDefaultSerialization
             { DefaultAsTextEnum.Two, DefaultAsTextEnum.Two },
         }
         );
-        var json = obj.ToJson();
+        var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$Number":2,"Number":{"1":1,"2":2},"$Text":2,"Text":{"One":"One","Two":"Two"}}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var size = obj.CalculateJsonSize();
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
         Assert.That(size, Is.EqualTo(expected.Length));
 
-        var obj2 = EnumDictionary.FromJson(json)!;
-        var json2 = obj2.ToJson();
+        var obj2 = EnumDictionary.FromJson(json, useCountOptimization: true)!;
+        var json2 = obj2.ToJson(useCountOptimization: true);
         Assert.That(json, Is.EqualTo(json2));
-        var utf8Json = obj.ToJsonUtf8();
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
         Assert.That(utf8Json, Is.EqualTo(utf8Expected));
 
-        var utf8Size = obj.CalculateJsonSizeUtf8();
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var utf8Obj = EnumDictionary.FromJsonUtf8(utf8Json)!;
-        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        var utf8Obj = EnumDictionary.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Json, Is.EqualTo(utf8Json2));
 
         Assert.That(EnumDictionary.FromJson("{}"), Is.Null);

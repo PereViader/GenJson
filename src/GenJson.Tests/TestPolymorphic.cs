@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace GenJson.Tests;
@@ -166,15 +166,15 @@ public class TestPolymorphic
     {
         var obj = new PolymorphicContainerRecord(new List<PolymorphicBaseRecord> { new PolymorphicStringRecord("test", 1), new PolymorphicIntRecord(1, 2) });
         var expected = """{"$Records":2,"Records":[{"$type":1,"Base":1,"Value":"test"},{"$type":2,"Base":1,"Value":2}]}""";
-        Assert.That(obj.ToJson(), Is.EqualTo(expected));
+        Assert.That(obj.ToJson(useCountOptimization: true), Is.EqualTo(expected));
 
-        var obj2 = PolymorphicContainerRecord.FromJson(expected)!;
-        var obj2Json = obj2.ToJson();
+        var obj2 = PolymorphicContainerRecord.FromJson(expected, useCountOptimization: true)!;
+        var obj2Json = obj2.ToJson(useCountOptimization: true);
         Assert.That(obj2Json, Is.EqualTo(expected));
 
         var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
-        var utf8Obj2 = PolymorphicContainerRecord.FromJsonUtf8(utf8Expected)!;
-        var utf8Obj2Json = utf8Obj2.ToJsonUtf8();
+        var utf8Obj2 = PolymorphicContainerRecord.FromJsonUtf8(utf8Expected, useCountOptimization: true)!;
+        var utf8Obj2Json = utf8Obj2.ToJsonUtf8(useCountOptimization: true);
         Assert.That(utf8Obj2Json, Is.EqualTo(utf8Expected));
     }
 }
