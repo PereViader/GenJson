@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.Generator", "GenJson.Generator\GenJson.Generator.csproj", "{484B1341-DD16-4475-A255-972E8068437A}"
 EndProject
@@ -7,6 +7,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson", "GenJson\GenJson.csproj", "{4F0266D7-4960-42CA-8A56-D00E6EEEC703}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.Benchmark", "GenJson.Benchmark\GenJson.Benchmark.csproj", "{19149134-CF37-4089-9D2B-6F1049557467}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.SystemTextJson", "GenJson.SystemTextJson\GenJson.SystemTextJson.csproj", "{8D6F2C99-F35C-4AEB-864D-7E1A29D645B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenJson.SystemTextJson.Tests", "GenJson.SystemTextJson.Tests\GenJson.SystemTextJson.Tests.csproj", "{BDD8A0E4-3A5B-4C67-AF07-0628D8A0E43A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,5 +34,13 @@ Global
 		{19149134-CF37-4089-9D2B-6F1049557467}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{19149134-CF37-4089-9D2B-6F1049557467}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{19149134-CF37-4089-9D2B-6F1049557467}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D6F2C99-F35C-4AEB-864D-7E1A29D645B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D6F2C99-F35C-4AEB-864D-7E1A29D645B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D6F2C99-F35C-4AEB-864D-7E1A29D645B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D6F2C99-F35C-4AEB-864D-7E1A29D645B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDD8A0E4-3A5B-4C67-AF07-0628D8A0E43A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDD8A0E4-3A5B-4C67-AF07-0628D8A0E43A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDD8A0E4-3A5B-4C67-AF07-0628D8A0E43A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDD8A0E4-3A5B-4C67-AF07-0628D8A0E43A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

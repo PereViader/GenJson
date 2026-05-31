@@ -393,3 +393,41 @@ GenJson analyzes your code during compilation and generates specialized serializ
 
 - **Serialization**: It pre-calculates the exact size needed for the JSON string and uses `string.Create` to fill the content directly via a `Span<char>`. This avoids the "double allocation" problem of `StringBuilder` (buffer resizing + final string) and eliminates allocations for formatting numbers and other primitives.
 - **Deserialization**: It generates a recursive descent parser that operates on `ReadOnlySpan<char>`, avoiding substring allocations during parsing.
+
+## System.Text.Json Integration
+
+If you want to serialize your JSON on the server using Microsoft's `System.Text.Json` (STJ) and deserialize it on the client (e.g., Unity) using `GenJson`, you can use the **`GenJson.SystemTextJson`** bridging library.
+
+This bridge automatically translates GenJson custom attributes and formatting rules into System.Text.Json options, ensuring that the serialized JSON is perfectly compatible with the client-side parser.
+
+### Key Compatibility Rules
+
+GenJson's high-performance parser has specific requirements for incoming JSON:
+1. **Minified JSON**: It does not tolerate whitespace or line breaks. The server must serialize with `WriteIndented = false` (default).
+2. **Ignored Null Values**: In `#nullable enable` contexts, non-nullable reference properties will cause parsing to fail if explicitly sent as `null` (e.g. `"Name": null`). The server must omit null values.
+3. **Special Float Literals**: Floating-point `NaN` and `Infinity` must be written as JSON strings (e.g. `"NaN"`), which STJ supports via `JsonNumberHandling.AllowNamedFloatingPointLiterals`.
+
+### Usage
+
+1. Reference the `GenJson.SystemTextJson` package or project.
+2. Initialize `JsonSerializerOptions` on the server using `GenJsonStjOptions.CreateOptions()`:
+
+```csharp
+using System.Text.Json;
+using GenJson.SystemTextJson;
+
+// Create options that align with GenJson formatting and map custom attributes
+var options = GenJsonStjOptions.CreateOptions();
+
+// Serialize using System.Text.Json on the server
+string json = JsonSerializer.Serialize(myObject, options);
+```
+
+### Dynamic Attribute Bridging
+
+The bridge handles the translation of the following custom GenJson attributes automatically on the server:
+- **`[GenJsonPropertyName("custom_name")]`**: Maps the property name in System.Text.Json.
+- **`[GenJsonIgnore]`**: Excludes the property completely from both serialization and deserialization contracts.
+- **`[GenJsonEnumAsText]` and `[GenJsonEnumAsNumber]`**: Controls enum formatting (string vs backing number) at both the property and type levels.
+- **`[GenJsonPolymorphic]` and `[GenJsonDerivedType]`**: Maps polymorphism rules directly to System.Text.Json's native polymorphic contract options.
+- **`[GenJsonConverter(typeof(MyConverter))]`**: Automatically routes property-level or type-level custom converters to a dynamic bridge that executes your custom GenJson static methods (`GetSizeUtf8`, `WriteJsonUtf8`, `FromJsonUtf8`) inside System.Text.Json.
