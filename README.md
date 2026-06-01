@@ -29,17 +29,20 @@ This project is compatible with both pure C# projects and Unity3D.
 
 | Method                     | Mean [ns]  | Error [ns] | StdDev [ns] | Median [ns] | Allocated [KB] |
 |--------------------------- |-----------:|-----------:|------------:|------------:|---------------:|
-| GenJson_ToJson             |   976.2 ns |   19.35 ns |    19.87 ns |    981.0 ns |        1.72 KB |
-| Utf8Json_ToJson            |   980.8 ns |   19.05 ns |    20.38 ns |    976.5 ns |        1.63 KB |
-| MicrosoftJson_ToJson       | 1,185.5 ns |   23.59 ns |    29.84 ns |  1,167.9 ns |        1.92 KB |
-| NewtonsoftJson_ToJson      | 2,248.1 ns |   44.63 ns |    56.45 ns |  2,223.1 ns |        5.95 KB |
-| GenJson_FromJson           | 1,020.1 ns |   17.45 ns |    16.32 ns |  1,028.3 ns |        1.95 KB |
-| MicrosoftJson_FromJson     | 2,328.0 ns |   35.14 ns |    32.87 ns |  2,309.9 ns |           3 KB |
-| NewtonsoftJson_FromJson    | 3,901.6 ns |   76.95 ns |    88.62 ns |  3,878.9 ns |        8.23 KB |
-| Utf8Json_FromJson          | 1,698.6 ns |   19.94 ns |    18.65 ns |  1,697.9 ns |        3.13 KB |
-| GenJson_FromJsonUtf8       |   886.3 ns |   13.70 ns |    12.14 ns |    887.7 ns |        1.95 KB |
-| Utf8Json_FromJsonUtf8      | 1,624.5 ns |   30.76 ns |    28.77 ns |  1,613.3 ns |         2.3 KB |
-| MicrosoftJson_FromJsonUtf8 | 2,309.3 ns |   45.93 ns |    45.11 ns |  2,307.7 ns |           3 KB |
+| GenJson_ToJson             |   883.1 ns |   17.29 ns |    16.98 ns |    878.9 ns |         1.6 KB |
+| Utf8Json_ToJson            | 1,006.1 ns |   19.07 ns |    21.20 ns |  1,004.4 ns |        1.63 KB |
+| MicrosoftJson_ToJson       | 1,199.6 ns |   23.59 ns |    25.24 ns |  1,202.7 ns |        1.92 KB |
+| NewtonsoftJson_ToJson      | 2,225.2 ns |   30.40 ns |    35.01 ns |  2,214.0 ns |        5.95 KB |
+| GenJson_ToJsonUtf8         | 1,038.1 ns |   17.18 ns |    16.07 ns |  1,039.6 ns |        0.81 KB |
+| Utf8Json_ToJsonUtf8        |   913.5 ns |   17.70 ns |    16.55 ns |    908.4 ns |        0.83 KB |
+| MicrosoftJson_ToJsonUtf8   | 1,127.2 ns |   11.29 ns |    10.01 ns |  1,126.3 ns |        1.13 KB |
+| GenJson_FromJson           | 1,609.5 ns |   29.46 ns |    27.55 ns |  1,601.7 ns |        1.95 KB |
+| MicrosoftJson_FromJson     | 2,363.6 ns |   39.40 ns |    36.85 ns |  2,361.4 ns |           3 KB |
+| NewtonsoftJson_FromJson    | 3,912.2 ns |   72.91 ns |    71.61 ns |  3,918.6 ns |        8.23 KB |
+| Utf8Json_FromJson          | 1,694.1 ns |   33.85 ns |    33.24 ns |  1,705.1 ns |        3.13 KB |
+| GenJson_FromJsonUtf8       | 1,410.6 ns |   22.01 ns |    18.38 ns |  1,414.0 ns |        1.95 KB |
+| Utf8Json_FromJsonUtf8      | 1,604.8 ns |   31.28 ns |    29.26 ns |  1,607.3 ns |         2.3 KB |
+| MicrosoftJson_FromJsonUtf8 | 2,314.7 ns |   46.13 ns |    47.37 ns |  2,322.3 ns |           3 KB |
 
 - [System.Text.Json](https://learn.microsoft.com/en-us/dotnet/api/system.text.json)
 - [Newtonsoft.Json](https://www.newtonsoft.com/json)

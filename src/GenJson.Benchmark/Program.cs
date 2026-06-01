@@ -82,6 +82,24 @@ public class BenchmarkToJson
     }
 
     [Benchmark]
+    public byte[] GenJson_ToJsonUtf8()
+    {
+        return RootObject.ToJsonUtf8();
+    }
+
+    [Benchmark]
+    public byte[] Utf8Json_ToJsonUtf8()
+    {
+        return Utf8Json.JsonSerializer.Serialize(RootObject);
+    }
+
+    [Benchmark]
+    public byte[] MicrosoftJson_ToJsonUtf8()
+    {
+        return System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(RootObject);
+    }
+
+    [Benchmark]
     public RootObject GenJson_FromJson()
     {
         return RootObject.FromJson(GenJson)!;
