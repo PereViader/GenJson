@@ -6,6 +6,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using GenJson;
+using MessagePack;
 using Perfolizer.Horology;
 using Perfolizer.Metrology;
 
@@ -24,6 +25,7 @@ BenchmarkRunner.Run(typeof(BenchmarkToJson).Assembly, ManualConfig
 );
 
 [GenJson]
+[MessagePackObject(keyAsPropertyName: true)]
 public partial class RootObject
 {
     public int Value1 { get; init; }
@@ -41,6 +43,7 @@ public partial class RootObject
 }
 
 [GenJson]
+[MessagePackObject(keyAsPropertyName: true)]
 public partial class NestedObject
 {
     public int Value1 { get; init; }
@@ -100,6 +103,12 @@ public class BenchmarkToJson
     }
 
     [Benchmark]
+    public byte[] MessagePack_Serialize()
+    {
+        return MessagePackSerializer.Serialize(RootObject);
+    }
+
+    [Benchmark]
     public RootObject GenJson_FromJson()
     {
         return RootObject.FromJson(GenJson)!;
@@ -141,6 +150,12 @@ public class BenchmarkToJson
         return System.Text.Json.JsonSerializer.Deserialize<RootObject>(MicrosoftJsonUtf8)!;
     }
 
+    [Benchmark]
+    public RootObject MessagePack_Deserialize()
+    {
+        return MessagePackSerializer.Deserialize<RootObject>(MessagePackBytes)!;
+    }
+
     private static readonly RootObject RootObject = new()
     {
         Value1 = int.MaxValue,
@@ -175,7 +190,7 @@ public class BenchmarkToJson
         ],
         Double = 12345.6789,
         Float = 12.34f,
-        DateTime = new DateTime(2025, 1, 1, 12, 0, 0),
+        DateTime = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc),
         Guid = Guid.NewGuid(),
         TimeSpan = TimeSpan.FromMinutes(123)
     };
@@ -187,4 +202,5 @@ public class BenchmarkToJson
     private static readonly byte[] GenJsonUtf8 = System.Text.Encoding.UTF8.GetBytes(GenJson);
     private static readonly byte[] MicrosoftJsonUtf8 = System.Text.Encoding.UTF8.GetBytes(MicrosoftJson);
     private static readonly byte[] Utf8JsonUtf8 = Utf8Json.JsonSerializer.Serialize(RootObject);
+    private static readonly byte[] MessagePackBytes = MessagePackSerializer.Serialize(RootObject);
 }
