@@ -8,49 +8,114 @@ namespace GenJson
     {
         public static void WriteString(Span<char> span, ref int index, string value)
         {
-            span[index++] = '"';
-            foreach (var c in value)
+            int len = value.Length;
+            int escapeIndex = -1;
+            for (int i = 0; i < len; i++)
             {
-                if (c == '"') { span[index++] = '\\'; span[index++] = '"'; }
-                else if (c == '\\') { span[index++] = '\\'; span[index++] = '\\'; }
-                else if (c == '\b') { span[index++] = '\\'; span[index++] = 'b'; }
-                else if (c == '\f') { span[index++] = '\\'; span[index++] = 'f'; }
-                else if (c == '\n') { span[index++] = '\\'; span[index++] = 'n'; }
-                else if (c == '\r') { span[index++] = '\\'; span[index++] = 'r'; }
-                else if (c == '\t') { span[index++] = '\\'; span[index++] = 't'; }
-                else if (c == char.MaxValue)
+                char c = value[i];
+                if (c == '"' || c == '\\' || c < ' ' || c == char.MaxValue)
                 {
-                    span[index++] = '\\';
-                    span[index++] = 'u';
-                    span[index++] = 'f';
-                    span[index++] = 'f';
-                    span[index++] = 'f';
-                    span[index++] = 'f';
-                }
-                else if (c < ' ')
-                {
-                    span[index++] = '\\';
-                    span[index++] = 'u';
-                    span[index++] = '0';
-                    span[index++] = '0';
-                    int val = c;
-                    span[index++] = GetHex(val >> 4);
-                    span[index++] = GetHex(val & 0xF);
-                }
-                else
-                {
-                    span[index++] = c;
+                    escapeIndex = i;
+                    break;
                 }
             }
+
+            if (escapeIndex == -1)
+            {
+                span[index++] = '"';
+                if (len > 0)
+                {
+                    value.AsSpan().CopyTo(span.Slice(index));
+                    index += len;
+                }
+                span[index++] = '"';
+                return;
+            }
+
+            span[index++] = '"';
+            int start = 0;
+            for (int i = escapeIndex; i < len; i++)
+            {
+                char c = value[i];
+                if (c == '"' || c == '\\' || c < ' ' || c == char.MaxValue)
+                {
+                    // Write previous chunk
+                    if (i > start)
+                    {
+                        value.AsSpan(start, i - start).CopyTo(span.Slice(index));
+                        index += (i - start);
+                    }
+
+                    // Write escape
+                    span[index++] = '\\';
+                    switch (c)
+                    {
+                        case '"': span[index++] = '"'; break;
+                        case '\\': span[index++] = '\\'; break;
+                        case '\b': span[index++] = 'b'; break;
+                        case '\f': span[index++] = 'f'; break;
+                        case '\n': span[index++] = 'n'; break;
+                        case '\r': span[index++] = 'r'; break;
+                        case '\t': span[index++] = 't'; break;
+                        case '\uffff':
+                            span[index++] = 'u';
+                            span[index++] = 'f';
+                            span[index++] = 'f';
+                            span[index++] = 'f';
+                            span[index++] = 'f';
+                            break;
+                        default: // Control < 32
+                            span[index++] = 'u';
+                            span[index++] = '0';
+                            span[index++] = '0';
+                            int val = c;
+                            span[index++] = GetHex(val >> 4);
+                            span[index++] = GetHex(val & 0xF);
+                            break;
+                    }
+                    start = i + 1;
+                }
+            }
+
+            // Write remaining
+            if (start < len)
+            {
+                value.AsSpan(start).CopyTo(span.Slice(index));
+                index += (len - start);
+            }
+
             span[index++] = '"';
         }
 
         public static void WriteString(Span<byte> span, ref int index, string value)
         {
-            span[index++] = (byte)'"';
+            int len = value.Length;
+            int escapeIndex = -1;
+            for (int i = 0; i < len; i++)
+            {
+                char c = value[i];
+                if (c == '"' || c == '\\' || c < ' ' || c == char.MaxValue)
+                {
+                    escapeIndex = i;
+                    break;
+                }
+            }
 
+            if (escapeIndex == -1)
+            {
+                span[index++] = (byte)'"';
+                if (len > 0)
+                {
+                    int written = Encoding.UTF8.GetBytes(value.AsSpan(), span.Slice(index));
+                    index += written;
+                }
+                span[index++] = (byte)'"';
+                return;
+            }
+
+            span[index++] = (byte)'"';
             int start = 0;
-            for (int i = 0; i < value.Length; i++)
+            for (int i = escapeIndex; i < len; i++)
             {
                 char c = value[i];
                 if (c == '"' || c == '\\' || c < ' ' || c == char.MaxValue)
@@ -94,7 +159,7 @@ namespace GenJson
             }
 
             // Write remaining
-            if (start < value.Length)
+            if (start < len)
             {
                 int written = Encoding.UTF8.GetBytes(value.AsSpan(start), span.Slice(index));
                 index += written;

@@ -189,40 +189,56 @@ namespace GenJson
             return 20;
         }
 
-        public static int GetSize(bool value) => value ? 4 : 5; // "true" or "false"
+        public static int GetSize(bool value) => value ? 4 : 5;
 
         public static int GetSize(char c) => c switch
         {
-            '\n' => 4, // "\n"  (2 quotes + 2 content chars)
-            '\r' => 4, // "\r"
-            '\t' => 4, // "\t"
-            '\b' => 4, // "\b"
-            '\f' => 4, // "\f"
-            '\\' => 4, // "\\"
-            '\"' => 4, // "\""  (2 quotes + 2 content chars)
-            '\uffff' => 8, // "\uffff" (2 quotes + 6 content chars)
-            '\0' => 8, // "\u0000" — \0 is not a JSON escape; must use \u0000 (2 quotes + 6 content chars)
-            _ when char.IsControl(c) => 8, // "\uXXXX" (2 quotes + 6 content chars)
+            '\n' => 4,
+            '\r' => 4,
+            '\t' => 4,
+            '\b' => 4,
+            '\f' => 4,
+            '\\' => 4,
+            '\"' => 4,
+            '\uffff' => 8,
+            '\0' => 8,
+            _ when char.IsControl(c) => 8,
             _ => 3
         };
 
         public static int GetSize(ReadOnlySpan<char> input)
         {
-            int length = 2;
-            foreach (char c in input)
+            int len = input.Length;
+            int i = 0;
+            for (; i < len; i++)
             {
+                char c = input[i];
+                if (c == '"' || c == '\\' || c < 32 || c == 0xffff)
+                {
+                    break;
+                }
+            }
+            if (i == len)
+            {
+                return len + 2;
+            }
+
+            int length = 2 + i;
+            for (; i < len; i++)
+            {
+                char c = input[i];
                 length += c switch
                 {
-                    '\n' => 2, // \n
-                    '\r' => 2, // \r
-                    '\t' => 2, // \t
-                    '\b' => 2, // \b
-                    '\f' => 2, // \f
-                    '\\' => 2, // \\
-                    '\"' => 2, // \"
-                    '\uffff' => 6, // \uffff
-                    '\0' => 6, // \u0000 — null is not \0 in JSON, must be \u0000
-                    _ when char.IsControl(c) => 6, // \uXXXX format for other control chars
+                    '\n' => 2,
+                    '\r' => 2,
+                    '\t' => 2,
+                    '\b' => 2,
+                    '\f' => 2,
+                    '\\' => 2,
+                    '\"' => 2,
+                    '\uffff' => 6,
+                    '\0' => 6,
+                    _ when char.IsControl(c) => 6,
                     _ => 1
                 };
             }
@@ -284,7 +300,7 @@ namespace GenJson
 
         public static int GetSize(Uri value) => GetSize(value.OriginalString.AsSpan());
 
-        public static int GetSizeUtf8(byte value) => GetSize(value); // ASCII
+        public static int GetSizeUtf8(byte value) => GetSize(value);
         public static int GetSizeUtf8(sbyte value) => GetSize(value);
         public static int GetSizeUtf8(short value) => GetSize(value);
         public static int GetSizeUtf8(ushort value) => GetSize(value);
@@ -293,53 +309,126 @@ namespace GenJson
         public static int GetSizeUtf8(long value) => GetSize(value);
         public static int GetSizeUtf8(ulong value) => GetSize(value);
         public static int GetSizeUtf8(bool value) => GetSize(value);
-        public static int GetSizeUtf8(Guid value) => GetSize(value);
-        public static int GetSizeUtf8(double value) => GetSize(value);
-        public static int GetSizeUtf8(float value) => GetSize(value);
-        public static int GetSizeUtf8(decimal value) => GetSize(value);
-        public static int GetSizeUtf8(DateTime value) => GetSize(value);
-        public static int GetSizeUtf8(DateTimeOffset value) => GetSize(value);
-        public static int GetSizeUtf8(TimeSpan value) => GetSize(value);
-        public static int GetSizeUtf8(Version value) => GetSize(value);
+        public static int GetSizeUtf8(Guid value) => 38;
+
+        public static int GetSizeUtf8(double value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('R')))
+            {
+                if (double.IsNaN(value) || double.IsInfinity(value)) return written + 2;
+                return written;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(float value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('R')))
+            {
+                if (float.IsNaN(value) || float.IsInfinity(value)) return written + 2;
+                return written;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(decimal value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('G')))
+            {
+                return written;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(DateTime value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('O')))
+            {
+                return written + 2;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(DateTimeOffset value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('O')))
+            {
+                return written + 2;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(TimeSpan value)
+        {
+            Span<byte> buffer = stackalloc byte[128];
+            if (System.Buffers.Text.Utf8Formatter.TryFormat(value, buffer, out int written, new System.Buffers.StandardFormat('c')))
+            {
+                return written + 2;
+            }
+            return 0;
+        }
+
+        public static int GetSizeUtf8(Version value)
+        {
+            Span<char> buffer = stackalloc char[128];
+            value.TryFormat(buffer, out int written);
+            return written + 2;
+        }
+
         public static int GetSizeUtf8(Uri value) => GetSizeUtf8(value.OriginalString.AsSpan());
 
         public static int GetSizeUtf8(char c)
         {
-            // Quoted char
-            // \b, \f, \n, \r, \t, \\, \" -> 4 bytes ("\n")
-            // Control -> 8 bytes ("\u0000")
-            // ASCII -> 3 bytes ("A")
-            // Non-ASCII -> 2 + bytes count
-
             if (c == '"' || c == '\\') return 4;
             if (c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') return 4;
-            if (char.IsControl(c)) return 8; // "\uXXXX"
+            if (char.IsControl(c)) return 8;
 
             if (c < 128) return 3;
-            return 2 + Encoding.UTF8.GetByteCount(new ReadOnlySpan<char>(new[] { c }));
+            
+            Span<char> chars = stackalloc char[1];
+            chars[0] = c;
+            return 2 + Encoding.UTF8.GetByteCount(chars);
         }
 
         public static int GetSizeUtf8(ReadOnlySpan<char> input)
         {
-            int length = 2; // Quotes
-            for (int i = 0; i < input.Length; i++)
+            int len = input.Length;
+            int i = 0;
+            for (; i < len; i++)
+            {
+                char c = input[i];
+                if (c >= 128 || c == '"' || c == '\\' || c < 32 || c == 0xffff)
+                {
+                    break;
+                }
+            }
+            if (i == len)
+            {
+                return len + 2;
+            }
+
+            int length = 2 + i;
+            for (; i < len; i++)
             {
                 char c = input[i];
                 if (c == '"' || c == '\\') length += 2;
                 else if (c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') length += 2;
-                else if (char.IsControl(c)) length += 6; // \uXXXX
+                else if (char.IsControl(c)) length += 6;
                 else if (c < 128) length += 1;
                 else
                 {
-                    if (char.IsHighSurrogate(c) && i + 1 < input.Length && char.IsLowSurrogate(input[i + 1]))
+                    int start = i;
+                    while (i < len && input[i] >= 128)
                     {
-                        length += Encoding.UTF8.GetByteCount(input.Slice(i, 2));
                         i++;
                     }
-                    else
-                    {
-                        length += Encoding.UTF8.GetByteCount(input.Slice(i, 1));
-                    }
+                    length += Encoding.UTF8.GetByteCount(input.Slice(start, i - start));
+                    i--;
                 }
             }
             return length;

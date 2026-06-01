@@ -2147,6 +2147,64 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     }
 
 
+    private void GenerateKeyWrite(StringBuilder sb, string indent, string propJsonName, bool isUtf8, bool isCount)
+    {
+        if (isUtf8)
+        {
+            var bytes = EncodeKeyToUtf8Bytes(propJsonName, leadingComma: false, isCount: isCount);
+            var bytesStr = string.Join(", ", bytes);
+            sb.Append(indent);
+            sb.AppendLine($"((System.ReadOnlySpan<byte>)(new byte[] {{ {bytesStr} }})).CopyTo(span.Slice(index)); index += {bytes.Length};");
+        }
+        else
+        {
+            sb.Append(indent);
+            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
+            if (isCount) sb.Append("$");
+            sb.Append(propJsonName);
+            sb.AppendLine("\");");
+            sb.Append(indent);
+            sb.AppendLine("span[index++] = ':';");
+        }
+    }
+
+    private static byte[] EncodeKeyToUtf8Bytes(string propName, bool leadingComma, bool isCount)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (leadingComma) sb.Append(',');
+        if (isCount) sb.Append("\"$");
+        else sb.Append('"');
+        
+        foreach (char c in propName)
+        {
+            if (c == '"') sb.Append("\\\"");
+            else if (c == '\\') sb.Append("\\\\");
+            else if (c == '\b') sb.Append("\\b");
+            else if (c == '\f') sb.Append("\\f");
+            else if (c == '\n') sb.Append("\\n");
+            else if (c == '\r') sb.Append("\\r");
+            else if (c == '\t') sb.Append("\\t");
+            else if (c == char.MaxValue) sb.Append("\\uffff");
+            else if (c < ' ')
+            {
+                sb.Append("\\u");
+                sb.Append("00");
+                int val = c;
+                sb.Append(GetHexChar(val >> 4));
+                sb.Append(GetHexChar(val & 0xF));
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        sb.Append("\":");
+        
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    private static char GetHexChar(int n) => (char)(n < 10 ? n + '0' : n - 10 + 'a');
+
     private void GenerateWriteJsonContent(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier, bool isUtf8)
     {
         string spanType = isUtf8 ? "System.Span<byte>" : "System.Span<char>";
@@ -2222,13 +2280,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 string subIndent = indent + "    ";
                 if (en.IsArray)
                 {
-                    sb.Append(subIndent);
-                    sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                    sb.Append(prop.JsonName);
-                    sb.AppendLine("\");");
-
-                    sb.Append(subIndent);
-                    sb.AppendLine(isUtf8 ? "span[index++] = (byte)':';" : "span[index++] = ':';");
+                    GenerateKeyWrite(sb, subIndent, prop.JsonName, isUtf8, isCount: true);
 
                     sb.Append(subIndent);
                     sb.Append("{ if (!this.");
@@ -2252,13 +2304,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.AppendLine("    if (_count >= 0)");
                     sb.Append(subIndent);
                     sb.AppendLine("    {");
-                    sb.Append(subIndent);
-                    sb.Append("        global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                    sb.Append(prop.JsonName);
-                    sb.AppendLine("\");");
-
-                    sb.Append(subIndent);
-                    sb.AppendLine(isUtf8 ? "        span[index++] = (byte)':';" : "        span[index++] = ':';");
+                    GenerateKeyWrite(sb, subIndent + "        ", prop.JsonName, isUtf8, isCount: true);
 
                     sb.Append(subIndent);
                     sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
@@ -2284,13 +2330,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(indent);
                 sb.AppendLine("{");
                 string subIndent = indent + "    ";
-                sb.Append(subIndent);
-                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"$");
-                sb.Append(prop.JsonName);
-                sb.AppendLine("\");");
-
-                sb.Append(subIndent);
-                sb.AppendLine(isUtf8 ? "span[index++] = (byte)':';" : "span[index++] = ':';");
+                GenerateKeyWrite(sb, subIndent, prop.JsonName, isUtf8, isCount: true);
 
                 sb.Append(subIndent);
                 sb.Append("{ if (!this.");
@@ -2307,12 +2347,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.AppendLine("}");
             }
 
-            sb.Append(indent);
-            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
-            sb.Append(prop.JsonName);
-            sb.AppendLine("\");");
-            sb.Append(indent);
-            sb.AppendLine(isUtf8 ? "span[index++] = (byte)':';" : "span[index++] = ':';");
+            GenerateKeyWrite(sb, indent, prop.JsonName, isUtf8, isCount: false);
 
             GenerateWriteJsonValue(sb, prop.Type, $"this.{prop.Name}", indent, 0, isUtf8);
 
