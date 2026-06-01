@@ -113,6 +113,12 @@ public class BenchmarkToJson
     {
         return RootObject.FromJson(GenJson)!;
     }
+    
+    [Benchmark]
+    public RootObject Utf8Json_FromJson()
+    {
+        return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonString)!;
+    }
 
     [Benchmark]
     public RootObject MicrosoftJson_FromJson()
@@ -124,12 +130,6 @@ public class BenchmarkToJson
     public RootObject NewtonsoftJson_FromJson()
     {
         return Newtonsoft.Json.JsonConvert.DeserializeObject<RootObject>(NewtonsoftJson)!;
-    }
-
-    [Benchmark]
-    public RootObject Utf8Json_FromJson()
-    {
-        return Utf8Json.JsonSerializer.Deserialize<RootObject>(Utf8JsonString)!;
     }
 
     [Benchmark]

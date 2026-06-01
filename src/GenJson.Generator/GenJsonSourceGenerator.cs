@@ -2158,14 +2158,54 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
         else
         {
+            var (escapedKey, actualLength) = EncodeKeyToUtf16(propJsonName, isCount);
             sb.Append(indent);
-            sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, \"");
-            if (isCount) sb.Append("$");
-            sb.Append(propJsonName);
-            sb.AppendLine("\");");
-            sb.Append(indent);
-            sb.AppendLine("span[index++] = ':';");
+            sb.AppendLine($"global::System.MemoryExtensions.AsSpan(\"{escapedKey}\").CopyTo(span.Slice(index)); index += {actualLength};");
         }
+    }
+
+    private static (string escaped, int actualLength) EncodeKeyToUtf16(string propName, bool isCount)
+    {
+        var sb = new System.Text.StringBuilder();
+        int length = 0;
+        
+        sb.Append("\\\"");
+        length += 1;
+        
+        if (isCount)
+        {
+            sb.Append('$');
+            length += 1;
+        }
+        
+        foreach (char c in propName)
+        {
+            if (c == '"') { sb.Append("\\\\\\\""); length += 2; }
+            else if (c == '\\') { sb.Append("\\\\\\\\"); length += 2; }
+            else if (c == '\b') { sb.Append("\\\\b"); length += 2; }
+            else if (c == '\f') { sb.Append("\\\\f"); length += 2; }
+            else if (c == '\n') { sb.Append("\\\\n"); length += 2; }
+            else if (c == '\r') { sb.Append("\\\\r"); length += 2; }
+            else if (c == '\t') { sb.Append("\\\\t"); length += 2; }
+            else if (c == char.MaxValue) { sb.Append("\\\\uffff"); length += 6; }
+            else if (c < ' ')
+            {
+                sb.Append("\\\\u00");
+                int val = c;
+                sb.Append(GetHexChar(val >> 4));
+                sb.Append(GetHexChar(val & 0xF));
+                length += 6;
+            }
+            else
+            {
+                sb.Append(c);
+                length += 1;
+            }
+        }
+        sb.Append("\\\":");
+        length += 2;
+        
+        return (sb.ToString(), length);
     }
 
     private static byte[] EncodeKeyToUtf8Bytes(string propName, bool leadingComma, bool isCount)
