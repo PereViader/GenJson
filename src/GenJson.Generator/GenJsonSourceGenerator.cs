@@ -95,6 +95,27 @@ public record ClassData(
 
 public record DerivedTypeData(string TypeName, string DiscriminatorValue, bool IsIntDiscriminator);
 
+public record DiagnosticInfo(
+    string Id,
+    string Title,
+    string MessageFormat,
+    string Category,
+    DiagnosticSeverity Severity,
+    Location? Location,
+    string MessageArg)
+{
+    public Diagnostic ToDiagnostic()
+    {
+        var descriptor = new DiagnosticDescriptor(
+            Id, Title, MessageFormat, Category, Severity, isEnabledByDefault: true);
+        return Diagnostic.Create(descriptor, Location, MessageArg);
+    }
+}
+
+public record GeneratorResult(
+    ClassData? ClassData,
+    EquatableList<DiagnosticInfo> Diagnostics);
+
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
 {
@@ -112,31 +133,50 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
     private static bool IsSyntaxNodeValid(SyntaxNode node, CancellationToken ct)
     {
-        if (node is not TypeDeclarationSyntax typeDecl)
-        {
-            return false;
-        }
-
-        if (typeDecl.Modifiers.Any(SyntaxKind.StaticKeyword))
-        {
-            return false;
-        }
-
-        return true;
+        return node is TypeDeclarationSyntax;
     }
 
-    private static ClassData? GetClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static GeneratorResult? GetClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
         var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
-        if (!typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
-        {
-            return null;
-        }
-
         var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
         if (typeSymbol is null)
         {
             return null;
+        }
+
+        var diagnostics = new List<DiagnosticInfo>();
+
+        bool isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
+        bool isPartial = typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword);
+
+        if (isStatic)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                "GENJSON001",
+                "GenJson attribute cannot be applied to static types",
+                "The type '{0}' is static. GenJson attribute cannot be applied to static types.",
+                "Usage",
+                DiagnosticSeverity.Error,
+                typeDeclaration.Identifier.GetLocation(),
+                typeSymbol.Name));
+        }
+
+        if (!isPartial)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                "GENJSON002",
+                "GenJson attribute can only be applied to partial types",
+                "The type '{0}' must be declared as partial to use the GenJson attribute.",
+                "Usage",
+                DiagnosticSeverity.Error,
+                typeDeclaration.Identifier.GetLocation(),
+                typeSymbol.Name));
+        }
+
+        if (diagnostics.Count > 0)
+        {
+            return new GeneratorResult(null, new EquatableList<DiagnosticInfo>(diagnostics));
         }
 
         if (typeSymbol.DeclaringSyntaxReferences.Length > 1)
@@ -332,7 +372,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
-        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
+        var classData = new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
+        return new GeneratorResult(classData, new EquatableList<DiagnosticInfo>(new List<DiagnosticInfo>()));
     }
 
     private static PropertyData? GetPropertyForParameter(
@@ -597,8 +638,20 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return propertySymbol.Name;
     }
 
-    private void Generate(SourceProductionContext context, ClassData data)
+    private void Generate(SourceProductionContext context, GeneratorResult result)
     {
+        foreach (var diag in result.Diagnostics.Value)
+        {
+            context.ReportDiagnostic(diag.ToDiagnostic());
+        }
+
+        if (result.ClassData is null)
+        {
+            return;
+        }
+
+        var data = result.ClassData;
+
         if (data.IsAbstract && data.DerivedTypes.Value.Count == 0)
         {
             return;
