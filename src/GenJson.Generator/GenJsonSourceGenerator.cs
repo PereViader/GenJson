@@ -72,8 +72,8 @@ public abstract record GenJsonDataType
     public sealed record Object(string TypeName) : GenJsonDataType; // Another GenJson class
 
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
-    public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType) : GenJsonDataType;
-    public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType) : GenJsonDataType;
+    public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
+    public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
     public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members) : GenJsonDataType;
     public sealed record CustomConverter(string ConverterTypeName) : GenJsonDataType;
 }
@@ -538,18 +538,70 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!);
             var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!);
-            var constructionTypeName = $"global::System.Collections.Generic.Dictionary<{keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, {valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
-            return new GenJsonDataType.Dictionary(keyGenType, valueGenType, constructionTypeName, keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), valueType!.IsValueType);
+            
+            string constructionTypeName;
+            bool hasCapacityConstructor = false;
+            
+            if (type.IsAbstract || type.TypeKind == TypeKind.Interface)
+            {
+                constructionTypeName = $"global::System.Collections.Generic.Dictionary<{keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, {valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
+                hasCapacityConstructor = true;
+            }
+            else
+            {
+                constructionTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (type is INamedTypeSymbol namedType)
+                {
+                    hasCapacityConstructor = namedType.Constructors.Any(c =>
+                        c.Parameters.Length == 1 &&
+                        c.Parameters[0].Type.SpecialType == SpecialType.System_Int32);
+                }
+            }
+            
+            return new GenJsonDataType.Dictionary(
+                keyGenType, 
+                valueGenType, 
+                constructionTypeName, 
+                keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                valueType!.IsValueType,
+                hasCapacityConstructor);
         }
 
         ITypeSymbol? resolvedElementType = GetEnumerableElementType(type);
         if (resolvedElementType != null)
         {
             var isArray = type is IArrayTypeSymbol;
-            var constructionTypeName = isArray
-               ? null // Not used for array
-               : $"global::System.Collections.Generic.List<{resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
-            return new GenJsonDataType.Enumerable(GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType), isArray, constructionTypeName!, resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), resolvedElementType.IsValueType);
+            string constructionTypeName;
+            bool hasCapacityConstructor = false;
+            
+            if (isArray)
+            {
+                constructionTypeName = null!;
+            }
+            else if (type.IsAbstract || type.TypeKind == TypeKind.Interface)
+            {
+                constructionTypeName = $"global::System.Collections.Generic.List<{resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
+                hasCapacityConstructor = true;
+            }
+            else
+            {
+                constructionTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (type is INamedTypeSymbol namedType)
+                {
+                    hasCapacityConstructor = namedType.Constructors.Any(c =>
+                        c.Parameters.Length == 1 &&
+                        c.Parameters[0].Type.SpecialType == SpecialType.System_Int32);
+                }
+            }
+            
+            return new GenJsonDataType.Enumerable(
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType), 
+                isArray, 
+                constructionTypeName!, 
+                resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                resolvedElementType.IsValueType,
+                hasCapacityConstructor);
         }
 
         return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
@@ -562,7 +614,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (type is INamedTypeSymbol namedType)
         {
-            if (IsDictionary(namedType))
+            if (IsReadOnlyDictionary(namedType))
             {
                 keyType = namedType.TypeArguments[0];
                 valueType = namedType.TypeArguments[1];
@@ -570,7 +622,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
 
             // Check interfaces
-            var dictInterface = namedType.AllInterfaces.FirstOrDefault(IsDictionary);
+            var dictInterface = namedType.AllInterfaces.FirstOrDefault(IsReadOnlyDictionary);
 
             if (dictInterface != null)
             {
@@ -583,11 +635,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static bool IsDictionary(INamedTypeSymbol type)
+    private static bool IsReadOnlyDictionary(INamedTypeSymbol type)
     {
         return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
-               type.OriginalDefinition.Name is "IDictionary" or "IReadOnlyDictionary" &&
-               type.TypeParameters.Length == 2;
+               type.OriginalDefinition.Name == "IReadOnlyDictionary" &&
+               type.OriginalDefinition.Arity == 2;
+    }
+
+    private static bool IsReadOnlyCollection(INamedTypeSymbol type)
+    {
+        return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
+               type.OriginalDefinition.Name == "IReadOnlyCollection" &&
+               type.OriginalDefinition.Arity == 1;
     }
 
     private static bool HasGenJsonAttribute(ITypeSymbol type)
@@ -604,18 +663,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             case INamedTypeSymbol namedTypeSym:
                 {
-                    if (namedTypeSym.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
+                    if (IsReadOnlyCollection(namedTypeSym))
                     {
-                        if (namedTypeSym.TypeArguments.Length > 0)
-                        {
-                            return namedTypeSym.TypeArguments[0];
-                        }
+                        return namedTypeSym.TypeArguments[0];
                     }
 
-                    var enumerableInterface = namedTypeSym.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
-                    if (enumerableInterface != null)
+                    var collInterface = namedTypeSym.AllInterfaces.FirstOrDefault(IsReadOnlyCollection);
+                    if (collInterface != null)
                     {
-                        return enumerableInterface.TypeArguments[0];
+                        return collInterface.TypeArguments[0];
                     }
 
                     break;
@@ -887,7 +943,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     }
                     else
                     {
-                        sb.AppendLine($"var {listVar} = new {e.ConstructionTypeName}({countVar});");
+                        if (e.HasCapacityConstructor)
+                        {
+                            sb.AppendLine($"var {listVar} = new {e.ConstructionTypeName}({countVar});");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"var {listVar} = new {e.ConstructionTypeName}();");
+                        }
                     }
 
                     string itemIndexVar = $"itemIndex{depth}";
@@ -980,7 +1043,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
                     string dictVar = $"dict{depth}";
                     sb.Append(scopedIndent);
-                    sb.AppendLine($"var {dictVar} = new {d.ConstructionTypeName}({countVar});");
+                    if (d.HasCapacityConstructor)
+                    {
+                        sb.AppendLine($"var {dictVar} = new {d.ConstructionTypeName}({countVar});");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"var {dictVar} = new {d.ConstructionTypeName}();");
+                    }
 
                     sb.Append(scopedIndent);
                     sb.AppendLine("while (index < json.Length)");

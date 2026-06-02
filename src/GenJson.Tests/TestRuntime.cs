@@ -1092,7 +1092,7 @@ public class TestRuntime
             PresentIntInt = new Dictionary<int, int>() { { 1, 2 }, { 3, 4 } },
             PresentIntString = new Dictionary<int, string>() { { 5, "6" } },
             PresentStringInt = new Dictionary<string, int>() { { "7", 8 } },
-            PresentIntEnumerableInt = new Dictionary<int, IEnumerable<int>>() { { 9, [10] } },
+            PresentIntEnumerableInt = new Dictionary<int, IReadOnlyCollection<int>>() { { 9, [10] } },
             PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { { 11, new EmptyClass() { Value = 12 } } },
             NullableDictionaryIntIntNull = null
         };
@@ -1291,6 +1291,39 @@ public class TestRuntime
         Assert.That(objMissingRequired, Is.Null, "Should return null when required constructor parameter is missing");
     }
 
+    [Test]
+    public void TestCustomCollections()
+    {
+        var obj = new CustomCollectionClass()
+        {
+            CustomDict = new CustomDictionary<string, int>() { { "a", 1 }, { "b", 2 } },
+            CustomColl = new CustomCollection<int>() { 3, 4 }
+        };
+
+        var json = obj.ToJson(useCountOptimization: true);
+        var expected = """{"$CustomDict":2,"CustomDict":{"a":1,"b":2},"$CustomColl":2,"CustomColl":[3,4]}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize(useCountOptimization: true);
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = CustomCollectionClass.FromJson(json, useCountOptimization: true)!;
+        Assert.That(obj2.CustomDict["a"], Is.EqualTo(1));
+        Assert.That(obj2.CustomDict["b"], Is.EqualTo(2));
+        Assert.That(obj2.CustomColl, Is.EquivalentTo(new int[] { 3, 4 }));
+
+        var utf8Json = obj.ToJsonUtf8(useCountOptimization: true);
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8(useCountOptimization: true);
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = CustomCollectionClass.FromJsonUtf8(utf8Json, useCountOptimization: true)!;
+        Assert.That(utf8Obj.CustomDict["a"], Is.EqualTo(1));
+        Assert.That(utf8Obj.CustomDict["b"], Is.EqualTo(2));
+        Assert.That(utf8Obj.CustomColl, Is.EquivalentTo(new int[] { 3, 4 }));
+    }
 
     [Test]
     public void IncorrectJson()

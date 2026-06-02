@@ -17,7 +17,7 @@ This project is compatible with both pure C# projects and Unity3D.
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
   - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
   - Dictionaries: `IReadOnlyDictionary<K, V>` 
-  - Collections: `IEnumerable<T>`
+  - Collections: `IReadOnlyCollection<T>`
   - Enums: Serialized as backing type (default) or string
   - Nested Objects: Recursive serialization of complex object graphs
 
@@ -391,6 +391,15 @@ string json = myObj.ToJson(useCountOptimization: true);
 // Deserialize using count optimization (utilizes "$MyList": 3 to pre-allocate)
 var deserialized = MyClass.FromJson(json, useCountOptimization: true);
 ```
+
+### 12. Custom Collections and Dictionaries
+
+GenJson supports custom dictionary and collection classes (concrete types)
+
+**Requirements**:
+- The custom class must be a concrete type (neither abstract nor an interface).
+- It must have a constructor that is either parameterless or accepts a single `int` parameter (for pre-allocating capacity). The generator will automatically detect and use the capacity constructor if available.
+- It must implement `IReadOnlyDictionary<TKey, TValue>` or `IReadOnlyCollection<T>`.
 
 ## How It Works
 
