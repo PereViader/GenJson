@@ -101,7 +101,10 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var classData = context.SyntaxProvider
-            .CreateSyntaxProvider(IsSyntaxNodeValid, GetClassData)
+            .ForAttributeWithMetadataName(
+                "GenJson.GenJsonAttribute",
+                IsSyntaxNodeValid,
+                GetClassData)
             .Where(x => x is not null);
 
         context.RegisterSourceOutput(classData, Generate!);
@@ -119,18 +122,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return false;
         }
 
-        return typeDecl.AttributeLists.Count > 0;
+        return true;
     }
 
-    private static ClassData? GetClassData(GeneratorSyntaxContext context, CancellationToken ct)
+    private static ClassData? GetClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
-        var typeDeclaration = (TypeDeclarationSyntax)context.Node;
+        var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
         if (!typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
             return null;
         }
 
-        var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration);
+        var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
         if (typeSymbol is null)
         {
             return null;
@@ -139,15 +142,10 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (typeSymbol.DeclaringSyntaxReferences.Length > 1)
         {
             var firstRef = typeSymbol.DeclaringSyntaxReferences[0];
-            if (firstRef.SyntaxTree != context.Node.SyntaxTree || firstRef.Span != context.Node.Span)
+            if (firstRef.SyntaxTree != context.TargetNode.SyntaxTree || firstRef.Span != context.TargetNode.Span)
             {
                 return null; // We only want to generate code once for partial classes
             }
-        }
-
-        if (!typeSymbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute"))
-        {
-            return null;
         }
 
         var properties = new List<PropertyData>();
