@@ -204,26 +204,146 @@ When an enum is used as a `Dictionary` key (e.g., `Dictionary<Status, int>`), an
 
 You can define custom logic for serializing and deserializing specific properties or entire types using the `[GenJsonConverter]` attribute.
 
-1.  Define a class with static methods `GetSize`, `WriteJson`, and `FromJson` (and their UTF8 variants if needed).
-2.  Apply `[GenJsonConverter(typeof(YourConverter))]` to the property, class, or struct.
+Since GenJson generates both string-based and UTF-8 byte-based serialization/deserialization code, a custom converter must define **both** sets of static methods.
+
+#### Required Converter Contract
+
+For any type `T` being converted, the converter class must implement the following six static methods:
+
+##### 1. String-Based Methods (`char`)
+*   `public static int GetSize(T value)`: Calculates the exact number of characters that `WriteJson` will write.
+*   `public static void WriteJson(Span<char> span, ref int index, T value)`: Writes the value to the span starting at `index`, and advances `index` by the number of characters written.
+*   `public static T FromJson(ReadOnlySpan<char> span, ref int index)`: Parses the value from the span starting at `index`, advances `index` past the parsed token, and returns the value.
+
+##### 2. UTF-8 Byte-Based Methods (`byte`)
+*   `public static int GetSizeUtf8(T value)`: Calculates the exact number of bytes that `WriteJson` will write.
+*   `public static void WriteJsonUtf8(Span<byte> span, ref int index, T value)`: Writes the UTF-8 bytes to the span starting at `index`, and advances `index` by the number of bytes written.
+*   `public static T FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)`: Parses the value from the byte span starting at `index`, advances `index` past the parsed token, and returns the value.
+
+> [!IMPORTANT]
+> - `GetSize`/`GetSizeUtf8` must return the exact length of the written output. If they return a value smaller than what is actually written, memory corruption or exceptions will occur. If they return a larger value, the resulting JSON string or byte array will have extra unused allocated space.
+> - The methods must always advance `index` by the exact number of elements (characters or bytes) written or parsed.
+
+#### Example: Boolean as `1` or `0`
+
+Here is a simple converter that serializes `bool` properties as `1` (true) or `0` (false) instead of `true`/`false`.
 
 ```csharp
-public static class MyCustomConverter
-{
-    public static int GetSize(int value) => ... // Calculate size
-    public static void WriteJson(Span<char> span, ref int index, int value) => ... // Write to span
-    public static int FromJson(ReadOnlySpan<char> span, ref int index) => ... // Read from span
-}
+using System;
 
-[GenJson]
-public partial class MyClass
+public static class BoolToIntConverter
 {
-    [GenJsonConverter(typeof(MyCustomConverter))]
-    public int MyProperty { get; set; }
+    // --- String-based conversion (char) ---
+
+    public static int GetSize(bool value) => 1;
+
+    public static void WriteJson(Span<char> span, ref int index, bool value)
+    {
+        span[index++] = value ? '1' : '0';
+    }
+
+    public static bool FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        char c = span[index++];
+        return c == '1';
+    }
+
+    // --- UTF-8 Byte-based conversion (byte) ---
+
+    public static int GetSizeUtf8(bool value) => 1;
+
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, bool value)
+    {
+        span[index++] = value ? (byte)'1' : (byte)'0';
+    }
+
+    public static bool FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        byte b = span[index++];
+        return b == (byte)'1';
+    }
 }
 ```
 
-You can also apply it directly to a type, and override it on specific properties if needed:
+#### Example: DateTime as Unix Epoch Milliseconds
+
+Here is a more advanced example that serializes `DateTime` as Unix epoch milliseconds (a JSON number).
+
+```csharp
+using System;
+using System.Buffers.Text;
+
+public static class DateTimeEpochConverter
+{
+    // --- String-based conversion (char) ---
+
+    public static int GetSize(DateTime value)
+    {
+        long ms = new DateTimeOffset(value).ToUnixTimeMilliseconds();
+        // Calculate number of digits without allocation
+        int len = 0;
+        if (ms <= 0) { len++; ms = -ms; }
+        while (ms > 0) { len++; ms /= 10; }
+        return len == 0 ? 1 : len;
+    }
+
+    public static void WriteJson(Span<char> span, ref int index, DateTime value)
+    {
+        long ms = new DateTimeOffset(value).ToUnixTimeMilliseconds();
+        ms.TryFormat(span.Slice(index), out var written);
+        index += written;
+    }
+
+    public static DateTime FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        int start = index;
+        while (index < span.Length && (char.IsDigit(span[index]) || span[index] == '-'))
+        {
+            index++;
+        }
+        long ms = long.Parse(span.Slice(start, index - start));
+        return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
+    }
+
+    // --- UTF-8 Byte-based conversion (byte) ---
+
+    public static int GetSizeUtf8(DateTime value) => GetSize(value);
+
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, DateTime value)
+    {
+        long ms = new DateTimeOffset(value).ToUnixTimeMilliseconds();
+        Utf8Formatter.TryFormat(ms, span.Slice(index), out var written);
+        index += written;
+    }
+
+    public static DateTime FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        int start = index;
+        while (index < span.Length && ((span[index] >= (byte)'0' && span[index] <= (byte)'9') || span[index] == (byte)'-'))
+        {
+            index++;
+        }
+        Utf8Parser.TryParse(span.Slice(start, index - start), out long ms, out _);
+        return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
+    }
+}
+```
+
+Applying the custom converter using `[GenJsonConverter]`:
+
+```csharp
+[GenJson]
+public partial class MyClass
+{
+    [GenJsonConverter(typeof(BoolToIntConverter))]
+    public bool IsActive { get; set; }
+
+    [GenJsonConverter(typeof(DateTimeEpochConverter))]
+    public DateTime CreatedAt { get; set; }
+}
+```
+
+You can also apply the converter directly to a custom class or struct definition:
 
 ```csharp
 [GenJsonConverter(typeof(MyStructConverter))]
