@@ -75,6 +75,38 @@ public class TestGenJsonDiagnostics
         Assert.That(diagnostics.Where(d => d.Id.StartsWith("GENJSON")), Is.Empty);
     }
 
+    [Test]
+    public void NonNullableCustomConverter_ReportsError()
+    {
+        var code = """
+            using System;
+            using GenJson;
+
+            namespace TestNamespace;
+
+            public static class BadConverter
+            {
+                public static int GetSize(int value) => 0;
+                public static void WriteJson(Span<char> span, ref int index, int value) {}
+                public static int FromJson(ReadOnlySpan<char> span, ref int index) => 0;
+                public static int GetSizeUtf8(int value) => 0;
+                public static void WriteJsonUtf8(Span<byte> span, ref int index, int value) {}
+                public static int FromJsonUtf8(ReadOnlySpan<byte> span, ref int index) => 0;
+            }
+
+            [GenJson]
+            public partial class BadModel
+            {
+                [GenJsonConverter(typeof(BadConverter))]
+                public int Value { get; set; }
+            }
+            """;
+
+        var diagnostics = GetDiagnostics(code);
+        Assert.That(diagnostics.Any(d => d is { Id: "GENJSON003", Severity: DiagnosticSeverity.Error }), Is.True, 
+            "GENJSON003 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
+    }
+
     private static ImmutableArray<Diagnostic> GetDiagnostics(string code)
     {
         var references = AppDomain.CurrentDomain

@@ -24,6 +24,10 @@ namespace GenJson.SystemTextJson
         private readonly ReadCharDelegate? _readChar;
         private readonly GetSizeCharDelegate? _getSizeChar;
 
+        private readonly IValueTypeReader<T>? _valueTypeReader;
+        private readonly MethodInfo? _readUtf8Method;
+        private readonly MethodInfo? _readCharMethod;
+
         public GenJsonStjBridgeConverter(Type staticConverterType)
         {
             // 1. Try to bind UTF-8 methods
@@ -36,7 +40,16 @@ namespace GenJson.SystemTextJson
             var readUtf8Method = staticConverterType.GetMethod("FromJsonUtf8", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(ReadOnlySpan<byte>), typeof(int).MakeByRefType() }, null);
             if (readUtf8Method != null)
             {
-                _readUtf8 = (ReadUtf8Delegate)readUtf8Method.CreateDelegate(typeof(ReadUtf8Delegate));
+                if (readUtf8Method.ReturnType == typeof(T))
+                {
+                    _readUtf8 = (ReadUtf8Delegate)readUtf8Method.CreateDelegate(typeof(ReadUtf8Delegate));
+                }
+                else
+                {
+                    _readUtf8Method = readUtf8Method;
+                    var helperType = typeof(ValueTypeReaderHelper<,>).MakeGenericType(typeof(T), typeof(T));
+                    _valueTypeReader = (IValueTypeReader<T>)Activator.CreateInstance(helperType);
+                }
             }
 
             var getSizeUtf8Method = staticConverterType.GetMethod("GetSizeUtf8", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(T) }, null);
@@ -55,7 +68,19 @@ namespace GenJson.SystemTextJson
             var readCharMethod = staticConverterType.GetMethod("FromJson", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(ReadOnlySpan<char>), typeof(int).MakeByRefType() }, null);
             if (readCharMethod != null)
             {
-                _readChar = (ReadCharDelegate)readCharMethod.CreateDelegate(typeof(ReadCharDelegate));
+                if (readCharMethod.ReturnType == typeof(T))
+                {
+                    _readChar = (ReadCharDelegate)readCharMethod.CreateDelegate(typeof(ReadCharDelegate));
+                }
+                else
+                {
+                    _readCharMethod = readCharMethod;
+                    if (_valueTypeReader == null)
+                    {
+                        var helperType = typeof(ValueTypeReaderHelper<,>).MakeGenericType(typeof(T), typeof(T));
+                        _valueTypeReader = (IValueTypeReader<T>)Activator.CreateInstance(helperType);
+                    }
+                }
             }
 
             var getSizeCharMethod = staticConverterType.GetMethod("GetSize", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(T) }, null);
@@ -68,7 +93,7 @@ namespace GenJson.SystemTextJson
             {
                 throw new InvalidOperationException($"The converter {staticConverterType.FullName} must define either static WriteJsonUtf8 or WriteJson.");
             }
-            if (_readUtf8 == null && _readChar == null)
+            if (_readUtf8 == null && _readChar == null && _valueTypeReader == null)
             {
                 throw new InvalidOperationException($"The converter {staticConverterType.FullName} must define either static FromJsonUtf8 or FromJson.");
             }
@@ -89,11 +114,23 @@ namespace GenJson.SystemTextJson
                     int index = 0;
                     return _readUtf8(bytes, ref index);
                 }
+                else if (_valueTypeReader != null && _readUtf8Method != null)
+                {
+                    byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(doc.RootElement);
+                    int index = 0;
+                    return _valueTypeReader.ReadUtf8(bytes, ref index, _readUtf8Method);
+                }
                 else if (_readChar != null)
                 {
                     string jsonStr = doc.RootElement.GetRawText();
                     int index = 0;
                     return _readChar(jsonStr.AsSpan(), ref index);
+                }
+                else if (_valueTypeReader != null && _readCharMethod != null)
+                {
+                    string jsonStr = doc.RootElement.GetRawText();
+                    int index = 0;
+                    return _valueTypeReader.ReadChar(jsonStr.AsSpan(), ref index, _readCharMethod);
                 }
             }
 
@@ -154,6 +191,37 @@ namespace GenJson.SystemTextJson
             {
                 throw new NotSupportedException("No valid serialization method found on custom converter.");
             }
+        }
+    }
+
+    internal interface IValueTypeReader<T>
+    {
+        T ReadUtf8(ReadOnlySpan<byte> span, ref int index, MethodInfo method);
+        T ReadChar(ReadOnlySpan<char> span, ref int index, MethodInfo method);
+    }
+
+    internal class ValueTypeReaderHelper<TVal, T> : IValueTypeReader<T> where TVal : struct
+    {
+        private delegate TVal? ReadUtf8NullableDelegate(ReadOnlySpan<byte> span, ref int index);
+        private delegate TVal? ReadCharNullableDelegate(ReadOnlySpan<char> span, ref int index);
+
+        private ReadUtf8NullableDelegate? _utf8Delegate;
+        private ReadCharNullableDelegate? _charDelegate;
+
+        public T ReadUtf8(ReadOnlySpan<byte> span, ref int index, MethodInfo method)
+        {
+            _utf8Delegate ??= (ReadUtf8NullableDelegate)method.CreateDelegate(typeof(ReadUtf8NullableDelegate));
+            var res = _utf8Delegate(span, ref index);
+            if (res == null) return default!;
+            return (T)(object)res.Value;
+        }
+
+        public T ReadChar(ReadOnlySpan<char> span, ref int index, MethodInfo method)
+        {
+            _charDelegate ??= (ReadCharNullableDelegate)method.CreateDelegate(typeof(ReadCharNullableDelegate));
+            var res = _charDelegate(span, ref index);
+            if (res == null) return default!;
+            return (T)(object)res.Value;
         }
     }
 }

@@ -206,6 +206,9 @@ You can define custom logic for serializing and deserializing specific propertie
 
 Since GenJson generates both string-based and UTF-8 byte-based serialization/deserialization code, a custom converter must define **both** sets of static methods.
 
+> [!IMPORTANT]
+> Custom converter deserialization methods must return a **nullable** version of the target type (either `T?` for value types, or a reference type). If parsing is not properly satisfied, the custom converter should return `null`. The source generator will then detect this and gracefully fail the entire `FromJson`/`FromJsonUtf8` operation by returning `null` to the caller.
+
 #### Required Converter Contract
 
 For any type `T` being converted, the converter class must implement the following six static methods:
@@ -213,12 +216,12 @@ For any type `T` being converted, the converter class must implement the followi
 ##### 1. String-Based Methods (`char`)
 *   `public static int GetSize(T value)`: Calculates the exact number of characters that `WriteJson` will write.
 *   `public static void WriteJson(Span<char> span, ref int index, T value)`: Writes the value to the span starting at `index`, and advances `index` by the number of characters written.
-*   `public static T FromJson(ReadOnlySpan<char> span, ref int index)`: Parses the value from the span starting at `index`, advances `index` past the parsed token, and returns the value.
+*   `public static T? FromJson(ReadOnlySpan<char> span, ref int index)`: Parses the value from the span starting at `index`, advances `index` past the parsed token, and returns the value. Returns `null` if parsing fails.
 
 ##### 2. UTF-8 Byte-Based Methods (`byte`)
 *   `public static int GetSizeUtf8(T value)`: Calculates the exact number of bytes that `WriteJson` will write.
 *   `public static void WriteJsonUtf8(Span<byte> span, ref int index, T value)`: Writes the UTF-8 bytes to the span starting at `index`, and advances `index` by the number of bytes written.
-*   `public static T FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)`: Parses the value from the byte span starting at `index`, advances `index` past the parsed token, and returns the value.
+*   `public static T? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)`: Parses the value from the byte span starting at `index`, advances `index` past the parsed token, and returns the value. Returns `null` if parsing fails.
 
 > [!IMPORTANT]
 > - `GetSize`/`GetSizeUtf8` must return the exact length of the written output. If they return a value smaller than what is actually written, memory corruption or exceptions will occur. If they return a larger value, the resulting JSON string or byte array will have extra unused allocated space.
@@ -242,9 +245,10 @@ public static class BoolToIntConverter
         span[index++] = value ? '1' : '0';
     }
 
-    public static bool FromJson(ReadOnlySpan<char> span, ref int index)
+    public static bool? FromJson(ReadOnlySpan<char> span, ref int index)
     {
         char c = span[index++];
+        if (c != '1' && c != '0') return null;
         return c == '1';
     }
 
@@ -257,9 +261,10 @@ public static class BoolToIntConverter
         span[index++] = value ? (byte)'1' : (byte)'0';
     }
 
-    public static bool FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    public static bool? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
     {
         byte b = span[index++];
+        if (b != (byte)'1' && b != (byte)'0') return null;
         return b == (byte)'1';
     }
 }
@@ -294,14 +299,15 @@ public static class DateTimeEpochConverter
         index += written;
     }
 
-    public static DateTime FromJson(ReadOnlySpan<char> span, ref int index)
+    public static DateTime? FromJson(ReadOnlySpan<char> span, ref int index)
     {
         int start = index;
         while (index < span.Length && (char.IsDigit(span[index]) || span[index] == '-'))
         {
             index++;
         }
-        long ms = long.Parse(span.Slice(start, index - start));
+        if (start == index) return null;
+        if (!long.TryParse(span.Slice(start, index - start), out var ms)) return null;
         return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
     }
 
@@ -316,14 +322,15 @@ public static class DateTimeEpochConverter
         index += written;
     }
 
-    public static DateTime FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    public static DateTime? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
     {
         int start = index;
         while (index < span.Length && ((span[index] >= (byte)'0' && span[index] <= (byte)'9') || span[index] == (byte)'-'))
         {
             index++;
         }
-        Utf8Parser.TryParse(span.Slice(start, index - start), out long ms, out _);
+        if (start == index) return null;
+        if (!Utf8Parser.TryParse(span.Slice(start, index - start), out long ms, out _)) return null;
         return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
     }
 }

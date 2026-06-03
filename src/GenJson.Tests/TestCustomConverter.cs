@@ -20,20 +20,20 @@ public static class MyCustomConverter
         span[index++] = '"';
     }
 
-    public static int FromJson(ReadOnlySpan<char> span, ref int index)
+    public static int? FromJson(ReadOnlySpan<char> span, ref int index)
     {
-        if (span[index] != '"') throw new Exception("Expected quote");
+        if (span[index] != '"') return null;
         index++;
-        if (span[index] != 'X') throw new Exception("Expected X");
+        if (span[index] != 'X') return null;
         index++;
 
         int start = index;
         while (char.IsDigit(span[index])) index++;
-        int val = int.Parse(span.Slice(start, index - start));
+        if (!int.TryParse(span.Slice(start, index - start), out int val)) return null;
 
-        if (span[index] != 'X') throw new Exception("Expected X");
+        if (span[index] != 'X') return null;
         index++;
-        if (span[index] != '"') throw new Exception("Expected quote");
+        if (span[index] != '"') return null;
         index++;
 
         return val;
@@ -54,24 +54,77 @@ public static class MyCustomConverter
         span[index++] = (byte)'"';
     }
 
-    public static int FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    public static int? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
     {
-        if (span[index] != (byte)'"') throw new Exception("Expected quote");
+        if (span[index] != (byte)'"') return null;
         index++;
-        if (span[index] != (byte)'X') throw new Exception("Expected X");
+        if (span[index] != (byte)'X') return null;
         index++;
 
         int start = index;
         while (span[index] >= (byte)'0' && span[index] <= (byte)'9') index++;
-        System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _);
+        if (!System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _)) return null;
 
-        if (span[index] != (byte)'X') throw new Exception("Expected X");
+        if (span[index] != (byte)'X') return null;
         index++;
-        if (span[index] != (byte)'"') throw new Exception("Expected quote");
+        if (span[index] != (byte)'"') return null;
         index++;
 
         return val;
     }
+}
+
+public static class MyStringConverter
+{
+    public static int GetSize(string value) => value.Length + 4;
+    public static void WriteJson(Span<char> span, ref int index, string value)
+    {
+        span[index++] = '"';
+        span[index++] = '[';
+        for (int i = 0; i < value.Length; i++) span[index++] = value[i];
+        span[index++] = ']';
+        span[index++] = '"';
+    }
+    public static string? FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        if (span[index] != '"' || span[index + 1] != '[') return null;
+        index += 2;
+        int start = index;
+        while (index < span.Length && span[index] != ']') index++;
+        if (index >= span.Length || span[index + 1] != '"') return null;
+        var val = new string(span.Slice(start, index - start));
+        index += 2; // ]"
+        return val;
+    }
+
+    public static int GetSizeUtf8(string value) => System.Text.Encoding.UTF8.GetByteCount(value) + 4;
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, string value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)'[';
+        int written = System.Text.Encoding.UTF8.GetBytes(value, span.Slice(index));
+        index += written;
+        span[index++] = (byte)']';
+        span[index++] = (byte)'"';
+    }
+    public static string? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"' || span[index + 1] != (byte)'[') return null;
+        index += 2;
+        int start = index;
+        while (index < span.Length && span[index] != (byte)']') index++;
+        if (index >= span.Length || span[index + 1] != (byte)'"') return null;
+        var val = System.Text.Encoding.UTF8.GetString(span.Slice(start, index - start));
+        index += 2; // ]"
+        return val;
+    }
+}
+
+[GenJson]
+public partial class CustomStringConverterClass
+{
+    [GenJsonConverter(typeof(MyStringConverter))]
+    public string Str { get; set; } = "";
 }
 
 [GenJson]
@@ -139,6 +192,41 @@ public class TestCustomConverter
         Assert.That(parsedUtf8.TypedProp.Value, Is.EqualTo(1));
         Assert.That(parsedUtf8.OverriddenProp.Value, Is.EqualTo(2));
     }
+
+    [Test]
+    public void TestCustomConverterFailure()
+    {
+        // Invalid custom converter format (missing X, invalid layout)
+        var invalidJson = """{"Value":"123"}""";
+        var parsed = CustomConverterClass.FromJson(invalidJson);
+        Assert.That(parsed, Is.Null);
+
+        var invalidUtf8Json = System.Text.Encoding.UTF8.GetBytes(invalidJson);
+        var parsedUtf8 = CustomConverterClass.FromJsonUtf8(invalidUtf8Json);
+        Assert.That(parsedUtf8, Is.Null);
+    }
+
+    [Test]
+    public void TestCustomStringConverterFlow()
+    {
+        var obj = new CustomStringConverterClass { Str = "hello" };
+        var json = obj.ToJson();
+        Assert.That(json, Is.EqualTo("""{"Str":"[hello]"}"""));
+
+        var parsed = CustomStringConverterClass.FromJson(json)!;
+        Assert.That(parsed.Str, Is.EqualTo("hello"));
+
+        var invalidJson = """{"Str":"hello"}"""; // Missing brackets
+        var parsedInvalid = CustomStringConverterClass.FromJson(invalidJson);
+        Assert.That(parsedInvalid, Is.Null);
+
+        var utf8Json = obj.ToJsonUtf8();
+        var parsedUtf8 = CustomStringConverterClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(parsedUtf8.Str, Is.EqualTo("hello"));
+
+        var parsedInvalidUtf8 = CustomStringConverterClass.FromJsonUtf8(System.Text.Encoding.UTF8.GetBytes(invalidJson));
+        Assert.That(parsedInvalidUtf8, Is.Null);
+    }
 }
 
 public static class StructConverterA
@@ -152,10 +240,12 @@ public static class StructConverterA
         span[index++] = 'A';
         span[index++] = '"';
     }
-    public static MyStruct FromJson(ReadOnlySpan<char> span, ref int index)
+    public static MyStruct? FromJson(ReadOnlySpan<char> span, ref int index)
     {
+        if (span[index] != '"' || span[index + 1] != 'A') return null;
         index += 2; // "A
         int val = span[index++] - '0';
+        if (span[index] != 'A' || span[index + 1] != '"') return null;
         index += 2; // A"
         return new MyStruct { Value = val };
     }
@@ -168,10 +258,12 @@ public static class StructConverterA
         span[index++] = (byte)'A';
         span[index++] = (byte)'"';
     }
-    public static MyStruct FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    public static MyStruct? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
     {
+        if (span[index] != (byte)'"' || span[index + 1] != (byte)'A') return null;
         index += 2;
         int val = span[index++] - '0';
+        if (span[index] != (byte)'A' || span[index + 1] != (byte)'"') return null;
         index += 2;
         return new MyStruct { Value = val };
     }
@@ -188,10 +280,12 @@ public static class StructConverterB
         span[index++] = 'B';
         span[index++] = '"';
     }
-    public static MyStruct FromJson(ReadOnlySpan<char> span, ref int index)
+    public static MyStruct? FromJson(ReadOnlySpan<char> span, ref int index)
     {
+        if (span[index] != '"' || span[index + 1] != 'B') return null;
         index += 2; // "B
         int val = span[index++] - '0';
+        if (span[index] != 'B' || span[index + 1] != '"') return null;
         index += 2; // B"
         return new MyStruct { Value = val };
     }
@@ -204,10 +298,12 @@ public static class StructConverterB
         span[index++] = (byte)'B';
         span[index++] = (byte)'"';
     }
-    public static MyStruct FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    public static MyStruct? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
     {
+        if (span[index] != (byte)'"' || span[index + 1] != (byte)'B') return null;
         index += 2;
         int val = span[index++] - '0';
+        if (span[index] != (byte)'B' || span[index + 1] != (byte)'"') return null;
         index += 2;
         return new MyStruct { Value = val };
     }

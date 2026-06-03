@@ -75,7 +75,7 @@ public abstract record GenJsonDataType
     public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
     public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members) : GenJsonDataType;
-    public sealed record CustomConverter(string ConverterTypeName) : GenJsonDataType;
+    public sealed record CustomConverter(string ConverterTypeName, string ExpectedTypeName, bool IsNullable, bool IsValueType) : GenJsonDataType;
 }
 
 public record PropertyData(string Name, string JsonName, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type, string? ConstructorParamName = null);
@@ -211,7 +211,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                       propertySymbol.NullableAnnotation == NullableAnnotation.Annotated ||
                                       (!propertySymbol.Type.IsValueType && propertySymbol.NullableAnnotation == NullableAnnotation.None);
 
-                    var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type);
+                    var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type, diagnostics, propertySymbol.Locations.FirstOrDefault() ?? Location.None);
                     bool isValueType = propertySymbol.Type.IsValueType;
 
                     var propName = GetJsonName(propertySymbol, null);
@@ -256,7 +256,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     // Re-evaluate types/names in context of the parameter
                     var originalSymbol = propertiesMap[propData.Name].Symbol;
 
-                    var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type);
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type, diagnostics, param.Locations.FirstOrDefault() ?? Location.None);
                     // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
@@ -372,6 +372,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
+        if (diagnostics.Count > 0)
+        {
+            return new GeneratorResult(null, new EquatableList<DiagnosticInfo>(diagnostics));
+        }
+
         var classData = new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
         return new GeneratorResult(classData, new EquatableList<DiagnosticInfo>(new List<DiagnosticInfo>()));
     }
@@ -446,7 +451,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type)
+    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type, List<DiagnosticInfo> diagnostics, Location errorLocation)
     {
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
@@ -454,7 +459,56 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol converterType)
         {
-            return new GenJsonDataType.CustomConverter(converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            var fromJsonMethod = converterType.GetMembers("FromJson")
+                .OfType<IMethodSymbol>()
+                .FirstOrDefault(m => m.Parameters.Length == 2 && m.IsStatic);
+            if (fromJsonMethod != null)
+            {
+                var ret = fromJsonMethod.ReturnType;
+                bool isNullable = ret.IsReferenceType || ret.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+                if (!isNullable)
+                {
+                    diagnostics.Add(new DiagnosticInfo(
+                        "GENJSON003",
+                        "Custom converter methods must return a nullable type",
+                        "The custom converter '{0}' has a FromJson method that returns a non-nullable type. Custom converter methods must return a nullable type (either a reference type or a Nullable<T>).",
+                        "Usage",
+                        DiagnosticSeverity.Error,
+                        errorLocation,
+                        converterType.Name));
+                }
+            }
+
+            var fromJsonUtf8Method = converterType.GetMembers("FromJsonUtf8")
+                .OfType<IMethodSymbol>()
+                .FirstOrDefault(m => m.Parameters.Length == 2 && m.IsStatic);
+            if (fromJsonUtf8Method != null)
+            {
+                var ret = fromJsonUtf8Method.ReturnType;
+                bool isNullable = ret.IsReferenceType || ret.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+                if (!isNullable)
+                {
+                    diagnostics.Add(new DiagnosticInfo(
+                        "GENJSON003",
+                        "Custom converter methods must return a nullable type",
+                        "The custom converter '{0}' has a FromJsonUtf8 method that returns a non-nullable type. Custom converter methods must return a nullable type (either a reference type or a Nullable<T>).",
+                        "Usage",
+                        DiagnosticSeverity.Error,
+                        errorLocation,
+                        converterType.Name));
+                }
+            }
+
+            bool isNullableTarget = type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+                                    type.NullableAnnotation == NullableAnnotation.Annotated ||
+                                    (!type.IsValueType && type.NullableAnnotation == NullableAnnotation.None);
+            bool isValueTypeTarget = type.IsValueType;
+
+            return new GenJsonDataType.CustomConverter(
+                converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                isNullableTarget,
+                isValueTypeTarget);
         }
 
         if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
@@ -492,7 +546,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0]));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation));
         }
 
         switch (type.SpecialType)
@@ -536,8 +590,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!);
-            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!);
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -596,7 +650,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType), 
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -775,19 +829,37 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         switch (type)
         {
             case GenJsonDataType.CustomConverter customConverter:
-                sb.Append(indent);
-                sb.Append(targetVar);
-                sb.Append(" = ");
-                sb.Append(customConverter.ConverterTypeName);
-                if (isUtf8)
                 {
-                    sb.Append(".FromJsonUtf8(json, ref index);");
+                    if (customConverter.IsNullable || !customConverter.IsValueType)
+                    {
+                        sb.Append(indent);
+                        sb.Append(targetVar);
+                        sb.Append(" = ");
+                        sb.Append(customConverter.ConverterTypeName);
+                        sb.AppendLine(isUtf8 ? ".FromJsonUtf8(json, ref index);" : ".FromJson(json, ref index);");
+
+                        sb.Append(indent);
+                        sb.Append("if (");
+                        sb.Append(targetVar);
+                        sb.AppendLine(" == null) return null;");
+                    }
+                    else
+                    {
+                        sb.Append(indent);
+                        sb.Append($"var tempCustom{depth} = ");
+                        sb.Append(customConverter.ConverterTypeName);
+                        sb.AppendLine(isUtf8 ? ".FromJsonUtf8(json, ref index);" : ".FromJson(json, ref index);");
+
+                        sb.Append(indent);
+                        sb.AppendLine($"if (tempCustom{depth} == null) return null;");
+
+                        sb.Append(indent);
+                        sb.Append(targetVar);
+                        sb.Append(" = ");
+                        sb.Append($"({customConverter.ExpectedTypeName})tempCustom{depth};");
+                        sb.AppendLine();
+                    }
                 }
-                else
-                {
-                    sb.Append(".FromJson(json, ref index);"); // Assuming custom converter handles span type
-                }
-                sb.AppendLine();
                 break;
 
             case GenJsonDataType.Boolean:

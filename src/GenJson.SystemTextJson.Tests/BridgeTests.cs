@@ -79,18 +79,18 @@ namespace GenJson.SystemTextJson.Tests
             span[index++] = 'C';
             span[index++] = '"';
         }
-        public static int FromJson(ReadOnlySpan<char> span, ref int index)
+        public static int? FromJson(ReadOnlySpan<char> span, ref int index)
         {
-            if (span[index] != '"') throw new Exception("Expected quote");
+            if (span[index] != '"') return null;
             index++;
-            if (span[index] != 'C') throw new Exception("Expected C");
+            if (span[index] != 'C') return null;
             index++;
             int start = index;
             while (char.IsDigit(span[index])) index++;
-            int val = int.Parse(span.Slice(start, index - start));
-            if (span[index] != 'C') throw new Exception("Expected C");
+            if (!int.TryParse(span.Slice(start, index - start), out int val)) return null;
+            if (span[index] != 'C') return null;
             index++;
-            if (span[index] != '"') throw new Exception("Expected quote");
+            if (span[index] != '"') return null;
             index++;
             return val;
         }
@@ -105,18 +105,18 @@ namespace GenJson.SystemTextJson.Tests
             span[index++] = (byte)'C';
             span[index++] = (byte)'"';
         }
-        public static int FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+        public static int? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
         {
-            if (span[index] != (byte)'"') throw new Exception("Expected quote");
+            if (span[index] != (byte)'"') return null;
             index++;
-            if (span[index] != (byte)'C') throw new Exception("Expected C");
+            if (span[index] != (byte)'C') return null;
             index++;
             int start = index;
             while (span[index] >= (byte)'0' && span[index] <= (byte)'9') index++;
-            System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _);
-            if (span[index] != (byte)'C') throw new Exception("Expected C");
+            if (!System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _)) return null;
+            if (span[index] != (byte)'C') return null;
             index++;
-            if (span[index] != (byte)'"') throw new Exception("Expected quote");
+            if (span[index] != (byte)'"') return null;
             index++;
             return val;
         }
@@ -237,6 +237,20 @@ namespace GenJson.SystemTextJson.Tests
             var deserialized = CustomConverterModel.FromJson(json)!;
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.ConvertedValue, Is.EqualTo(99));
+        }
+
+        [Test]
+        public void TestCustomConverterBridgingFailure()
+        {
+            // Invalid custom converter format (missing C prefix/suffix)
+            var invalidJson = "{\"ConvertedValue\":\"99\"}";
+
+            // Deserialize using System.Text.Json with GenJson bridge options
+            var deserialized = JsonSerializer.Deserialize<CustomConverterModel>(invalidJson, _options)!;
+            Assert.That(deserialized, Is.Not.Null);
+            // Since ConvertedValue is a non-nullable value type (int), the converter returns null on failure,
+            // which the bridge unboxes/maps to default(int) (0)
+            Assert.That(deserialized.ConvertedValue, Is.EqualTo(0));
         }
 
         [Test]
