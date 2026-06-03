@@ -2174,7 +2174,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 {
                     sb.Append(subIndent);
                     sb.AppendLine("{");
-                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.ElementTypeName);
+                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.IsArray);
 
                     sb.Append(subIndent);
                     sb.AppendLine("    if (_count >= 0)");
@@ -2531,7 +2531,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 {
                     sb.Append(subIndent);
                     sb.AppendLine("{");
-                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.ElementTypeName);
+                    GenerateGetCollectionCount(sb, subIndent, prop.Name, en.IsArray);
 
                     sb.Append(subIndent);
                     sb.AppendLine("    if (_count >= 0)");
@@ -2594,12 +2594,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
 
 
-    private void GenerateGetCollectionCount(StringBuilder sb, string indent, string propName, string elementTypeName)
+    private void GenerateGetCollectionCount(StringBuilder sb, string indent, string propName, bool isArray)
     {
         sb.Append(indent);
         sb.AppendLine("    int _count = -1;");
         sb.Append(indent);
-        sb.AppendLine($"    if (this.{propName} is global::System.Collections.Generic.ICollection<{elementTypeName}> c) _count = c.Count;");
+        string memberName = isArray ? "Length" : "Count";
+        sb.AppendLine($"    if (this.{propName} != null) _count = this.{propName}.{memberName};");
     }
 
     private void GenerateFromJson(StringBuilder sb, ClassData data, string newModifier, bool isUtf8)
