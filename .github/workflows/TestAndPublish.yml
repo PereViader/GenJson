@@ -12,8 +12,14 @@ jobs:
 
     runs-on: ubuntu-latest
     
+    env:
+      UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
+      UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
+      UPM_ORG_ID: ${{ secrets.UPM_ORG_ID }}
+      DIST_DIR: /tmp/signed-upm-dist
+
     steps:
-      - uses: actions/checkout@v4.1.4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -71,23 +77,49 @@ jobs:
         run: |
           bash ./build/Unity3d.Package/GeneratePackage.sh
 
+      - name: Install Unity UPM CLI
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: |
+          curl -fsSL https://cdn.packages.unity.com/upm-cli/install.sh -o install.sh
+          bash install.sh
+          echo "$HOME/.upm/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Unity UPM CLI
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: upm --help
+
+      - name: Sign and Pack Packages
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: |
+          rm -f GenJson.Unity3d.Package/*.tgz
+          mkdir -p "$DIST_DIR"
+          upm pack ./GenJson.Unity3d.Package --organization-id "$UPM_ORG_ID" --destination "$DIST_DIR"
+
+      - name: Print signed package info
+        if: ${{ steps.release-exists.outputs.exists == 'false' }}
+        run: |
+          shopt -s nullglob
+          archives=("$DIST_DIR"/*.tgz "$DIST_DIR"/*.tar.gz)
+          if [ "${#archives[@]}" -ne 1 ]; then
+            printf 'Expected exactly one signed package archive, found %s\n' "${#archives[@]}" >&2
+            exit 1
+          fi
+
+          for archive in "${archives[@]}"; do
+            printf 'Checking Archive: %s\n' "$(basename "$archive")"
+            tar -tzf "$archive" | grep -qx 'package/package.json'
+            tar -tzf "$archive" | grep -qx 'package/.attestation.p7m'
+            tar -xOzf "$archive" package/package.json | jq '{name, version}'
+          done
+
       - name: Create github release
         if: ${{ steps.release-exists.outputs.exists == 'false' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.get-version.outputs.version }}
           name: GenJson Unity3d v${{ steps.get-version.outputs.version }}
           body: ${{ steps.get-changelog.outputs.changelog }}
           prerelease: ${{ steps.get-version.outputs.isPrerelease }}
           files: |
-            GenJson.Unity3d.Package/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
-
-      - name: Trigger OpenUPM Publish
-        if: ${{ steps.release-exists.outputs.exists == 'false' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.OPENUPM_GITHUB_TOKEN }}
-        run: |
-          gh workflow run Publish.yml \
-            --repo PereViader/OpenUPM \
-            --ref main \
-            -f ingest_url=https://github.com/PereViader/GenJson/releases/download/v${{ steps.get-version.outputs.version }}/com.pereviader.genjson.unity3d-${{ steps.get-version.outputs.version }}.tgz
+            /tmp/signed-upm-dist/*.tgz
+            /tmp/signed-upm-dist/*.tar.gz
