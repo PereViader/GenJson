@@ -16,8 +16,8 @@ This project is compatible with both pure C# projects and Unity3D.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
   - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
-  - Dictionaries: `IReadOnlyDictionary<K, V>` 
-  - Collections: `IReadOnlyCollection<T>`
+  - Dictionaries: `IDictionary<K, V>` 
+  - Collections: `ICollection<T>`
   - Enums: Serialized as backing type (default) or string
   - Nested Objects: Recursive serialization of complex object graphs
 
@@ -399,7 +399,7 @@ GenJson supports custom dictionary and collection classes (concrete types)
 **Requirements**:
 - The custom class must be a concrete type (neither abstract nor an interface).
 - It must have a constructor that is either parameterless or accepts a single `int` parameter (for pre-allocating capacity). The generator will automatically detect and use the capacity constructor if available.
-- It must implement `IReadOnlyDictionary<TKey, TValue>` or `IReadOnlyCollection<T>`.
+- It must implement `IDictionary<TKey, TValue>` or `ICollection<T>`.
 
 ## How It Works
 

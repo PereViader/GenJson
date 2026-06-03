@@ -1092,7 +1092,7 @@ public class TestRuntime
             PresentIntInt = new Dictionary<int, int>() { { 1, 2 }, { 3, 4 } },
             PresentIntString = new Dictionary<int, string>() { { 5, "6" } },
             PresentStringInt = new Dictionary<string, int>() { { "7", 8 } },
-            PresentIntEnumerableInt = new Dictionary<int, IReadOnlyCollection<int>>() { { 9, [10] } },
+            PresentIntEnumerableInt = new Dictionary<int, ICollection<int>>() { { 9, [10] } },
             PresentDictionaryIntEmptyClasses = new Dictionary<int, EmptyClass>() { { 11, new EmptyClass() { Value = 12 } } },
             NullableDictionaryIntIntNull = null
         };
@@ -1127,7 +1127,7 @@ public class TestRuntime
     {
         var obj = new NestedDictionaryClass()
         {
-            Present = new Dictionary<int, IReadOnlyDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass() } } } },
+            Present = new Dictionary<int, IDictionary<int, EmptyClass>>() { { 1, new Dictionary<int, EmptyClass>() { { 2, new EmptyClass() { Value = 3 } }, { 4, new EmptyClass() } } } },
         };
         var json = obj.ToJson(useCountOptimization: true);
         var expected = """{"$Present":1,"Present":{"1":{"2":{"Value":3},"4":{}}}}""";

@@ -614,7 +614,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (type is INamedTypeSymbol namedType)
         {
-            if (IsReadOnlyDictionary(namedType))
+            if (IsDictionary(namedType))
             {
                 keyType = namedType.TypeArguments[0];
                 valueType = namedType.TypeArguments[1];
@@ -622,7 +622,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
 
             // Check interfaces
-            var dictInterface = namedType.AllInterfaces.FirstOrDefault(IsReadOnlyDictionary);
+            var dictInterface = namedType.AllInterfaces.FirstOrDefault(IsDictionary);
 
             if (dictInterface != null)
             {
@@ -635,17 +635,17 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static bool IsReadOnlyDictionary(INamedTypeSymbol type)
+    private static bool IsDictionary(INamedTypeSymbol type)
     {
         return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
-               type.OriginalDefinition.Name == "IReadOnlyDictionary" &&
+               type.OriginalDefinition.Name == "IDictionary" &&
                type.OriginalDefinition.Arity == 2;
     }
 
-    private static bool IsReadOnlyCollection(INamedTypeSymbol type)
+    private static bool IsCollection(INamedTypeSymbol type)
     {
         return type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic" &&
-               type.OriginalDefinition.Name == "IReadOnlyCollection" &&
+               type.OriginalDefinition.Name == "ICollection" &&
                type.OriginalDefinition.Arity == 1;
     }
 
@@ -663,12 +663,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             case INamedTypeSymbol namedTypeSym:
                 {
-                    if (IsReadOnlyCollection(namedTypeSym))
+                    if (IsCollection(namedTypeSym))
                     {
                         return namedTypeSym.TypeArguments[0];
                     }
 
-                    var collInterface = namedTypeSym.AllInterfaces.FirstOrDefault(IsReadOnlyCollection);
+                    var collInterface = namedTypeSym.AllInterfaces.FirstOrDefault(IsCollection);
                     if (collInterface != null)
                     {
                         return collInterface.TypeArguments[0];
@@ -2528,8 +2528,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("    int _count = -1;");
         sb.Append(indent);
         sb.AppendLine($"    if (this.{propName} is global::System.Collections.Generic.ICollection<{elementTypeName}> c) _count = c.Count;");
-        sb.Append(indent);
-        sb.AppendLine($"    else if (this.{propName} is global::System.Collections.Generic.IReadOnlyCollection<{elementTypeName}> r) _count = r.Count;");
     }
 
     private void GenerateFromJson(StringBuilder sb, ClassData data, string newModifier, bool isUtf8)

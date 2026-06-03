@@ -209,15 +209,15 @@ public partial class ParentClass
 [GenJson]
 public partial class EnumerableIntClass
 {
-    public IReadOnlyCollection<int> EnumerablePresent { get; init; }
+    public ICollection<int> EnumerablePresent { get; init; }
     public int[] ArrayPresent { get; init; }
     public List<int> ListPresent { get; init; }
 
-    public IReadOnlyCollection<int>? NullableEnumerablePresent { get; init; }
+    public ICollection<int>? NullableEnumerablePresent { get; init; }
     public int[]? NullableArrayPresent { get; init; }
     public List<int>? NullableListPresent { get; init; }
 
-    public IReadOnlyCollection<int>? NullableEnumerableNull { get; init; }
+    public ICollection<int>? NullableEnumerableNull { get; init; }
     public int[]? NullableArrayNull { get; init; }
     public List<int>? NullableListNull { get; init; }
 }
@@ -225,15 +225,15 @@ public partial class EnumerableIntClass
 [GenJson]
 public partial class EnumerableStringClass
 {
-    public IReadOnlyCollection<string> EnumerablePresent { get; init; }
+    public ICollection<string> EnumerablePresent { get; init; }
     public string[] ArrayPresent { get; init; }
     public List<string> ListPresent { get; init; }
 
-    public IReadOnlyCollection<string>? NullableEnumerablePresent { get; init; }
+    public ICollection<string>? NullableEnumerablePresent { get; init; }
     public string[]? NullableArrayPresent { get; init; }
     public List<string>? NullableListPresent { get; init; }
 
-    public IReadOnlyCollection<string>? NullableEnumerableNull { get; init; }
+    public ICollection<string>? NullableEnumerableNull { get; init; }
     public string[]? NullableArrayNull { get; init; }
     public List<string>? NullableListNull { get; init; }
 }
@@ -241,15 +241,15 @@ public partial class EnumerableStringClass
 [GenJson]
 public partial class EnumerableParentClass
 {
-    public IReadOnlyCollection<EmptyClass> EnumerablePresent { get; init; }
+    public ICollection<EmptyClass> EnumerablePresent { get; init; }
     public EmptyClass[] ArrayPresent { get; init; }
     public List<EmptyClass> ListPresent { get; init; }
 
-    public IReadOnlyCollection<EmptyClass>? NullableEnumerablePresent { get; init; }
+    public ICollection<EmptyClass>? NullableEnumerablePresent { get; init; }
     public EmptyClass[]? NullableArrayPresent { get; init; }
     public List<EmptyClass>? NullableListPresent { get; init; }
 
-    public IReadOnlyCollection<EmptyClass>? NullableEnumerableNull { get; init; }
+    public ICollection<EmptyClass>? NullableEnumerableNull { get; init; }
     public EmptyClass[]? NullableArrayNull { get; init; }
     public List<EmptyClass>? NullableListNull { get; init; }
 }
@@ -263,18 +263,18 @@ public partial class NestedEnumerableClass
 [GenJson]
 public partial class DictionaryClass
 {
-    public IReadOnlyDictionary<int, int> PresentIntInt { get; init; }
-    public IReadOnlyDictionary<int, string> PresentIntString { get; init; }
-    public IReadOnlyDictionary<string, int> PresentStringInt { get; init; }
-    public IReadOnlyDictionary<int, IReadOnlyCollection<int>> PresentIntEnumerableInt { get; init; }
-    public IReadOnlyDictionary<int, EmptyClass> PresentDictionaryIntEmptyClasses { get; init; }
-    public IReadOnlyDictionary<int, int>? NullableDictionaryIntIntNull { get; init; }
+    public IDictionary<int, int> PresentIntInt { get; init; }
+    public IDictionary<int, string> PresentIntString { get; init; }
+    public IDictionary<string, int> PresentStringInt { get; init; }
+    public IDictionary<int, ICollection<int>> PresentIntEnumerableInt { get; init; }
+    public IDictionary<int, EmptyClass> PresentDictionaryIntEmptyClasses { get; init; }
+    public IDictionary<int, int>? NullableDictionaryIntIntNull { get; init; }
 }
 
 [GenJson]
 public partial class NestedDictionaryClass
 {
-    public IReadOnlyDictionary<int, IReadOnlyDictionary<int, EmptyClass>> Present { get; init; }
+    public IDictionary<int, IDictionary<int, EmptyClass>> Present { get; init; }
 }
 
 [GenJson]
@@ -562,7 +562,7 @@ public partial class EdgeEnumClass : ITestGenJson
     public ByteEnum ByteEnum { get; init; }
 }
 
-public class CustomDictionary<K, V> : IReadOnlyDictionary<K, V> where K : notnull
+public class CustomDictionary<K, V> : IDictionary<K, V> where K : notnull
 {
     private readonly Dictionary<K, V> _dict;
 
@@ -577,18 +577,33 @@ public class CustomDictionary<K, V> : IReadOnlyDictionary<K, V> where K : notnul
     }
 
     public void Add(K key, V value) => _dict.Add(key, value);
+    public bool ContainsKey(K key) => _dict.ContainsKey(key);
+    public bool Remove(K key) => _dict.Remove(key);
+    public bool TryGetValue(K key, out V value) => _dict.TryGetValue(key, out value);
+
+    public V this[K key]
+    {
+        get => _dict[key];
+        set => _dict[key] = value;
+    }
+
+    public ICollection<K> Keys => _dict.Keys;
+    public ICollection<V> Values => _dict.Values;
 
     public int Count => _dict.Count;
-    public V this[K key] => _dict[key];
-    public IEnumerable<K> Keys => _dict.Keys;
-    public IEnumerable<V> Values => _dict.Values;
-    public bool ContainsKey(K key) => _dict.ContainsKey(key);
-    public bool TryGetValue(K key, out V value) => _dict.TryGetValue(key, out value);
+    public bool IsReadOnly => false;
+
+    public void Add(KeyValuePair<K, V> item) => ((ICollection<KeyValuePair<K, V>>)_dict).Add(item);
+    public void Clear() => _dict.Clear();
+    public bool Contains(KeyValuePair<K, V> item) => ((ICollection<KeyValuePair<K, V>>)_dict).Contains(item);
+    public void CopyTo(KeyValuePair<K, V>[] array, int arrayIndex) => ((ICollection<KeyValuePair<K, V>>)_dict).CopyTo(array, arrayIndex);
+    public bool Remove(KeyValuePair<K, V> item) => ((ICollection<KeyValuePair<K, V>>)_dict).Remove(item);
+
     public IEnumerator<KeyValuePair<K, V>> GetEnumerator() => _dict.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _dict.GetEnumerator();
 }
 
-public class CustomCollection<T> : IReadOnlyCollection<T>
+public class CustomCollection<T> : ICollection<T>
 {
     private readonly List<T> _list;
 
@@ -600,6 +615,12 @@ public class CustomCollection<T> : IReadOnlyCollection<T>
     public void Add(T item) => _list.Add(item);
 
     public int Count => _list.Count;
+    public bool IsReadOnly => false;
+    public void Clear() => _list.Clear();
+    public bool Contains(T item) => _list.Contains(item);
+    public void CopyTo(T[] array, int arrayIndex) => _list.CopyTo(array, arrayIndex);
+    public bool Remove(T item) => _list.Remove(item);
+
     public IEnumerator<T> GetEnumerator() => _list.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _list.GetEnumerator();
 }
