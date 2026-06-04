@@ -140,6 +140,92 @@ namespace GenJson.SystemTextJson
             // 2. Property-level configurations
             if (typeInfo.Kind == JsonTypeInfoKind.Object)
             {
+                var type = typeInfo.Type;
+                var existingPropertyNames = new System.Collections.Generic.HashSet<string>(typeInfo.Properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+
+                var currentType = type;
+                while (currentType != null && currentType != typeof(object))
+                {
+                    bool includeAllPrivate = currentType.GetCustomAttribute<GenJsonIncludePrivateMemberAttribute>() != null;
+
+                    // Properties
+                    var properties = currentType.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly);
+                    foreach (var prop in properties)
+                    {
+                        bool isPublic = prop.GetMethod?.IsPublic == true || prop.SetMethod?.IsPublic == true;
+                        if (isPublic) continue;
+
+                        bool isAccessible = currentType == type || (prop.GetMethod != null && !prop.GetMethod.IsPrivate) || (prop.SetMethod != null && !prop.SetMethod.IsPrivate);
+                        if (!isAccessible) continue;
+
+                        bool hasAttr = prop.GetCustomAttribute<GenJsonIncludePrivateMemberAttribute>() != null;
+                        if (hasAttr || includeAllPrivate)
+                        {
+                            string name = prop.Name;
+                            if (existingPropertyNames.Contains(name)) continue;
+
+                            bool isReadOnly = prop.SetMethod == null;
+                            if (isReadOnly && !IsCtorArg(prop, type))
+                            {
+                                continue;
+                            }
+
+                            var propInfo = typeInfo.CreateJsonPropertyInfo(prop.PropertyType, prop.Name);
+                            if (prop.CanRead)
+                            {
+                                propInfo.Get = obj => prop.GetValue(obj);
+                            }
+                            if (prop.CanWrite)
+                            {
+                                propInfo.Set = (obj, val) => prop.SetValue(obj, val);
+                            }
+                            propInfo.AttributeProvider = prop;
+                            
+                            typeInfo.Properties.Add(propInfo);
+                            existingPropertyNames.Add(name);
+                        }
+                    }
+
+                    // Fields
+                    var fields = currentType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly);
+                    foreach (var field in fields)
+                    {
+                        if (field.Name.StartsWith("<")) continue;
+
+                        bool isPublic = field.IsPublic;
+                        bool isAccessible = isPublic || currentType == type || !field.IsPrivate;
+                        if (!isAccessible) continue;
+
+                        bool hasAttr = field.GetCustomAttribute<GenJsonIncludePrivateMemberAttribute>() != null;
+                        bool shouldInclude = isPublic || hasAttr || includeAllPrivate;
+
+                        if (shouldInclude)
+                        {
+                            string name = field.Name;
+                            if (existingPropertyNames.Contains(name)) continue;
+
+                            bool isReadOnly = field.IsInitOnly || field.IsLiteral;
+                            if (isReadOnly && !IsCtorArg(field, type))
+                            {
+                                continue;
+                            }
+
+                            var propInfo = typeInfo.CreateJsonPropertyInfo(field.FieldType, field.Name);
+                            propInfo.Get = obj => field.GetValue(obj);
+                            if (!field.IsInitOnly && !field.IsLiteral)
+                            {
+                                propInfo.Set = (obj, val) => field.SetValue(obj, val);
+                            }
+                            propInfo.AttributeProvider = field;
+
+                            typeInfo.Properties.Add(propInfo);
+                            existingPropertyNames.Add(name);
+                        }
+                    }
+
+                    currentType = currentType.BaseType;
+                }
+
                 // Remove ignored properties first to prevent serialization and deserialization
                 for (int i = typeInfo.Properties.Count - 1; i >= 0; i--)
                 {
@@ -198,5 +284,28 @@ namespace GenJson.SystemTextJson
                 }
             }
         }
+
+        private static bool IsCtorArg(MemberInfo member, Type type)
+        {
+            var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (constructors.Length == 0) return false;
+            
+            string name = member.Name;
+            string nameWithoutUnderscore = name.StartsWith("_") ? name.Substring(1) : name;
+            
+            foreach (var ctor in constructors)
+            {
+                foreach (var param in ctor.GetParameters())
+                {
+                    if (string.Equals(param.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(param.Name, nameWithoutUnderscore, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
     }
 }

@@ -198,6 +198,57 @@ namespace GenJson.SystemTextJson.Tests
         public double DoubleInfinity { get; set; }
     }
 
+    [GenJson]
+    public partial class StjIndividualPrivateModel
+    {
+        [GenJsonIncludePrivateMember]
+        private string _privateField = "default_f";
+
+        [GenJsonIncludePrivateMember]
+        private int PrivateProp { get; set; } = 10;
+
+        private string _ignoredField = "ignored";
+
+        public void SetPrivateField(string val) => _privateField = val;
+        public string GetPrivateField() => _privateField;
+        public void SetPrivateProp(int val) => PrivateProp = val;
+        public int GetPrivateProp() => PrivateProp;
+        public string GetIgnoredField() => _ignoredField;
+    }
+
+    [GenJson]
+    [GenJsonIncludePrivateMember]
+    public partial class StjAllPrivateModel
+    {
+        private string _f1 = "f1";
+        private int _f2 = 20;
+
+        public void SetF1(string val) => _f1 = val;
+        public string GetF1() => _f1;
+        public void SetF2(int val) => _f2 = val;
+        public int GetF2() => _f2;
+    }
+
+    [GenJson]
+    [GenJsonIncludePrivateMember]
+    public partial class StjPrivateReadonlyModel
+    {
+        private readonly int _readonlyField;
+
+        public StjPrivateReadonlyModel(int _readonlyField)
+        {
+            this._readonlyField = _readonlyField;
+        }
+
+        public int GetReadonlyField() => _readonlyField;
+    }
+
+    [GenJson]
+    public partial class StjPublicFieldModel
+    {
+        public string PublicField = "default_pub";
+    }
+
     [TestFixture]
     public class BridgeTests
     {
@@ -364,6 +415,61 @@ namespace GenJson.SystemTextJson.Tests
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.DoubleNaN, Is.NaN);
             Assert.That(deserialized.DoubleInfinity, Is.EqualTo(double.PositiveInfinity));
+        }
+
+        [Test]
+        public void TestStjIndividualPrivateMembers()
+        {
+            var model = new StjIndividualPrivateModel();
+            model.SetPrivateField("hello");
+            model.SetPrivateProp(42);
+
+            string json = JsonSerializer.Serialize(model, _options);
+            Assert.That(json, Is.EqualTo("{\"PrivateProp\":42,\"_privateField\":\"hello\"}"));
+
+            var deserialized = JsonSerializer.Deserialize<StjIndividualPrivateModel>(json, _options)!;
+            Assert.That(deserialized.GetPrivateField(), Is.EqualTo("hello"));
+            Assert.That(deserialized.GetPrivateProp(), Is.EqualTo(42));
+            Assert.That(deserialized.GetIgnoredField(), Is.EqualTo("ignored"));
+        }
+
+        [Test]
+        public void TestStjAllPrivateMembers()
+        {
+            var model = new StjAllPrivateModel();
+            model.SetF1("test");
+            model.SetF2(100);
+
+            string json = JsonSerializer.Serialize(model, _options);
+            Assert.That(json, Is.EqualTo("{\"_f1\":\"test\",\"_f2\":100}"));
+
+            var deserialized = JsonSerializer.Deserialize<StjAllPrivateModel>(json, _options)!;
+            Assert.That(deserialized.GetF1(), Is.EqualTo("test"));
+            Assert.That(deserialized.GetF2(), Is.EqualTo(100));
+        }
+
+        [Test]
+        public void TestStjPrivateReadonlyMembers()
+        {
+            var model = new StjPrivateReadonlyModel(500);
+
+            string json = JsonSerializer.Serialize(model, _options);
+            Assert.That(json, Is.EqualTo("{\"_readonlyField\":500}"));
+
+            var deserialized = JsonSerializer.Deserialize<StjPrivateReadonlyModel>(json, _options)!;
+            Assert.That(deserialized.GetReadonlyField(), Is.EqualTo(500));
+        }
+
+        [Test]
+        public void TestStjPublicFields()
+        {
+            var model = new StjPublicFieldModel { PublicField = "hello" };
+
+            string json = JsonSerializer.Serialize(model, _options);
+            Assert.That(json, Is.EqualTo("{\"PublicField\":\"hello\"}"));
+
+            var deserialized = JsonSerializer.Deserialize<StjPublicFieldModel>(json, _options)!;
+            Assert.That(deserialized.PublicField, Is.EqualTo("hello"));
         }
     }
 }
