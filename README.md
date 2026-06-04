@@ -369,6 +369,26 @@ public partial class MyClass
 }
 ```
 
+#### External Types (Assembly-Level Registration)
+
+If you need to define a custom converter for an external or third-party type that you do not have source control over (meaning you cannot annotate the type directly), you can register a converter at the assembly level using the `[assembly: GenJsonConverterFor(typeof(TargetType), typeof(ConverterType))]` attribute:
+
+```csharp
+using GenJson;
+
+[assembly: GenJsonConverterFor(typeof(ExternalStruct), typeof(MyStructConverter))]
+```
+
+#### Converter Resolution Priority
+
+When resolving which custom converter to use for a member (property, field, or constructor parameter), GenJson evaluates the available converters in the following order of priority (from highest to lowest):
+
+1. **Member-level**: `[GenJsonConverter(typeof(MyConverter))]` applied directly to a property, field, or parameter.
+2. **Type-level**: `[GenJsonConverter(typeof(MyConverter))]` applied to the class or struct definition.
+3. **Assembly-level**: `[assembly: GenJsonConverterFor(typeof(TargetType), typeof(MyConverter))]` registered at the assembly level.
+
+If no custom converter matches, GenJson will fall back to its default serialization/deserialization strategy.
+
 ### 7. Serialization
 
 The generator creates a `ToJson()` method.

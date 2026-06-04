@@ -123,4 +123,22 @@ namespace GenJson
     public sealed class GenJsonIncludePrivateMemberAttribute : Attribute
     {
     }
+
+    /// <summary>
+    /// This attribute can be used at the assembly level to specify a custom converter for a type
+    /// that cannot be decorated directly (e.g., external types).
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+    public sealed class GenJsonConverterForAttribute : Attribute
+    {
+        public GenJsonConverterForAttribute(Type targetType, Type converterType)
+        {
+            TargetType = targetType;
+            ConverterType = converterType;
+        }
+
+        public Type TargetType { get; }
+        public Type ConverterType { get; }
+    }
 }
+

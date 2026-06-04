@@ -44,10 +44,12 @@ namespace GenJson.SystemTextJson
             try
             {
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                var registeredTypes = new System.Collections.Generic.HashSet<Type>();
+
                 foreach (var assembly in assemblies)
                 {
                     string? name = assembly.FullName;
-                    if (name.StartsWith("System") || name.StartsWith("Microsoft") || name.StartsWith("mscorlib") || name.StartsWith("netstandard"))
+                    if (name != null && (name.StartsWith("System") || name.StartsWith("Microsoft") || name.StartsWith("mscorlib") || name.StartsWith("netstandard")))
                     {
                         continue;
                     }
@@ -70,6 +72,31 @@ namespace GenJson.SystemTextJson
                             var bridgeType = typeof(GenJsonStjBridgeConverter<>).MakeGenericType(type);
                             var converterInstance = (JsonConverter)Activator.CreateInstance(bridgeType, converterAttr.Type)!;
                             options.Converters.Add(converterInstance);
+                            registeredTypes.Add(type);
+                        }
+                    }
+                }
+
+                foreach (var assembly in assemblies)
+                {
+                    string? name = assembly.FullName;
+                    if (name != null && (name.StartsWith("System") || name.StartsWith("Microsoft") || name.StartsWith("mscorlib") || name.StartsWith("netstandard")))
+                    {
+                        continue;
+                    }
+
+                    var assemblyConverterAttrs = assembly.GetCustomAttributes(typeof(GenJsonConverterForAttribute), false);
+                    foreach (var attrObj in assemblyConverterAttrs)
+                    {
+                        if (attrObj is GenJsonConverterForAttribute attr)
+                        {
+                            if (!registeredTypes.Contains(attr.TargetType))
+                            {
+                                var bridgeType = typeof(GenJsonStjBridgeConverter<>).MakeGenericType(attr.TargetType);
+                                var converterInstance = (JsonConverter)Activator.CreateInstance(bridgeType, attr.ConverterType)!;
+                                options.Converters.Add(converterInstance);
+                                registeredTypes.Add(attr.TargetType);
+                            }
                         }
                     }
                 }

@@ -145,6 +145,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return null;
         }
 
+        var assembly = context.SemanticModel.Compilation.Assembly;
+
         var diagnostics = new List<DiagnosticInfo>();
 
         bool isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
@@ -251,7 +253,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                       nullableAnnotation == NullableAnnotation.Annotated ||
                                       (!memberType.IsValueType && nullableAnnotation == NullableAnnotation.None);
 
-                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None);
+                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None, assembly);
                     bool isValueType = memberType.IsValueType;
 
                     var propName = GetJsonName(member, null);
@@ -302,7 +304,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         _ => throw new InvalidOperationException()
                     };
 
-                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None);
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None, assembly);
                     // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
@@ -504,13 +506,30 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static GenJsonDataType GetGenJsonDataType(ISymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type, List<DiagnosticInfo> diagnostics, Location errorLocation)
+    private static GenJsonDataType GetGenJsonDataType(
+        ISymbol propertySymbol,
+        IParameterSymbol? parameterSymbol,
+        ITypeSymbol type,
+        List<DiagnosticInfo> diagnostics,
+        Location errorLocation,
+        IAssemblySymbol assembly)
     {
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
                             type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
 
-        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol converterType)
+        ITypeSymbol? converterType = null;
+
+        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol attrConvType)
+        {
+            converterType = attrConvType;
+        }
+        else
+        {
+            converterType = TryGetAssemblyConverter(assembly, type);
+        }
+
+        if (converterType != null)
         {
             var fromJsonMethod = converterType.GetMembers("FromJson")
                 .OfType<IMethodSymbol>()
@@ -599,7 +618,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation, assembly));
         }
 
         switch (type.SpecialType)
@@ -643,8 +662,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation);
-            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation);
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, assembly);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, assembly);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -703,7 +722,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation), 
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, assembly), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -712,6 +731,22 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+    }
+
+    private static ITypeSymbol? TryGetAssemblyConverter(IAssemblySymbol assembly, ITypeSymbol type)
+    {
+        foreach (var attr in assembly.GetAttributes())
+        {
+            if (attr.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterForAttribute" &&
+                attr.ConstructorArguments.Length == 2 &&
+                attr.ConstructorArguments[0].Value is ITypeSymbol targetType &&
+                SymbolEqualityComparer.Default.Equals(targetType, type) &&
+                attr.ConstructorArguments[1].Value is ITypeSymbol converterType)
+            {
+                return converterType;
+            }
+        }
+        return null;
     }
 
     private static bool TryGetDictionaryTypes(ITypeSymbol type, out ITypeSymbol? keyType, out ITypeSymbol? valueType)

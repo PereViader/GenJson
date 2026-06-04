@@ -4,6 +4,9 @@ using NUnit.Framework;
 using GenJson;
 using GenJson.SystemTextJson;
 
+[assembly: GenJsonConverterFor(typeof(GenJson.SystemTextJson.Tests.StjExternalStruct), typeof(GenJson.SystemTextJson.Tests.StjExternalStructConverter))]
+
+
 namespace GenJson.SystemTextJson.Tests
 {
     // Test Models
@@ -129,6 +132,58 @@ namespace GenJson.SystemTextJson.Tests
         public int ConvertedValue { get; set; }
     }
 
+    public struct StjExternalStruct
+    {
+        public int Value { get; set; }
+    }
+
+    public static class StjExternalStructConverter
+    {
+        public static int GetSize(StjExternalStruct value) => 5;
+        public static void WriteJson(Span<char> span, ref int index, StjExternalStruct value)
+        {
+            span[index++] = '"';
+            span[index++] = 'S';
+            span[index++] = (char)('0' + value.Value);
+            span[index++] = 'S';
+            span[index++] = '"';
+        }
+        public static StjExternalStruct? FromJson(ReadOnlySpan<char> span, ref int index)
+        {
+            if (span[index] != '"' || span[index + 1] != 'S') return null;
+            index += 2;
+            int val = span[index++] - '0';
+            if (span[index] != 'S' || span[index + 1] != '"') return null;
+            index += 2;
+            return new StjExternalStruct { Value = val };
+        }
+
+        public static int GetSizeUtf8(StjExternalStruct value) => 5;
+        public static void WriteJsonUtf8(Span<byte> span, ref int index, StjExternalStruct value)
+        {
+            span[index++] = (byte)'"';
+            span[index++] = (byte)'S';
+            span[index++] = (byte)('0' + value.Value);
+            span[index++] = (byte)'S';
+            span[index++] = (byte)'"';
+        }
+        public static StjExternalStruct? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+        {
+            if (span[index] != (byte)'"' || span[index + 1] != (byte)'S') return null;
+            index += 2;
+            int val = span[index++] - '0';
+            if (span[index] != (byte)'S' || span[index + 1] != (byte)'"') return null;
+            index += 2;
+            return new StjExternalStruct { Value = val };
+        }
+    }
+
+    [GenJson]
+    public partial class StjAssemblyConverterModel
+    {
+        public StjExternalStruct Val { get; set; }
+    }
+
     [GenJson]
     public partial class NullTestModel
     {
@@ -251,6 +306,22 @@ namespace GenJson.SystemTextJson.Tests
             // Since ConvertedValue is a non-nullable value type (int), the converter returns null on failure,
             // which the bridge unboxes/maps to default(int) (0)
             Assert.That(deserialized.ConvertedValue, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestAssemblyConverterBridging()
+        {
+            var model = new StjAssemblyConverterModel { Val = new StjExternalStruct { Value = 5 } };
+
+            string json = JsonSerializer.Serialize(model, _options);
+
+            // Verify Custom converter output exactly
+            Assert.That(json, Is.EqualTo("{\"Val\":\"S5S\"}"));
+
+            // Deserialize with GenJson
+            var deserialized = StjAssemblyConverterModel.FromJson(json)!;
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Val.Value, Is.EqualTo(5));
         }
 
         [Test]
