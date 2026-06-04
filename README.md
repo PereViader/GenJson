@@ -20,6 +20,7 @@ This project is compatible with both pure C# projects and Unity3D.
   - Collections: `ICollection<T>`
   - Enums: Serialized as backing type (default) or string
   - Nested Objects: Recursive serialization of complex object graphs
+  - Properties / Fields: Selectively or globally serialize public and non-public properties and fields
 
 > `DateOnly` and `TimeOnly` are **not supported** (requires .NET 6+; the library targets netstandard2.1)
 
@@ -548,6 +549,70 @@ GenJson supports custom dictionary and collection classes (concrete types)
 - It must have a constructor that is either parameterless or accepts a single `int` parameter (for pre-allocating capacity). The generator will automatically detect and use the capacity constructor if available.
 - It must implement `IDictionary<TKey, TValue>` or `ICollection<T>`.
 
+### 13. Include Private Members
+
+By default, GenJson serializes all public properties and public member fields. If you need to serialize private or non-public properties or fields, you can use the `[GenJsonIncludePrivateMember]` attribute.
+
+You can apply this attribute:
+- To individual private properties or fields.
+- To a class, struct, or record as a whole to include all of its private/non-public properties and fields.
+
+```csharp
+[GenJson]
+public partial class User
+{
+    [GenJsonIncludePrivateMember]
+    private string _secretToken = "token"; // Serialized selectively
+
+    private string _ignoredPrivate = "not_serialized"; // Skipped
+}
+
+[GenJson]
+[GenJsonIncludePrivateMember]
+public partial class SecureConfig
+{
+    private int _port = 8080; // Serialized
+    private string _host = "localhost"; // Serialized
+}
+```
+
+> [!NOTE]
+> - Compiler-generated backing fields (such as those of auto-properties) are automatically skipped to avoid duplicate serialization.
+> - Private members of base classes are ignored because a derived class's partial definition cannot access the private members of its base class. However, protected and internal members are fully supported and will be serialized if included.
+> - Read-only private fields (marked `readonly`) will only be serialized and deserialized if they are constructor parameters. If not, they are ignored because they are not writable.
+
+### 14. Readonly Members and Constructors
+
+GenJson supports serializing and deserializing readonly fields (marked `readonly` in C#) and readonly properties (properties with no setter or `init`-only setters). 
+
+However, because these members cannot be written to after the object is constructed, GenJson applies specific rules:
+
+1. **Mapping to Constructor Parameters**: A readonly field or property is only included in serialization and deserialization if it maps case-insensitively to a parameter in one of the type's constructors (including primary constructors). For private fields, the parameter name can optionally omit the leading underscore (e.g., parameter `role` maps to private field `_role`).
+2. **Excluded if not in Constructor**: If a readonly field or property does not map to any constructor parameter, it is completely ignored by GenJson (it will not be serialized or deserialized).
+3. **Primary and Parameterized Constructors**: When deserializing, GenJson parses the values from the JSON and passes them directly to the constructor to initialize the readonly fields/properties. Any non-readonly writable properties are set afterward via an object initializer.
+
+```csharp
+[GenJson]
+public partial class User
+{
+    // Included: maps case-insensitively to constructor parameter `name`
+    public readonly string Name;
+
+    // Included: maps to constructor parameter `role` (ignoring leading underscore)
+    [GenJsonIncludePrivateMember]
+    private readonly string _role;
+
+    // Excluded: cannot be set after construction, and is not a constructor parameter
+    public readonly int IgnoredReadonly = 42; 
+
+    public User(string name, string role)
+    {
+        Name = name;
+        _role = role;
+    }
+}
+```
+
 ## How It Works
 
 GenJson analyzes your code during compilation and generates specialized serialization code.
@@ -591,4 +656,5 @@ The bridge handles the translation of the following custom GenJson attributes au
 - **`[GenJsonIgnore]`**: Excludes the property completely from both serialization and deserialization contracts.
 - **`[GenJsonEnumAsText]` and `[GenJsonEnumAsNumber]`**: Controls enum formatting (string vs backing number) at both the property and type levels.
 - **`[GenJsonPolymorphic]` and `[GenJsonDerivedType]`**: Maps polymorphism rules directly to System.Text.Json's native polymorphic contract options.
+- **`[GenJsonIncludePrivateMember]`**: Dynamically registers public fields and private/non-public properties and fields in System.Text.Json options.
 - **`[GenJsonConverter(typeof(MyConverter))]`**: Automatically routes property-level or type-level custom converters to a dynamic bridge that executes your custom GenJson static methods (`GetSizeUtf8`, `WriteJsonUtf8`, `FromJsonUtf8`) inside System.Text.Json.
