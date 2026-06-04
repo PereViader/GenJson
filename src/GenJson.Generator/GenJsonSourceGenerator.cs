@@ -201,25 +201,48 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         foreach (var t in typeHierarchy)
         {
+            bool includeAllPrivate = t.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonIncludePrivateMemberAttribute");
+
             foreach (var member in t.GetMembers())
             {
                 ITypeSymbol? memberType = null;
                 NullableAnnotation nullableAnnotation = NullableAnnotation.None;
 
-                if (member is IPropertySymbol propertySymbol &&
-                    propertySymbol.DeclaredAccessibility == Accessibility.Public &&
-                    !propertySymbol.IsStatic)
+                bool isPublic = member.DeclaredAccessibility == Accessibility.Public;
+                bool isPrivateMemberIncluded = false;
+
+                if (!isPublic)
                 {
-                    memberType = propertySymbol.Type;
-                    nullableAnnotation = propertySymbol.NullableAnnotation;
+                    bool isAccessible = SymbolEqualityComparer.Default.Equals(t, typeSymbol) || member.DeclaredAccessibility != Accessibility.Private;
+                    if (isAccessible)
+                    {
+                        bool hasIncludeAttr = member.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonIncludePrivateMemberAttribute");
+                        if (hasIncludeAttr || includeAllPrivate)
+                        {
+                            isPrivateMemberIncluded = true;
+                        }
+                    }
                 }
-                else if (member is IFieldSymbol fieldSymbol &&
-                         fieldSymbol.DeclaredAccessibility == Accessibility.Public &&
-                         !fieldSymbol.IsStatic &&
-                         !fieldSymbol.IsConst)
+
+                if (isPublic || isPrivateMemberIncluded)
                 {
-                    memberType = fieldSymbol.Type;
-                    nullableAnnotation = fieldSymbol.NullableAnnotation;
+                    bool isBackingField = member is IFieldSymbol fs && (fs.IsImplicitlyDeclared || fs.Name.StartsWith("<"));
+                    if (!isBackingField)
+                    {
+                        if (member is IPropertySymbol propertySymbol &&
+                            !propertySymbol.IsStatic)
+                        {
+                            memberType = propertySymbol.Type;
+                            nullableAnnotation = propertySymbol.NullableAnnotation;
+                        }
+                        else if (member is IFieldSymbol fieldSymbol &&
+                                 !fieldSymbol.IsStatic &&
+                                 !fieldSymbol.IsConst)
+                        {
+                            memberType = fieldSymbol.Type;
+                            nullableAnnotation = fieldSymbol.NullableAnnotation;
+                        }
+                    }
                 }
 
                 if (memberType != null)

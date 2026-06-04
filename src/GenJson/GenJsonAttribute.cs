@@ -115,4 +115,12 @@ namespace GenJson
         public Type Type { get; }
         public object? TypeDiscriminatorValue { get; }
     }
+
+    /// <summary>
+    /// This attribute can be used to include private properties/fields or all private members of a class/struct/record.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Class | AttributeTargets.Struct)]
+    public sealed class GenJsonIncludePrivateMemberAttribute : Attribute
+    {
+    }
 }
