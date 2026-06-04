@@ -1341,5 +1341,101 @@ public class TestRuntime
         AssertInvalid(() => IntClass.FromJson("""{"Present":1,"NullablePresent":true}"""));
         AssertInvalid(() => StringClass.FromJson("""{"Present":"val","""));
     }
+
+    [Test]
+    public void TestFieldClass()
+    {
+        var obj = new FieldClass()
+        {
+            Present = "1",
+            NullablePresent = "2",
+            NullableNull = null
+        };
+
+        var json = obj.ToJson();
+        var expected = """{"Present":"1","NullablePresent":"2"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var obj2 = FieldClass.FromJson(json)!;
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+        
+        Assert.That(obj2.IgnoredReadonlyField, Is.EqualTo(42));
+        
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj = FieldClass.FromJsonUtf8(utf8Json)!;
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
+
+        Assert.That(FieldClass.FromJson("{}"), Is.Null);
+        Assert.That(FieldClass.FromJsonUtf8("{}"u8), Is.Null);
+    }
+
+    [Test]
+    public void TestCtorFieldClass()
+    {
+        var obj = new CtorFieldClass("Pere", "Developer");
+
+        var json = obj.ToJson();
+        var expected = """{"Name":"Pere","Role":"Developer"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var obj2 = CtorFieldClass.FromJson(json)!;
+        Assert.That(obj2.Name, Is.EqualTo("Pere"));
+        Assert.That(obj2.Role, Is.EqualTo("Developer"));
+        
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Obj = CtorFieldClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj.Name, Is.EqualTo("Pere"));
+        Assert.That(utf8Obj.Role, Is.EqualTo("Developer"));
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
+    }
+
+    [Test]
+    public void TestDecoratedFieldClass()
+    {
+        var obj = new DecoratedFieldClass()
+        {
+            PlainField = "value",
+            IgnoredField = "ignored"
+        };
+
+        var json = obj.ToJson();
+        var expected = """{"custom_name":"value"}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var obj2 = DecoratedFieldClass.FromJson(json)!;
+        Assert.That(obj2.PlainField, Is.EqualTo("value"));
+        Assert.That(obj2.IgnoredField, Is.Null);
+
+        var json2 = obj2.ToJson();
+        Assert.That(json, Is.EqualTo(json2));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var utf8Obj = DecoratedFieldClass.FromJsonUtf8(utf8Json)!;
+        Assert.That(utf8Obj.PlainField, Is.EqualTo("value"));
+        Assert.That(utf8Obj.IgnoredField, Is.Null);
+        var utf8Json2 = utf8Obj.ToJsonUtf8();
+        Assert.That(utf8Json, Is.EqualTo(utf8Json2));
+    }
 }
 

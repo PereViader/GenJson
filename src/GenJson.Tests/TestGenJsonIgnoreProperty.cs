@@ -69,4 +69,42 @@ namespace GenJson.Tests
 
         public int ReadOnly => 42;
     }
+
+    [GenJson]
+    public partial class MixedFieldClass
+    {
+        public int Normal;
+
+        [GenJsonIgnore]
+        public int Ignored;
+    }
+
+    [TestFixture]
+    public class TestGenJsonIgnoreField
+    {
+        [Test]
+        public void TestMixedFields()
+        {
+            var obj = new MixedFieldClass { Normal = 10, Ignored = 99 };
+            var json = obj.ToJson();
+            var expected = """{"Normal":10}""";
+            Assert.That(json, Is.EqualTo(expected));
+
+            var utf8Json = obj.ToJsonUtf8();
+            Assert.That(utf8Json, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes(expected)));
+
+            var inputJson = """{"Normal":20,"Ignored":888}""";
+            var deserialized = MixedFieldClass.FromJson(inputJson)!;
+
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Normal, Is.EqualTo(20));
+            Assert.That(deserialized.Ignored, Is.EqualTo(0));
+
+            var utf8InputJson = System.Text.Encoding.UTF8.GetBytes(inputJson);
+            var utf8Deserialized = MixedFieldClass.FromJsonUtf8(utf8InputJson)!;
+            Assert.That(utf8Deserialized, Is.Not.Null);
+            Assert.That(utf8Deserialized.Normal, Is.EqualTo(20));
+            Assert.That(utf8Deserialized.Ignored, Is.EqualTo(0));
+        }
+    }
 }

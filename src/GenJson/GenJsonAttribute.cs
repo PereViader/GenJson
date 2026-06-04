@@ -15,7 +15,7 @@ namespace GenJson
     /// Instead of using whatever default logic the generator would have used, it is going to use
     /// the static methods on the static class provided as a parameter
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter | AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Class | AttributeTargets.Struct)]
     public sealed class GenJsonConverterAttribute : Attribute
     {
         public GenJsonConverterAttribute(Type type)
@@ -30,7 +30,7 @@ namespace GenJson
     /// <summary>
     /// This attribute can be used to specify the name of the property in the generated json.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
     public sealed class GenJsonPropertyNameAttribute : Attribute
     {
         public GenJsonPropertyNameAttribute(string name)
@@ -46,7 +46,7 @@ namespace GenJson
     /// that the enum should be serialized as a string. So an enum with value `Potato = 1`
     /// will be serialized as "Potato".
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter | AttributeTargets.Enum)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Enum)]
     public sealed class GenJsonEnumAsTextAttribute : Attribute
     {
     }
@@ -56,7 +56,7 @@ namespace GenJson
     /// that the enum should be serialized as a number. So an enum with value `Potato = 1`
     /// will be serialized as 1.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter | AttributeTargets.Enum)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Enum)]
     public sealed class GenJsonEnumAsNumberAttribute : Attribute
     {
     }
@@ -79,7 +79,7 @@ namespace GenJson
     /// <summary>
     /// This attribute can be used to prevent a property from being serialized to json.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public sealed class GenJsonIgnoreAttribute : Attribute
     {
     }

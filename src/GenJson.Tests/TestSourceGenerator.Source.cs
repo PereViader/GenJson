@@ -631,3 +631,35 @@ public partial class CustomCollectionClass
     public CustomDictionary<string, int> CustomDict { get; set; }
     public CustomCollection<int> CustomColl { get; set; }
 }
+
+[GenJson]
+public partial class FieldClass
+{
+    public string Present;
+    public string? NullablePresent;
+    public string? NullableNull;
+    public readonly int IgnoredReadonlyField = 42;
+}
+
+[GenJson]
+public partial class CtorFieldClass
+{
+    public readonly string Name;
+    public string Role { get; init; }
+
+    public CtorFieldClass(string name, string role)
+    {
+        Name = name;
+        Role = role;
+    }
+}
+
+[GenJson]
+public partial class DecoratedFieldClass
+{
+    [GenJsonPropertyName("custom_name")]
+    public string PlainField;
+
+    [GenJsonIgnore]
+    public string IgnoredField;
+}

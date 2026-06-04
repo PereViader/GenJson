@@ -189,7 +189,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         var properties = new List<PropertyData>();
-        var propertiesMap = new Dictionary<string, (PropertyData Data, IPropertySymbol Symbol)>(StringComparer.OrdinalIgnoreCase);
+        var propertiesMap = new Dictionary<string, (PropertyData Data, ISymbol Symbol)>(StringComparer.OrdinalIgnoreCase);
 
         var currentType = typeSymbol;
         var typeHierarchy = new Stack<INamedTypeSymbol>();
@@ -203,20 +203,37 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             foreach (var member in t.GetMembers())
             {
+                ITypeSymbol? memberType = null;
+                NullableAnnotation nullableAnnotation = NullableAnnotation.None;
+
                 if (member is IPropertySymbol propertySymbol &&
                     propertySymbol.DeclaredAccessibility == Accessibility.Public &&
                     !propertySymbol.IsStatic)
                 {
-                    bool isNullable = propertySymbol.Type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
-                                      propertySymbol.NullableAnnotation == NullableAnnotation.Annotated ||
-                                      (!propertySymbol.Type.IsValueType && propertySymbol.NullableAnnotation == NullableAnnotation.None);
+                    memberType = propertySymbol.Type;
+                    nullableAnnotation = propertySymbol.NullableAnnotation;
+                }
+                else if (member is IFieldSymbol fieldSymbol &&
+                         fieldSymbol.DeclaredAccessibility == Accessibility.Public &&
+                         !fieldSymbol.IsStatic &&
+                         !fieldSymbol.IsConst)
+                {
+                    memberType = fieldSymbol.Type;
+                    nullableAnnotation = fieldSymbol.NullableAnnotation;
+                }
 
-                    var type = GetGenJsonDataType(propertySymbol, null, propertySymbol.Type, diagnostics, propertySymbol.Locations.FirstOrDefault() ?? Location.None);
-                    bool isValueType = propertySymbol.Type.IsValueType;
+                if (memberType != null)
+                {
+                    bool isNullable = memberType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+                                      nullableAnnotation == NullableAnnotation.Annotated ||
+                                      (!memberType.IsValueType && nullableAnnotation == NullableAnnotation.None);
 
-                    var propName = GetJsonName(propertySymbol, null);
+                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None);
+                    bool isValueType = memberType.IsValueType;
 
-                    var declaredType = propertySymbol.Type;
+                    var propName = GetJsonName(member, null);
+
+                    var declaredType = memberType;
                     if (declaredType.IsValueType && declaredType is INamedTypeSymbol namedType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
                     {
                         declaredType = namedType.TypeArguments[0];
@@ -225,15 +242,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     var nonNullableType = declaredType.WithNullableAnnotation(NullableAnnotation.None);
                     var typeName = nonNullableType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-                    var propData = new PropertyData(propertySymbol.Name, propName, typeName, isNullable, isValueType, type);
+                    var propData = new PropertyData(member.Name, propName, typeName, isNullable, isValueType, type);
 
-                    if (propertiesMap.TryGetValue(propertySymbol.Name, out var existing))
+                    if (propertiesMap.TryGetValue(member.Name, out var existing))
                     {
                         properties.Remove(existing.Data);
                     }
 
                     properties.Add(propData);
-                    propertiesMap[propertySymbol.Name] = (propData, propertySymbol);
+                    propertiesMap[member.Name] = (propData, member);
                 }
             }
         }
@@ -255,8 +272,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     // We found a matching property (either direct or via base)
                     // Re-evaluate types/names in context of the parameter
                     var originalSymbol = propertiesMap[propData.Name].Symbol;
+                    ITypeSymbol originalType = originalSymbol switch
+                    {
+                        IPropertySymbol p => p.Type,
+                        IFieldSymbol f => f.Type,
+                        _ => throw new InvalidOperationException()
+                    };
 
-                    var newType = GetGenJsonDataType(originalSymbol, param, originalSymbol.Type, diagnostics, param.Locations.FirstOrDefault() ?? Location.None);
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None);
                     // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
@@ -317,7 +340,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (propSymbol.IsReadOnly)
+            bool isReadOnly = propSymbol switch
+            {
+                IPropertySymbol p => p.IsReadOnly,
+                IFieldSymbol f => f.IsReadOnly || f.IsConst,
+                _ => false
+            };
+
+            if (isReadOnly)
             {
                 properties.RemoveAt(i);
                 continue;
@@ -383,7 +413,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
     private static PropertyData? GetPropertyForParameter(
         IParameterSymbol parameter,
-        Dictionary<string, (PropertyData Data, IPropertySymbol Symbol)> propertiesMap,
+        Dictionary<string, (PropertyData Data, ISymbol Symbol)> propertiesMap,
         Compilation compilation)
     {
         // 1. Check if parameter is passed to base constructor (Prioritize base mapping to resolve renames/redundancy)
@@ -451,7 +481,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static GenJsonDataType GetGenJsonDataType(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type, List<DiagnosticInfo> diagnostics, Location errorLocation)
+    private static GenJsonDataType GetGenJsonDataType(ISymbol propertySymbol, IParameterSymbol? parameterSymbol, ITypeSymbol type, List<DiagnosticInfo> diagnostics, Location errorLocation)
     {
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
@@ -735,7 +765,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static string GetJsonName(IPropertySymbol propertySymbol, IParameterSymbol? parameterSymbol)
+    private static string GetJsonName(ISymbol propertySymbol, IParameterSymbol? parameterSymbol)
     {
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute");
