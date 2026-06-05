@@ -370,6 +370,51 @@ public partial class MyClass
 }
 ```
 
+#### Dictionaries and Collections with Custom Converters
+
+If a custom class or struct has a custom converter registered (either via the type-level `[GenJsonConverter]` attribute or an assembly-level `[assembly: GenJsonConverterFor]` registration), that converter will automatically be resolved and used when the type is utilized:
+- As keys in a dictionary (e.g. `K` in `IDictionary<K, V>`)
+- As values in a dictionary (e.g. `V` in `IDictionary<K, V>`)
+- As elements in a collection (e.g. `T` in `ICollection<T>`)
+
+```csharp
+[GenJsonConverter(typeof(ResIdConverter))]
+public struct ResId
+{
+    public int Value { get; }
+    public ResId(int value) => Value = value;
+}
+
+[GenJson]
+public partial class UserInventory
+{
+    // The keys (ResId) will automatically be serialized/deserialized using ResIdConverter
+    public IDictionary<ResId, int> ResourceAmounts { get; set; } = new Dictionary<ResId, int>();
+}
+```
+
+#### Member-Level Dictionary and Collection Overrides
+
+If you want to apply a custom converter to the **keys** or **values** of a dictionary property/field/parameter, or to the **elements** of a collection property/field/parameter, you can use the `[GenJsonKeyConverter]` and `[GenJsonValueConverter]` attributes:
+
+- **`[GenJsonKeyConverter(Type converterType)]`**: Specifies a custom converter for the keys of a dictionary.
+- **`[GenJsonValueConverter(Type converterType)]`**: Specifies a custom converter for the values of a dictionary or elements of a collection.
+
+```csharp
+[GenJson]
+public partial class CustomData
+{
+    // Override the converter used for the dictionary keys and values
+    [GenJsonKeyConverter(typeof(MyCustomKeyConverter))]
+    [GenJsonValueConverter(typeof(MyCustomValueConverter))]
+    public IDictionary<int, bool> ConfigMap { get; set; } = new Dictionary<int, bool>();
+
+    // Override the converter used for collection elements
+    [GenJsonValueConverter(typeof(MyElementConverter))]
+    public ICollection<int> Items { get; set; } = new List<int>();
+}
+```
+
 #### External Types (Assembly-Level Registration)
 
 If you need to define a custom converter for an external or third-party type that you do not have source control over (meaning you cannot annotate the type directly), you can register a converter at the assembly level using the `[assembly: GenJsonConverterFor(typeof(TargetType), typeof(ConverterType))]` attribute:
@@ -385,8 +430,9 @@ using GenJson;
 When resolving which custom converter to use for a member (property, field, or constructor parameter), GenJson evaluates the available converters in the following order of priority (from highest to lowest):
 
 1. **Member-level**: `[GenJsonConverter(typeof(MyConverter))]` applied directly to a property, field, or parameter.
-2. **Type-level**: `[GenJsonConverter(typeof(MyConverter))]` applied to the class or struct definition.
-3. **Assembly-level**: `[assembly: GenJsonConverterFor(typeof(TargetType), typeof(MyConverter))]` registered at the assembly level.
+2. **Member-level overrides (Keys/Values/Elements)**: `[GenJsonKeyConverter(typeof(MyConverter))]` or `[GenJsonValueConverter(typeof(MyConverter))]` applied to a property, field, or parameter of a dictionary or collection.
+3. **Type-level**: `[GenJsonConverter(typeof(MyConverter))]` applied to the class or struct definition.
+4. **Assembly-level**: `[assembly: GenJsonConverterFor(typeof(TargetType), typeof(MyConverter))]` registered at the assembly level.
 
 If no custom converter matches, GenJson will fall back to its default serialization/deserialization strategy.
 
@@ -658,3 +704,4 @@ The bridge handles the translation of the following custom GenJson attributes au
 - **`[GenJsonPolymorphic]` and `[GenJsonDerivedType]`**: Maps polymorphism rules directly to System.Text.Json's native polymorphic contract options.
 - **`[GenJsonIncludePrivateMember]`**: Dynamically registers public fields and private/non-public properties and fields in System.Text.Json options.
 - **`[GenJsonConverter(typeof(MyConverter))]`**: Automatically routes property-level or type-level custom converters to a dynamic bridge that executes your custom GenJson static methods (`GetSizeUtf8`, `WriteJsonUtf8`, `FromJsonUtf8`) inside System.Text.Json.
+- **`[assembly: GenJsonConverterFor(typeof(TargetType), typeof(ConverterType))]`**: Automatically routes assembly-level custom converters registered for external/third-party types to the dynamic System.Text.Json bridge.
