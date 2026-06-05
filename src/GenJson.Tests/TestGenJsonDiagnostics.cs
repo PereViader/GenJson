@@ -107,6 +107,52 @@ public class TestGenJsonDiagnostics
             "GENJSON003 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
     }
 
+    [Test]
+    public void UnsupportedRootType_ReportsError()
+    {
+        var code = """
+            using System.Collections.Generic;
+            using GenJson;
+
+            namespace TestNamespace;
+
+            [GenJsonSerializable(typeof(List<NotAnnotatedClass>))]
+            public static partial class MySerializer
+            {
+            }
+
+            public class NotAnnotatedClass
+            {
+                public string Name { get; set; } = "";
+            }
+            """;
+
+        var diagnostics = GetDiagnostics(code);
+        Assert.That(diagnostics.Any(d => d is { Id: "GENJSON004", Severity: DiagnosticSeverity.Error }), Is.True, 
+            "GENJSON004 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
+    }
+
+    [Test]
+    public void NonStaticOrNonPartialSerializer_ReportsError()
+    {
+        var code = """
+            using System.Collections.Generic;
+            using GenJson;
+
+            namespace TestNamespace;
+
+            [GenJsonSerializable(typeof(List<int>))]
+            public class MySerializer
+            {
+            }
+            """;
+
+        var diagnostics = GetDiagnostics(code);
+        Assert.That(diagnostics.Any(d => d is { Id: "GENJSON005", Severity: DiagnosticSeverity.Error }), Is.True, 
+            "GENJSON005 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
+    }
+
+
     private static ImmutableArray<Diagnostic> GetDiagnostics(string code)
     {
         var references = AppDomain.CurrentDomain

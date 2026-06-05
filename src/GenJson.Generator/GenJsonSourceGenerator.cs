@@ -116,6 +116,15 @@ public record GeneratorResult(
     ClassData? ClassData,
     EquatableList<DiagnosticInfo> Diagnostics);
 
+public record RootTypeInfo(string RawTypeName, GenJsonDataType Type);
+
+public record SerializerClassData(
+    string ClassName,
+    string Namespace,
+    string Keyword,
+    RootTypeInfo? RootType,
+    EquatableList<DiagnosticInfo> Diagnostics);
+
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
 {
@@ -129,6 +138,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             .Where(x => x is not null);
 
         context.RegisterSourceOutput(classData, Generate!);
+
+        var serializerData = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "GenJson.GenJsonSerializableAttribute",
+                IsClassSyntaxNodeValid,
+                GetSerializerClassData)
+            .Where(x => x is not null);
+
+        context.RegisterSourceOutput(serializerData, GenerateSerializerClass!);
     }
 
     private static bool IsSyntaxNodeValid(SyntaxNode node, CancellationToken ct)
@@ -3433,4 +3451,537 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("}");
         }
     }
+
+    private static bool IsSupportedType(ITypeSymbol type, IAssemblySymbol assembly)
+    {
+        if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+            type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
+        {
+            return IsSupportedType(namedRaw.TypeArguments[0], assembly);
+        }
+
+        switch (type.SpecialType)
+        {
+            case SpecialType.System_String:
+            case SpecialType.System_Boolean:
+            case SpecialType.System_Char:
+            case SpecialType.System_Single:
+            case SpecialType.System_Double:
+            case SpecialType.System_Decimal:
+            case SpecialType.System_Int32:
+            case SpecialType.System_UInt32:
+            case SpecialType.System_Int64:
+            case SpecialType.System_UInt64:
+            case SpecialType.System_Int16:
+            case SpecialType.System_UInt16:
+            case SpecialType.System_Byte:
+            case SpecialType.System_SByte:
+                return true;
+        }
+
+        var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (typeName == "global::System.Guid" || typeName == "System.Guid" ||
+            typeName == "global::System.DateTime" || typeName == "System.DateTime" ||
+            typeName == "global::System.TimeSpan" || typeName == "System.TimeSpan" ||
+            typeName == "global::System.DateTimeOffset" || typeName == "System.DateTimeOffset" ||
+            typeName == "global::System.Version" || typeName == "System.Version" ||
+            typeName == "global::System.Uri" || typeName == "System.Uri")
+        {
+            return true;
+        }
+
+        if (type.TypeKind == TypeKind.Enum)
+        {
+            return true;
+        }
+
+        if (HasGenJsonAttribute(type))
+        {
+            return true;
+        }
+
+        if (TryGetAssemblyConverter(assembly, type) != null)
+        {
+            return true;
+        }
+
+        if (type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute"))
+        {
+            return true;
+        }
+
+        if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
+        {
+            return IsSupportedType(keyType!, assembly) && IsSupportedType(valueType!, assembly);
+        }
+
+        var resolvedElementType = GetEnumerableElementType(type);
+        if (resolvedElementType != null)
+        {
+            return IsSupportedType(resolvedElementType, assembly);
+        }
+
+        return false;
+    }
+
+    private static GenJsonDataType GetRootGenJsonDataType(
+        ITypeSymbol type, 
+        List<DiagnosticInfo> diagnostics, 
+        Location? errorLocation, 
+        IAssemblySymbol assembly)
+    {
+        var typeConverterOverride = type.GetAttributes().FirstOrDefault(a => 
+            a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
+        ITypeSymbol? converterType = null;
+        if (typeConverterOverride != null && typeConverterOverride.ConstructorArguments.Length > 0 && typeConverterOverride.ConstructorArguments[0].Value is ITypeSymbol convType)
+        {
+            converterType = convType;
+        }
+        else
+        {
+            converterType = TryGetAssemblyConverter(assembly, type);
+        }
+
+        if (converterType != null)
+        {
+            bool isNullable = type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+                              type.NullableAnnotation == NullableAnnotation.Annotated ||
+                              (!type.IsValueType && type.NullableAnnotation == NullableAnnotation.None);
+            bool isValueType = type.IsValueType;
+
+            return new GenJsonDataType.CustomConverter(
+                converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                isNullable,
+                isValueType);
+        }
+
+        if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
+        {
+            var typeHasAsText = type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonEnumAsTextAttribute");
+            var fallbackAttr = type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonEnumFallbackAttribute");
+            string? fallbackValue = null;
+            if (fallbackAttr != null && fallbackAttr.ConstructorArguments.Length > 0)
+            {
+                var arg = fallbackAttr.ConstructorArguments[0];
+                if (arg.Value != null && arg.Type != null)
+                {
+                    fallbackValue = $"({arg.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})({arg.Value})";
+                }
+            }
+
+            var underlyingType = enumType.EnumUnderlyingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "int";
+            var members = new List<string>();
+            foreach (var member in enumType.GetMembers())
+            {
+                if (member is IFieldSymbol { ConstantValue: not null })
+                {
+                    members.Add(member.Name);
+                }
+            }
+            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), typeHasAsText, underlyingType, fallbackValue, new EquatableList<string>(members));
+        }
+
+        if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+            type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
+        {
+            return new GenJsonDataType.Nullable(GetRootGenJsonDataType(namedRaw.TypeArguments[0], diagnostics, errorLocation, assembly));
+        }
+
+        switch (type.SpecialType)
+        {
+            case SpecialType.System_String:
+                return GenJsonDataType.String.Instance;
+            case SpecialType.System_Boolean:
+                return GenJsonDataType.Boolean.Instance;
+            case SpecialType.System_Char:
+                return GenJsonDataType.Char.Instance;
+            case SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal:
+                return new GenJsonDataType.FloatingPoint(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            case SpecialType.System_Int32:
+            case SpecialType.System_UInt32:
+            case SpecialType.System_Int64:
+            case SpecialType.System_UInt64:
+            case SpecialType.System_Int16:
+            case SpecialType.System_UInt16:
+            case SpecialType.System_Byte:
+            case SpecialType.System_SByte:
+                return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        }
+
+        var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        switch (typeName)
+        {
+            case "global::System.Guid" or "System.Guid":
+                return GenJsonDataType.Guid.Instance;
+            case "global::System.DateTime":
+            case "System.DateTime":
+                return GenJsonDataType.DateTime.Instance;
+            case "global::System.TimeSpan":
+            case "System.TimeSpan":
+                return GenJsonDataType.TimeSpan.Instance;
+            case "global::System.DateTimeOffset":
+            case "System.DateTimeOffset":
+                return GenJsonDataType.DateTimeOffset.Instance;
+            case "global::System.Version":
+            case "System.Version":
+                return GenJsonDataType.Version.Instance;
+            case "global::System.Uri":
+            case "System.Uri":
+                return GenJsonDataType.Uri.Instance;
+        }
+
+        if (HasGenJsonAttribute(type))
+        {
+            return new GenJsonDataType.Object(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        }
+
+        if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
+        {
+            var keyGenType = GetRootGenJsonDataType(keyType!, diagnostics, errorLocation, assembly);
+            var valueGenType = GetRootGenJsonDataType(valueType!, diagnostics, errorLocation, assembly);
+            
+            string constructionTypeName;
+            bool hasCapacityConstructor = false;
+            
+            if (type.IsAbstract || type.TypeKind == TypeKind.Interface)
+            {
+                constructionTypeName = $"global::System.Collections.Generic.Dictionary<{keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, {valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
+                hasCapacityConstructor = true;
+            }
+            else
+            {
+                constructionTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (type is INamedTypeSymbol namedType)
+                {
+                    hasCapacityConstructor = namedType.Constructors.Any(c =>
+                        c.Parameters.Length == 1 &&
+                        c.Parameters[0].Type.SpecialType == SpecialType.System_Int32);
+                }
+            }
+            
+            return new GenJsonDataType.Dictionary(
+                keyGenType, 
+                valueGenType, 
+                constructionTypeName, 
+                keyType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                valueType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                valueType!.IsValueType,
+                hasCapacityConstructor);
+        }
+
+        ITypeSymbol? resolvedElementType = GetEnumerableElementType(type);
+        if (resolvedElementType != null)
+        {
+            var isArray = type is IArrayTypeSymbol;
+            string constructionTypeName;
+            bool hasCapacityConstructor = false;
+            
+            if (isArray)
+            {
+                constructionTypeName = null!;
+            }
+            else if (type.IsAbstract || type.TypeKind == TypeKind.Interface)
+            {
+                constructionTypeName = $"global::System.Collections.Generic.List<{resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>";
+                hasCapacityConstructor = true;
+            }
+            else
+            {
+                constructionTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (type is INamedTypeSymbol namedType)
+                {
+                    hasCapacityConstructor = namedType.Constructors.Any(c =>
+                        c.Parameters.Length == 1 &&
+                        c.Parameters[0].Type.SpecialType == SpecialType.System_Int32);
+                }
+            }
+            
+            return new GenJsonDataType.Enumerable(
+                GetRootGenJsonDataType(resolvedElementType, diagnostics, errorLocation, assembly), 
+                isArray, 
+                constructionTypeName!, 
+                resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
+                resolvedElementType.IsValueType,
+                hasCapacityConstructor);
+        }
+
+        return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+    }
+
+    private string GetSanitizedName(string typeName)
+    {
+        return typeName
+            .Replace("global::", "")
+            .Replace("System.Collections.Generic.", "")
+            .Replace("<", "_")
+            .Replace(">", "_")
+            .Replace(",", "_")
+            .Replace(" ", "")
+            .Replace("[", "_Array")
+            .Replace("]", "")
+            .Replace(".", "_")
+            .Replace("?", "_Nullable")
+            .Trim('_');
+    }
+
+    private static bool IsClassSyntaxNodeValid(SyntaxNode node, CancellationToken ct)
+    {
+        return node is ClassDeclarationSyntax;
+    }
+
+    private static SerializerClassData? GetSerializerClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    {
+        var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
+        var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
+        if (typeSymbol is null)
+        {
+            return null;
+        }
+
+        var assembly = context.SemanticModel.Compilation.Assembly;
+        var diagnostics = new List<DiagnosticInfo>();
+
+        var isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
+        var isPartial = typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword);
+        var errorLocation = typeDeclaration.Identifier.GetLocation();
+
+        if (!isStatic || !isPartial)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                "GENJSON005",
+                "Serializer class must be static and partial",
+                "The class '{0}' decorated with [GenJsonSerializable] must be both static and partial.",
+                "Usage",
+                DiagnosticSeverity.Error,
+                errorLocation,
+                typeSymbol.Name));
+        }
+
+        RootTypeInfo? rootType = null;
+        var attributes = typeSymbol.GetAttributes();
+        var serializableAttr = attributes.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString() == "GenJson.GenJsonSerializableAttribute");
+        if (serializableAttr != null &&
+            serializableAttr.ConstructorArguments.Length == 1 &&
+            serializableAttr.ConstructorArguments[0].Value is ITypeSymbol typeSymbolArg)
+        {
+            var attrLocation = serializableAttr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation() ?? errorLocation;
+            
+            if (!IsSupportedType(typeSymbolArg, assembly))
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    "GENJSON004",
+                    "Unsupported type in root registration",
+                    "The type '{0}' registered as a root type is not supported. It must be a primitive, enum, marked with [GenJson], or have a registered custom converter.",
+                    "Usage",
+                    DiagnosticSeverity.Error,
+                    attrLocation,
+                    typeSymbolArg.ToDisplayString()));
+            }
+            else
+            {
+                var resolvedType = GetRootGenJsonDataType(typeSymbolArg, diagnostics, attrLocation, assembly);
+                var rawTypeName = typeSymbolArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                rootType = new RootTypeInfo(rawTypeName, resolvedType);
+            }
+        }
+
+        var keyword = typeDeclaration.Keyword.Text;
+        var typeNameSpace = (typeSymbol.ContainingNamespace == null || typeSymbol.ContainingNamespace.IsGlobalNamespace)
+            ? ""
+            : typeSymbol.ContainingNamespace.ToDisplayString();
+
+        return new SerializerClassData(
+            typeSymbol.Name,
+            typeNameSpace,
+            keyword,
+            rootType,
+            new EquatableList<DiagnosticInfo>(diagnostics));
+    }
+
+    private void GenerateSerializerClass(SourceProductionContext context, SerializerClassData data)
+    {
+        foreach (var diag in data.Diagnostics.Value)
+        {
+            context.ReportDiagnostic(diag.ToDiagnostic());
+        }
+
+        if (data.Diagnostics.Value.Any(d => d.Severity == DiagnosticSeverity.Error) || data.RootType == null)
+        {
+            return;
+        }
+
+        var root = data.RootType;
+        var sanitized = GetSanitizedName(root.RawTypeName);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("#pragma warning disable");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine();
+
+        if (!string.IsNullOrEmpty(data.Namespace))
+        {
+            sb.AppendLine($"namespace {data.Namespace}");
+            sb.AppendLine("{");
+        }
+
+        sb.AppendLine($"    static partial class {data.ClassName}");
+        sb.AppendLine("    {");
+
+        // Helper class
+        if (root.Type is not GenJsonDataType.Object)
+        {
+            sb.AppendLine("        internal static class GenJsonSerializerHelpers");
+            sb.AppendLine("        {");
+
+            // String-based helpers:
+            // 1. Size
+            sb.AppendLine($"            public static int CalculateSize_{sanitized}({root.RawTypeName}? value, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                if (value == null) return 4;");
+            sb.AppendLine("                int size = 0;");
+            GenerateSizeValue(sb, root.Type, "value", "                ", 0, false);
+            sb.AppendLine("                return size;");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            // 2. Write
+            sb.AppendLine($"            public static void WriteJson_{sanitized}(System.Span<char> span, ref int index, {root.RawTypeName}? value, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                if (value == null)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    span[index++] = 'n'; span[index++] = 'u'; span[index++] = 'l'; span[index++] = 'l';");
+            sb.AppendLine("                    return;");
+            sb.AppendLine("                }");
+            GenerateWriteJsonValue(sb, root.Type, "value", "                ", 0, false);
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            // 3. Parse
+            sb.AppendLine($"            public static {root.RawTypeName}? Parse_{sanitized}(System.ReadOnlySpan<char> json, ref int index, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                {root.RawTypeName}? result = default;");
+            GenerateParseValue(sb, root.Type, "result", "                ", 0, false);
+            sb.AppendLine("                return result;");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            // UTF-8-based helpers:
+            // 1. Size
+            sb.AppendLine($"            public static int CalculateSizeUtf8_{sanitized}({root.RawTypeName}? value, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                if (value == null) return 4;");
+            sb.AppendLine("                int size = 0;");
+            GenerateSizeValue(sb, root.Type, "value", "                ", 0, true);
+            sb.AppendLine("                return size;");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            // 2. Write
+            sb.AppendLine($"            public static void WriteJsonUtf8_{sanitized}(System.Span<byte> span, ref int index, {root.RawTypeName}? value, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                if (value == null)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    span[index++] = (byte)'n'; span[index++] = (byte)'u'; span[index++] = (byte)'l'; span[index++] = (byte)'l';");
+            sb.AppendLine("                    return;");
+            sb.AppendLine("                }");
+            GenerateWriteJsonValue(sb, root.Type, "value", "                ", 0, true);
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            // 3. Parse
+            sb.AppendLine($"            public static {root.RawTypeName}? ParseUtf8_{sanitized}(System.ReadOnlySpan<byte> json, ref int index, bool useCountOptimization)");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                {root.RawTypeName}? result = default;");
+            GenerateParseValue(sb, root.Type, "result", "                ", 0, true);
+            sb.AppendLine("                return result;");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+
+            sb.AppendLine("        }");
+            sb.AppendLine();
+        }
+
+        // ToJson (extension method & static entry point)
+        sb.AppendLine($"        public static string ToJson(this {root.RawTypeName}? value, bool useCountOptimization = false)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (value == null) return \"null\";");
+        if (root.Type is GenJsonDataType.Object)
+        {
+            sb.AppendLine($"            return value.ToJson(useCountOptimization);");
+        }
+        else
+        {
+            sb.AppendLine($"            return string.Create(GenJsonSerializerHelpers.CalculateSize_{sanitized}(value, useCountOptimization), (value, useCountOptimization), (span, state) =>");
+            sb.AppendLine("            {");
+            sb.AppendLine("                int index = 0;");
+            sb.AppendLine($"                GenJsonSerializerHelpers.WriteJson_{sanitized}(span, ref index, state.value, state.useCountOptimization);");
+            sb.AppendLine("            });");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        // ToJsonUtf8 (extension method & static entry point)
+        sb.AppendLine($"        public static byte[] ToJsonUtf8(this {root.RawTypeName}? value, bool useCountOptimization = false)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (value == null) return new byte[] { (byte)'n', (byte)'u', (byte)'l', (byte)'l' };");
+        if (root.Type is GenJsonDataType.Object)
+        {
+            sb.AppendLine($"            return value.ToJsonUtf8(useCountOptimization);");
+        }
+        else
+        {
+            sb.AppendLine($"            var bytes = new byte[GenJsonSerializerHelpers.CalculateSizeUtf8_{sanitized}(value, useCountOptimization)];");
+            sb.AppendLine("            int index = 0;");
+            sb.AppendLine($"            GenJsonSerializerHelpers.WriteJsonUtf8_{sanitized}(bytes, ref index, value, useCountOptimization);");
+            sb.AppendLine("            return bytes;");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        // FromJson
+        sb.AppendLine($"        public static {root.RawTypeName}? FromJson(System.ReadOnlySpan<char> json, bool useCountOptimization = false)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (json.SequenceEqual(\"null\".AsSpan())) return default;");
+        if (root.Type is GenJsonDataType.Object)
+        {
+            sb.AppendLine($"            return {root.RawTypeName}.FromJson(json, useCountOptimization);");
+        }
+        else
+        {
+            sb.AppendLine("            int index = 0;");
+            sb.AppendLine($"            return GenJsonSerializerHelpers.Parse_{sanitized}(json, ref index, useCountOptimization);");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        // FromJsonUtf8
+        sb.AppendLine($"        public static {root.RawTypeName}? FromJsonUtf8(System.ReadOnlySpan<byte> json, bool useCountOptimization = false)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (json.SequenceEqual(new byte[] { (byte)'n', (byte)'u', (byte)'l', (byte)'l' })) return default;");
+        if (root.Type is GenJsonDataType.Object)
+        {
+            sb.AppendLine($"            return {root.RawTypeName}.FromJsonUtf8(json, useCountOptimization);");
+        }
+        else
+        {
+            sb.AppendLine("            int index = 0;");
+            sb.AppendLine($"            return GenJsonSerializerHelpers.ParseUtf8_{sanitized}(json, ref index, useCountOptimization);");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine("    }");
+
+        if (!string.IsNullOrEmpty(data.Namespace))
+        {
+            sb.AppendLine("}");
+        }
+
+        context.AddSource($"{(string.IsNullOrEmpty(data.Namespace) ? "" : data.Namespace + "_")}{data.ClassName}.GenJson.g.cs", sb.ToString());
+    }
 }
+

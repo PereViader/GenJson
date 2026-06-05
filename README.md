@@ -659,6 +659,51 @@ public partial class User
 }
 ```
 
+### 15. Root Collections, Arrays, Dictionaries, and Primitives
+
+By default, serialization/deserialization requires starting from a class, record, or struct decorated with `[GenJson]`. If you need to serialize starting from root collections, arrays, dictionaries, or primitives, you can define a custom static partial class decorated with exactly one `[GenJsonSerializable(Type)]` attribute.
+
+#### Defining a Serializer Class
+
+To define your serializer, create a `static partial` class and decorate it with a single `[GenJsonSerializable(Type)]` for the target root type you want to support:
+
+```csharp
+using System.Collections.Generic;
+using GenJson;
+
+[GenJsonSerializable(typeof(List<Product>))]
+public static partial class ProductListSerializer
+{
+}
+```
+
+GenJson will automatically generate the strongly-typed serialization, deserialization, and extension methods directly inside this partial static class.
+
+#### Serialization and Deserialization
+
+You can use the serializer class directly, or use the generated extension methods (since they are generated inside `ProductListSerializer`, make sure the namespace containing your serializer is imported):
+
+```csharp
+var products = new List<Product>
+{
+    new() { Name = "Shoes" }
+};
+
+// 1. Serialization via extension methods
+string json = products.ToJson();
+byte[] utf8Json = products.ToJsonUtf8();
+
+// 2. Deserialization via strongly-typed, non-generic entry points on ProductListSerializer
+List<Product> deserialized = ProductListSerializer.FromJson(json);
+List<Product> deserializedUtf8 = ProductListSerializer.FromJsonUtf8(utf8Json);
+```
+
+> [!NOTE]
+> - The serializer class must be declared as `static` and `partial`.
+> - A serializer class can only have exactly one `[GenJsonSerializable]` attribute applied (the C# compiler will enforce this automatically because `AllowMultiple = false`).
+> - If an annotated serializer class is not both `static` and `partial`, a compile-time error (`GENJSON005`) will be reported.
+> - The target type in `[GenJsonSerializable]` must be a supported type (primitives, enums, classes/structs decorated with `[GenJson]`, or types with a registered custom converter). If not, a compile-time error (`GENJSON004`) will be reported.
+
 ## How It Works
 
 GenJson analyzes your code during compilation and generates specialized serialization code.

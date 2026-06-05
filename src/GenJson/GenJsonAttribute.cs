@@ -134,6 +134,19 @@ namespace GenJson
     {
     }
 
+    /// <summary>
+    /// Register a type as a serializable root type on a serializer class
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+    public sealed class GenJsonSerializableAttribute : Attribute
+    {
+        public GenJsonSerializableAttribute(Type type)
+        {
+            Type = type;
+        }
 
+        public Type Type { get; }
+    }
 }
+
 
