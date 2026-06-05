@@ -519,8 +519,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (converterType == null)
         {
-            var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
-                                parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
+            var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                !GetBoolNamedArgument(a, "Key") && !GetBoolNamedArgument(a, "Value")) ??
+                                parameterSymbol?.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                !GetBoolNamedArgument(a, "Key") && !GetBoolNamedArgument(a, "Value")) ??
                                 type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
 
             if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol attrConvType)
@@ -667,16 +671,24 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
             ITypeSymbol? keyConverterOverride = null;
-            var keyConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonKeyConverterAttribute") ??
-                                   parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonKeyConverterAttribute");
+            var keyConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Key")) ??
+                                   parameterSymbol?.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Key"));
             if (keyConverterAttr != null && keyConverterAttr.ConstructorArguments.Length > 0 && keyConverterAttr.ConstructorArguments[0].Value is ITypeSymbol keyConvType)
             {
                 keyConverterOverride = keyConvType;
             }
 
             ITypeSymbol? valueConverterOverride = null;
-            var valueConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute") ??
-                                     parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute");
+            var valueConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Value")) ??
+                                     parameterSymbol?.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Value"));
             if (valueConverterAttr != null && valueConverterAttr.ConstructorArguments.Length > 0 && valueConverterAttr.ConstructorArguments[0].Value is ITypeSymbol valueConvType)
             {
                 valueConverterOverride = valueConvType;
@@ -718,8 +730,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (resolvedElementType != null)
         {
             ITypeSymbol? elementConverterOverride = null;
-            var elementConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute") ??
-                                       parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute");
+            var elementConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Value")) ??
+                                       parameterSymbol?.GetAttributes().FirstOrDefault(a => 
+                a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                GetBoolNamedArgument(a, "Value"));
             if (elementConverterAttr != null && elementConverterAttr.ConstructorArguments.Length > 0 && elementConverterAttr.ConstructorArguments[0].Value is ITypeSymbol elementConvType)
             {
                 elementConverterOverride = elementConvType;
@@ -765,16 +781,39 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
     {
         foreach (var attr in assembly.GetAttributes())
         {
-            if (attr.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterForAttribute" &&
-                attr.ConstructorArguments.Length == 2 &&
-                attr.ConstructorArguments[0].Value is ITypeSymbol targetType &&
-                SymbolEqualityComparer.Default.Equals(targetType, type) &&
-                attr.ConstructorArguments[1].Value is ITypeSymbol converterType)
+            if (attr.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
+                attr.ConstructorArguments.Length == 1 &&
+                attr.ConstructorArguments[0].Value is ITypeSymbol converterType)
             {
-                return converterType;
+                ITypeSymbol? targetType = null;
+                foreach (var arg in attr.NamedArguments)
+                {
+                    if (arg.Key == "TargetType" && arg.Value.Value is ITypeSymbol t)
+                    {
+                        targetType = t;
+                        break;
+                    }
+                }
+
+                if (targetType != null && SymbolEqualityComparer.Default.Equals(targetType, type))
+                {
+                    return converterType;
+                }
             }
         }
         return null;
+    }
+
+    private static bool GetBoolNamedArgument(AttributeData attr, string name)
+    {
+        foreach (var arg in attr.NamedArguments)
+        {
+            if (arg.Key == name && arg.Value.Value is bool b)
+            {
+                return b;
+            }
+        }
+        return false;
     }
 
     private static bool TryGetDictionaryTypes(ITypeSymbol type, out ITypeSymbol? keyType, out ITypeSymbol? valueType)

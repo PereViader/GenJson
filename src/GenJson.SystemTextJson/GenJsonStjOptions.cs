@@ -85,15 +85,15 @@ namespace GenJson.SystemTextJson
                         continue;
                     }
 
-                    var assemblyConverterAttrs = assembly.GetCustomAttributes(typeof(GenJsonConverterForAttribute), false);
+                    var assemblyConverterAttrs = assembly.GetCustomAttributes(typeof(GenJsonConverterAttribute), false);
                     foreach (var attrObj in assemblyConverterAttrs)
                     {
-                        if (attrObj is GenJsonConverterForAttribute attr)
+                        if (attrObj is GenJsonConverterAttribute attr)
                         {
-                            if (!registeredTypes.Contains(attr.TargetType))
+                            if (attr.TargetType != null && !registeredTypes.Contains(attr.TargetType))
                             {
                                 var bridgeType = typeof(GenJsonStjBridgeConverter<>).MakeGenericType(attr.TargetType);
-                                var converterInstance = (JsonConverter)Activator.CreateInstance(bridgeType, attr.ConverterType)!;
+                                var converterInstance = (JsonConverter)Activator.CreateInstance(bridgeType, attr.Type)!;
                                 options.Converters.Add(converterInstance);
                                 registeredTypes.Add(attr.TargetType);
                             }
@@ -249,11 +249,13 @@ namespace GenJson.SystemTextJson
                     }
 
                     // Property Custom Converters: [GenJsonConverter]
-                    if (property.AttributeProvider.GetCustomAttributes(typeof(GenJsonConverterAttribute), true)
-                            .FirstOrDefault() is GenJsonConverterAttribute propConverterAttr)
+                    var propConverterAttrs = property.AttributeProvider.GetCustomAttributes(typeof(GenJsonConverterAttribute), true)
+                            .Cast<GenJsonConverterAttribute>();
+                    var selfConverterAttr = propConverterAttrs.FirstOrDefault(a => !a.Key && !a.Value);
+                    if (selfConverterAttr != null)
                     {
                         var bridgeType = typeof(GenJsonStjBridgeConverter<>).MakeGenericType(property.PropertyType);
-                        property.CustomConverter = (JsonConverter)Activator.CreateInstance(bridgeType, propConverterAttr.Type);
+                        property.CustomConverter = (JsonConverter)Activator.CreateInstance(bridgeType, selfConverterAttr.Type);
                         continue;
                     }
 

@@ -4,7 +4,7 @@ using NUnit.Framework;
 using GenJson;
 using GenJson.SystemTextJson;
 
-[assembly: GenJsonConverterFor(typeof(GenJson.SystemTextJson.Tests.StjExternalStruct), typeof(GenJson.SystemTextJson.Tests.StjExternalStructConverter))]
+[assembly: GenJsonConverter(typeof(GenJson.SystemTextJson.Tests.StjExternalStructConverter), TargetType = typeof(GenJson.SystemTextJson.Tests.StjExternalStruct))]
 
 
 namespace GenJson.SystemTextJson.Tests

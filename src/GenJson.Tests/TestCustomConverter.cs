@@ -508,8 +508,8 @@ public partial class DictionaryWithCustomKeyClass
 [GenJson]
 public partial class DictionaryOverridesClass
 {
-    [GenJsonKeyConverter(typeof(MyCustomConverter))]
-    [GenJsonValueConverter(typeof(MyBoolConverter))]
+    [GenJsonConverter(typeof(MyCustomConverter), Key = true)]
+    [GenJsonConverter(typeof(MyBoolConverter), Value = true)]
     public IDictionary<int, bool> Dict { get; set; } = new Dictionary<int, bool>();
 }
 
@@ -554,6 +554,6 @@ public static class MyBoolConverter
 [GenJson]
 public partial class CollectionOverrideClass
 {
-    [GenJsonValueConverter(typeof(MyCustomConverter))]
+    [GenJsonConverter(typeof(MyCustomConverter), Value = true)]
     public ICollection<int> List { get; set; } = new List<int>();
 }

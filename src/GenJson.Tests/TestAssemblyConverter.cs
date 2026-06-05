@@ -3,8 +3,8 @@ using NUnit.Framework;
 using GenJson;
 using GenJson.Tests;
 
-[assembly: GenJsonConverterFor(typeof(ExternalStruct), typeof(ExternalStructAssemblyConverter))]
-[assembly: GenJsonConverterFor(typeof(PriorityStruct), typeof(PriorityStructAssemblyConverter))]
+[assembly: GenJsonConverter(typeof(ExternalStructAssemblyConverter), TargetType = typeof(ExternalStruct))]
+[assembly: GenJsonConverter(typeof(PriorityStructAssemblyConverter), TargetType = typeof(PriorityStruct))]
 
 namespace GenJson.Tests
 {

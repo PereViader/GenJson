@@ -11,11 +11,18 @@ namespace GenJson
     }
 
     /// <summary>
-    /// This attribute can be used to implement special logic to map from/back json to instance
-    /// Instead of using whatever default logic the generator would have used, it is going to use
-    /// the static methods on the static class provided as a parameter
+    /// This attribute can be used to implement special logic to map from/back json to instance.
+    /// It can be used at the class/struct, property/field, parameter, or assembly level.
+    /// To customize dictionary keys or values/collection elements, set the Key or Value properties to true.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(
+        AttributeTargets.Property | 
+        AttributeTargets.Field | 
+        AttributeTargets.Parameter | 
+        AttributeTargets.Class | 
+        AttributeTargets.Struct | 
+        AttributeTargets.Assembly, 
+        AllowMultiple = true)]
     public sealed class GenJsonConverterAttribute : Attribute
     {
         public GenJsonConverterAttribute(Type type)
@@ -24,6 +31,9 @@ namespace GenJson
         }
 
         public Type Type { get; set; }
+        public Type? TargetType { get; set; }
+        public bool Key { get; set; }
+        public bool Value { get; set; }
     }
 
 
@@ -124,49 +134,6 @@ namespace GenJson
     {
     }
 
-    /// <summary>
-    /// This attribute can be used at the assembly level to specify a custom converter for a type
-    /// that cannot be decorated directly (e.g., external types).
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
-    public sealed class GenJsonConverterForAttribute : Attribute
-    {
-        public GenJsonConverterForAttribute(Type targetType, Type converterType)
-        {
-            TargetType = targetType;
-            ConverterType = converterType;
-        }
 
-        public Type TargetType { get; }
-        public Type ConverterType { get; }
-    }
-
-    /// <summary>
-    /// This attribute can be used to specify a custom converter for the keys of a dictionary property/field/parameter.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-    public sealed class GenJsonKeyConverterAttribute : Attribute
-    {
-        public GenJsonKeyConverterAttribute(Type type)
-        {
-            Type = type;
-        }
-
-        public Type Type { get; set; }
-    }
-
-    /// <summary>
-    /// This attribute can be used to specify a custom converter for the values of a dictionary or elements of a collection.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-    public sealed class GenJsonValueConverterAttribute : Attribute
-    {
-        public GenJsonValueConverterAttribute(Type type)
-        {
-            Type = type;
-        }
-
-        public Type Type { get; set; }
-    }
 }
 
