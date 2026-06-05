@@ -245,7 +245,7 @@ public class TestCustomConverter
         var expected = """{"ResourceAmounts":{"R1":10,"R2":20}}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var parsed = DictionaryWithCustomKeyClass.FromJson(json);
+        var parsed = DictionaryWithCustomKeyClass.FromJson(json)!;
         Assert.That(parsed, Is.Not.Null);
         Assert.That(parsed.ResourceAmounts, Is.Not.Null);
         Assert.That(parsed.ResourceAmounts.Count, Is.EqualTo(2));
@@ -262,7 +262,7 @@ public class TestCustomConverter
         var utf8Size = obj.CalculateJsonSizeUtf8();
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var parsedUtf8 = DictionaryWithCustomKeyClass.FromJsonUtf8(utf8Json);
+        var parsedUtf8 = DictionaryWithCustomKeyClass.FromJsonUtf8(utf8Json)!;
         Assert.That(parsedUtf8, Is.Not.Null);
         Assert.That(parsedUtf8.ResourceAmounts, Is.Not.Null);
         Assert.That(parsedUtf8.ResourceAmounts.Count, Is.EqualTo(2));
@@ -286,7 +286,7 @@ public class TestCustomConverter
         var expected = """{"Dict":{"X1X":"Y","X2X":"N"}}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var parsed = DictionaryOverridesClass.FromJson(json);
+        var parsed = DictionaryOverridesClass.FromJson(json)!;
         Assert.That(parsed, Is.Not.Null);
         Assert.That(parsed.Dict, Is.Not.Null);
         Assert.That(parsed.Dict.Count, Is.EqualTo(2));
@@ -303,7 +303,7 @@ public class TestCustomConverter
         var utf8Size = obj.CalculateJsonSizeUtf8();
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var parsedUtf8 = DictionaryOverridesClass.FromJsonUtf8(utf8Json);
+        var parsedUtf8 = DictionaryOverridesClass.FromJsonUtf8(utf8Json)!;
         Assert.That(parsedUtf8, Is.Not.Null);
         Assert.That(parsedUtf8.Dict, Is.Not.Null);
         Assert.That(parsedUtf8.Dict.Count, Is.EqualTo(2));
@@ -323,7 +323,7 @@ public class TestCustomConverter
         var expected = """{"List":["X1X","X2X"]}""";
         Assert.That(json, Is.EqualTo(expected));
 
-        var parsed = CollectionOverrideClass.FromJson(json);
+        var parsed = CollectionOverrideClass.FromJson(json)!;
         Assert.That(parsed, Is.Not.Null);
         Assert.That(parsed.List, Is.Not.Null);
         Assert.That(parsed.List, Is.EquivalentTo(new[] { 1, 2 }));
@@ -338,7 +338,7 @@ public class TestCustomConverter
         var utf8Size = obj.CalculateJsonSizeUtf8();
         Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
 
-        var parsedUtf8 = CollectionOverrideClass.FromJsonUtf8(utf8Json);
+        var parsedUtf8 = CollectionOverrideClass.FromJsonUtf8(utf8Json)!;
         Assert.That(parsedUtf8, Is.Not.Null);
         Assert.That(parsedUtf8.List, Is.Not.Null);
         Assert.That(parsedUtf8.List, Is.EquivalentTo(new[] { 1, 2 }));

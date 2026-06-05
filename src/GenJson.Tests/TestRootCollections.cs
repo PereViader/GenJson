@@ -35,7 +35,7 @@ namespace GenJson.Tests
     public partial class RootTestItem
     {
         public int Id { get; set; }
-        public string Name { get; set; }
+        public required string Name { get; set; }
     }
 
     [TestFixture]
@@ -61,7 +61,7 @@ namespace GenJson.Tests
             Assert.That(jsonGen, Is.EqualTo(expected));
 
             // Test Deserialization (No Generics!)
-            var parsed = RootListSerializer.FromJson(expected);
+            var parsed = RootListSerializer.FromJson(expected)!;
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.Count, Is.EqualTo(2));
             Assert.That(parsed[0].Id, Is.EqualTo(1));
@@ -71,7 +71,7 @@ namespace GenJson.Tests
 
             // Test UTF-8
             var utf8Bytes = list.ToJsonUtf8();
-            var parsedUtf8 = RootListSerializer.FromJsonUtf8(utf8Bytes);
+            var parsedUtf8 = RootListSerializer.FromJsonUtf8(utf8Bytes)!;
             Assert.That(parsedUtf8, Is.Not.Null);
             Assert.That(parsedUtf8.Count, Is.EqualTo(2));
             Assert.That(parsedUtf8[0].Id, Is.EqualTo(1));
@@ -92,7 +92,7 @@ namespace GenJson.Tests
             var json = array.ToJson();
             Assert.That(json, Is.EqualTo(expected));
 
-            var parsed = RootArraySerializer.FromJson(expected);
+            var parsed = RootArraySerializer.FromJson(expected)!;
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.Length, Is.EqualTo(2));
             Assert.That(parsed[0].Id, Is.EqualTo(10));
@@ -100,7 +100,7 @@ namespace GenJson.Tests
 
             // UTF-8
             var utf8Bytes = array.ToJsonUtf8();
-            var parsedUtf8 = RootArraySerializer.FromJsonUtf8(utf8Bytes);
+            var parsedUtf8 = RootArraySerializer.FromJsonUtf8(utf8Bytes)!;
             Assert.That(parsedUtf8, Is.Not.Null);
             Assert.That(parsedUtf8.Length, Is.EqualTo(2));
             Assert.That(parsedUtf8[0].Id, Is.EqualTo(10));
@@ -121,7 +121,7 @@ namespace GenJson.Tests
             var json = dict.ToJson();
             Assert.That(json, Is.EqualTo(expected));
 
-            var parsed = RootDictionarySerializer.FromJson(expected);
+            var parsed = RootDictionarySerializer.FromJson(expected)!;
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.Count, Is.EqualTo(2));
             Assert.That(parsed["item_first"].Id, Is.EqualTo(100));
@@ -129,7 +129,7 @@ namespace GenJson.Tests
 
             // UTF-8
             var utf8Bytes = dict.ToJsonUtf8();
-            var parsedUtf8 = RootDictionarySerializer.FromJsonUtf8(utf8Bytes);
+            var parsedUtf8 = RootDictionarySerializer.FromJsonUtf8(utf8Bytes)!;
             Assert.That(parsedUtf8, Is.Not.Null);
             Assert.That(parsedUtf8.Count, Is.EqualTo(2));
             Assert.That(parsedUtf8["item_first"].Id, Is.EqualTo(100));
@@ -165,7 +165,7 @@ namespace GenJson.Tests
         [Test]
         public void TestRootNullHandling()
         {
-            List<RootTestItem> nullList = null;
+            List<RootTestItem>? nullList = null;
             Assert.That(nullList.ToJson(), Is.EqualTo("null"));
             Assert.That(nullList.ToJsonUtf8(), Is.EqualTo(System.Text.Encoding.UTF8.GetBytes("null")));
 
