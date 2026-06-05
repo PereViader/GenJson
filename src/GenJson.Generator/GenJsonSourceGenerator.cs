@@ -1239,144 +1239,181 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append($"{d.KeyTypeName} {keyVar} = default!;");
                     sb.AppendLine();
 
-                    string keyStrVar = $"keyStr{depth}";
-                    string escapedVar = $"escaped{depth}";
-                    sb.Append(loopIndent);
-                    sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}StringSpan(json, ref index, out var {keyStrVar}, out var {escapedVar})) return null;");
-                    sb.AppendLine();
-
-                    if (!(d.KeyType is GenJsonDataType.String))
+                    if (d.KeyType is GenJsonDataType.CustomConverter customKeyConverter)
                     {
-                        sb.Append(loopIndent);
-                        sb.AppendLine($"if ({escapedVar}) return null;");
-                    }
-
-                    sb.Append(loopIndent);
-                    sb.Append($"if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, {(isUtf8 ? "(byte)':'" : "':'")})) return null;");
-                    sb.AppendLine();
-
-                    string skipInvalidDictionaryEnumKey;
-                    if (d.KeyType is GenJsonDataType.Enum enumKeyTypeForFallback && enumKeyTypeForFallback.FallbackValue != null)
-                    {
-                        skipInvalidDictionaryEnumKey = $"{{ global::GenJson.GenJsonParser.TrySkipValue(json, ref index); if (index < json.Length && json[index] == {(isUtf8 ? "(byte)','" : "','")}) index++; continue; }}";
-                    }
-                    else
-                    {
-                        skipInvalidDictionaryEnumKey = $"return null;";
-                    }
-
-                    if (d.KeyType is GenJsonDataType.Enum enumKeyType)
-                    {
-                        if (enumKeyType.AsString)
+                        if (customKeyConverter.IsNullable || !customKeyConverter.IsValueType)
                         {
                             sb.Append(loopIndent);
-                            foreach (var member in enumKeyType.Members.Value)
-                            {
-                                if (isUtf8)
-                                {
-                                    var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(member);
-                                    var utf8BytesStr = string.Join(", ", utf8Bytes.Select(b => $"(byte){b}"));
-                                    sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, new byte[] {{ {utf8BytesStr} }})) {keyVar} = {enumKeyType.TypeName}.{member};");
-                                }
-                                else
-                                {
-                                    sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, global::System.MemoryExtensions.AsSpan(\"{member}\"))) {keyVar} = {enumKeyType.TypeName}.{member};");
-                                }
-                                sb.Append(loopIndent);
-                                sb.Append("else ");
-                            }
-                            sb.AppendLine(skipInvalidDictionaryEnumKey);
+                            sb.Append($"{keyVar} = ");
+                            sb.Append(customKeyConverter.ConverterTypeName);
+                            sb.AppendLine(isUtf8 ? ".FromJsonUtf8(json, ref index);" : ".FromJson(json, ref index);");
+
+                            sb.Append(loopIndent);
+                            sb.Append("if (");
+                            sb.Append($"{keyVar}");
+                            sb.AppendLine(" == null) return null;");
                         }
                         else
                         {
                             sb.Append(loopIndent);
-                            sb.AppendLine($"{enumKeyType.UnderlyingType} dictEnumVal{depth};");
+                            sb.Append($"var tempKeyCustom{depth} = ");
+                            sb.Append(customKeyConverter.ConverterTypeName);
+                            sb.AppendLine(isUtf8 ? ".FromJsonUtf8(json, ref index);" : ".FromJson(json, ref index);");
+
                             sb.Append(loopIndent);
-                            if (isUtf8)
-                            {
-                                sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out dictEnumVal{depth}, out _)) {skipInvalidDictionaryEnumKey}");
-                            }
-                            else
-                            {
-                                sb.AppendLine($"if (!{enumKeyType.UnderlyingType}.TryParse({keyStrVar}, out dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
-                            }
+                            sb.AppendLine($"if (tempKeyCustom{depth} == null) return null;");
+
                             sb.Append(loopIndent);
-                            sb.AppendLine($"if (!System.Enum.IsDefined<{enumKeyType.TypeName}>(({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
-                            sb.Append(loopIndent);
-                            sb.AppendLine($"{keyVar} = ({enumKeyType.TypeName})dictEnumVal{depth};");
+                            sb.Append($"{keyVar} = ");
+                            sb.Append($"({customKeyConverter.ExpectedTypeName})tempKeyCustom{depth};");
+                            sb.AppendLine();
                         }
+
+                        sb.Append(loopIndent);
+                        sb.Append($"if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, {(isUtf8 ? "(byte)':'" : "':'")})) return null;");
+                        sb.AppendLine();
                     }
                     else
                     {
-                        switch (d.KeyType)
+                        string keyStrVar = $"keyStr{depth}";
+                        string escapedVar = $"escaped{depth}";
+                        sb.Append(loopIndent);
+                        sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}StringSpan(json, ref index, out var {keyStrVar}, out var {escapedVar})) return null;");
+                        sb.AppendLine();
+
+                        if (!(d.KeyType is GenJsonDataType.String))
                         {
-                            case GenJsonDataType.Uri:
-                                {
-                                    sb.Append(loopIndent);
-                                    string uriKeyStr = isUtf8
-                                        ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})"
-                                        : $"({escapedVar} ? global::GenJson.GenJsonParser.UnescapeString({keyStrVar}) : new string({keyStrVar}))";
-                                    sb.AppendLine($"if (!System.Uri.TryCreate({uriKeyStr}, System.UriKind.RelativeOrAbsolute, out {keyVar})) return null;");
-                                }
-                                break;
-                            case GenJsonDataType.String:
+                            sb.Append(loopIndent);
+                            sb.AppendLine($"if ({escapedVar}) return null;");
+                        }
+
+                        sb.Append(loopIndent);
+                        sb.Append($"if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, {(isUtf8 ? "(byte)':'" : "':'")})) return null;");
+                        sb.AppendLine();
+
+                        string skipInvalidDictionaryEnumKey;
+                        if (d.KeyType is GenJsonDataType.Enum enumKeyTypeForFallback && enumKeyTypeForFallback.FallbackValue != null)
+                        {
+                            skipInvalidDictionaryEnumKey = $"{{ global::GenJson.GenJsonParser.TrySkipValue(json, ref index); if (index < json.Length && json[index] == {(isUtf8 ? "(byte)','" : "','")}) index++; continue; }}";
+                        }
+                        else
+                        {
+                            skipInvalidDictionaryEnumKey = "return null;";
+                        }
+
+                        if (d.KeyType is GenJsonDataType.Enum enumKeyType)
+                        {
+                            if (enumKeyType.AsString)
+                            {
                                 sb.Append(loopIndent);
-                                sb.AppendLine($"{keyVar} = {escapedVar} ? global::GenJson.GenJsonParser.{(isUtf8 ? "UnescapeStringUtf8" : "UnescapeString")}({keyStrVar}) : {(isUtf8 ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})" : $"new string({keyStrVar})")};");
-                                break;
-                            case GenJsonDataType.Primitive:
-                            case GenJsonDataType.FloatingPoint:
-                            case GenJsonDataType.Guid:
-                            case GenJsonDataType.DateTime:
-                            case GenJsonDataType.TimeSpan:
-                            case GenJsonDataType.DateTimeOffset:
-                            case GenJsonDataType.Version:
+                                foreach (var member in enumKeyType.Members.Value)
                                 {
-                                    sb.Append(loopIndent);
                                     if (isUtf8)
                                     {
-                                        if (d.KeyType is GenJsonDataType.Version)
-                                        {
-                                            sb.AppendLine($"if (!{d.KeyTypeName}.TryParse(global::System.Text.Encoding.UTF8.GetString({keyStrVar}), out {keyVar})) return null;");
-                                        }
-                                        else
-                                        {
-                                            char fmtChar = (d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.DateTimeOffset) ? 'O' :
-                                                       (d.KeyType is GenJsonDataType.TimeSpan) ? 'c' :
-                                                       (d.KeyType is GenJsonDataType.Guid) ? 'D' : default;
-
-                                            if (fmtChar != default(char))
-                                            {
-                                                sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _, '{fmtChar}')) return null;");
-                                            }
-                                            else
-                                            {
-                                                sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _)) return null;");
-                                            }
-                                        }
+                                        var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(member);
+                                        var utf8BytesStr = string.Join(", ", utf8Bytes.Select(b => $"(byte){b}"));
+                                        sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, new byte[] {{ {utf8BytesStr} }})) {keyVar} = {enumKeyType.TypeName}.{member};");
                                     }
                                     else
                                     {
-                                        string parseMethodName = d.KeyType is GenJsonDataType.FloatingPoint ? "TryParse" : "TryParse";
-                                        string cultureArg = d.KeyType is GenJsonDataType.FloatingPoint ? ", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture" : "";
-                                        if (d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.DateTimeOffset)
-                                        {
-                                            cultureArg = ", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind";
-                                        }
-                                        sb.AppendLine($"if (!{d.KeyTypeName}.{parseMethodName}({keyStrVar}{cultureArg}, out {keyVar})) return null;");
+                                        sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, global::System.MemoryExtensions.AsSpan(\"{member}\"))) {keyVar} = {enumKeyType.TypeName}.{member};");
                                     }
-                                    break;
+                                    sb.Append(loopIndent);
+                                    sb.Append("else ");
                                 }
-                            default:
+                                sb.AppendLine(skipInvalidDictionaryEnumKey);
+                            }
+                            else
+                            {
+                                sb.Append(loopIndent);
+                                sb.AppendLine($"{enumKeyType.UnderlyingType} dictEnumVal{depth};");
                                 sb.Append(loopIndent);
                                 if (isUtf8)
                                 {
-                                    sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _)) return null;");
+                                    sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out dictEnumVal{depth}, out _)) {skipInvalidDictionaryEnumKey}");
                                 }
                                 else
                                 {
-                                    sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {keyVar})) return null;");
+                                    sb.AppendLine($"if (!{enumKeyType.UnderlyingType}.TryParse({keyStrVar}, out dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
                                 }
-                                break;
+                                sb.Append(loopIndent);
+                                sb.AppendLine($"if (!System.Enum.IsDefined<{enumKeyType.TypeName}>(({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
+                                sb.Append(loopIndent);
+                                sb.AppendLine($"{keyVar} = ({enumKeyType.TypeName})dictEnumVal{depth};");
+                            }
+                        }
+                        else
+                        {
+                            switch (d.KeyType)
+                            {
+                                case GenJsonDataType.Uri:
+                                    {
+                                        sb.Append(loopIndent);
+                                        string uriKeyStr = isUtf8
+                                            ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})"
+                                            : $"({escapedVar} ? global::GenJson.GenJsonParser.UnescapeString({keyStrVar}) : new string({keyStrVar}))";
+                                        sb.AppendLine($"if (!System.Uri.TryCreate({uriKeyStr}, System.UriKind.RelativeOrAbsolute, out {keyVar})) return null;");
+                                    }
+                                    break;
+                                case GenJsonDataType.String:
+                                    sb.Append(loopIndent);
+                                    sb.AppendLine($"{keyVar} = {escapedVar} ? global::GenJson.GenJsonParser.{(isUtf8 ? "UnescapeStringUtf8" : "UnescapeString")}({keyStrVar}) : {(isUtf8 ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})" : $"new string({keyStrVar})")};");
+                                    break;
+                                case GenJsonDataType.Primitive:
+                                case GenJsonDataType.FloatingPoint:
+                                case GenJsonDataType.Guid:
+                                case GenJsonDataType.DateTime:
+                                case GenJsonDataType.TimeSpan:
+                                case GenJsonDataType.DateTimeOffset:
+                                case GenJsonDataType.Version:
+                                    {
+                                        sb.Append(loopIndent);
+                                        if (isUtf8)
+                                        {
+                                            if (d.KeyType is GenJsonDataType.Version)
+                                            {
+                                                sb.AppendLine($"if (!{d.KeyTypeName}.TryParse(global::System.Text.Encoding.UTF8.GetString({keyStrVar}), out {keyVar})) return null;");
+                                            }
+                                            else
+                                            {
+                                                char fmtChar = (d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.DateTimeOffset) ? 'O' :
+                                                           (d.KeyType is GenJsonDataType.TimeSpan) ? 'c' :
+                                                           (d.KeyType is GenJsonDataType.Guid) ? 'D' : default;
+
+                                                if (fmtChar != default(char))
+                                                {
+                                                    sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _, '{fmtChar}')) return null;");
+                                                }
+                                                else
+                                                {
+                                                    sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _)) return null;");
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            string parseMethodName = d.KeyType is GenJsonDataType.FloatingPoint ? "TryParse" : "TryParse";
+                                            string cultureArg = d.KeyType is GenJsonDataType.FloatingPoint ? ", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture" : "";
+                                            if (d.KeyType is GenJsonDataType.DateTime || d.KeyType is GenJsonDataType.DateTimeOffset)
+                                            {
+                                                cultureArg = ", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind";
+                                            }
+                                            sb.AppendLine($"if (!{d.KeyTypeName}.{parseMethodName}({keyStrVar}{cultureArg}, out {keyVar})) return null;");
+                                        }
+                                        break;
+                                    }
+                                default:
+                                    sb.Append(loopIndent);
+                                    if (isUtf8)
+                                    {
+                                        sb.AppendLine($"if (!global::System.Buffers.Text.Utf8Parser.TryParse({keyStrVar}, out {keyVar}, out _)) return null;");
+                                    }
+                                    else
+                                    {
+                                        sb.AppendLine($"if (!{d.KeyTypeName}.TryParse({keyStrVar}, out {keyVar})) return null;");
+                                    }
+                                    break;
+                            }
                         }
                     }
 
@@ -1595,7 +1632,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 sb.Append(customConverter.ConverterTypeName);
                 sb.Append($".{(isUtf8 ? "GetSizeUtf8" : "GetSize")}(");
                 sb.Append(valueAccessor);
-                sb.AppendLine(");");
+                sb.Append(")");
+                if (unquoted) sb.Append(" - 2");
+                sb.AppendLine(";");
                 break;
         }
     }
@@ -2066,6 +2105,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append(loopIndentDict);
                     switch (dictionary.KeyType)
                     {
+                        case GenJsonDataType.CustomConverter customKeyConverter:
+                            sb.Append(customKeyConverter.ConverterTypeName);
+                            sb.Append($".{writeMethod}(span, ref index, ");
+                            sb.Append($"{kvpVar}.Key");
+                            sb.AppendLine(");");
+                            break;
                         case GenJsonDataType.Enum en:
                             GenerateEnumWriteLogic(sb, en, $"{kvpVar}.Key", loopIndentDict, isUtf8, forceQuotes: true);
                             break;

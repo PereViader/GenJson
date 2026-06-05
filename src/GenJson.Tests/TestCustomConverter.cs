@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace GenJson.Tests;
@@ -227,6 +228,47 @@ public class TestCustomConverter
         var parsedInvalidUtf8 = CustomStringConverterClass.FromJsonUtf8(System.Text.Encoding.UTF8.GetBytes(invalidJson));
         Assert.That(parsedInvalidUtf8, Is.Null);
     }
+
+    [Test]
+    public void TestDictionaryWithCustomKey()
+    {
+        var obj = new DictionaryWithCustomKeyClass
+        {
+            ResourceAmounts = new Dictionary<ResId, int>
+            {
+                { new ResId(1), 10 },
+                { new ResId(2), 20 }
+            }
+        };
+
+        var json = obj.ToJson();
+        var expected = """{"ResourceAmounts":{"R1":10,"R2":20}}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var parsed = DictionaryWithCustomKeyClass.FromJson(json);
+        Assert.That(parsed, Is.Not.Null);
+        Assert.That(parsed.ResourceAmounts, Is.Not.Null);
+        Assert.That(parsed.ResourceAmounts.Count, Is.EqualTo(2));
+        Assert.That(parsed.ResourceAmounts[new ResId(1)], Is.EqualTo(10));
+        Assert.That(parsed.ResourceAmounts[new ResId(2)], Is.EqualTo(20));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var parsedUtf8 = DictionaryWithCustomKeyClass.FromJsonUtf8(utf8Json);
+        Assert.That(parsedUtf8, Is.Not.Null);
+        Assert.That(parsedUtf8.ResourceAmounts, Is.Not.Null);
+        Assert.That(parsedUtf8.ResourceAmounts.Count, Is.EqualTo(2));
+        Assert.That(parsedUtf8.ResourceAmounts[new ResId(1)], Is.EqualTo(10));
+        Assert.That(parsedUtf8.ResourceAmounts[new ResId(2)], Is.EqualTo(20));
+    }
 }
 
 public static class StructConverterA
@@ -322,4 +364,69 @@ public partial class CustomConverterOnTypeClass
 
     [GenJsonConverter(typeof(StructConverterB))]
     public MyStruct OverriddenProp { get; set; }
+}
+
+[GenJsonConverter(typeof(ResIdConverter))]
+public struct ResId : IEquatable<ResId>
+{
+    public int Value { get; }
+    public ResId(int value) => Value = value;
+    public bool Equals(ResId other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is ResId other && Equals(other);
+    public override int GetHashCode() => Value;
+}
+
+public static class ResIdConverter
+{
+    public static int GetSize(ResId value) => value.Value.ToString().Length + 3; // e.g. "R1" -> quotes + length
+    
+    public static void WriteJson(Span<char> span, ref int index, ResId value)
+    {
+        span[index++] = '"';
+        span[index++] = 'R';
+        value.Value.TryFormat(span.Slice(index), out var written);
+        index += written;
+        span[index++] = '"';
+    }
+
+    public static ResId? FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        if (span[index] != '"' || span[index + 1] != 'R') return null;
+        index += 2;
+        int start = index;
+        while (char.IsDigit(span[index])) index++;
+        if (!int.TryParse(span.Slice(start, index - start), out int val)) return null;
+        if (span[index] != '"') return null;
+        index++;
+        return new ResId(val);
+    }
+
+    public static int GetSizeUtf8(ResId value) => GetSize(value);
+    
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, ResId value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)'R';
+        System.Buffers.Text.Utf8Formatter.TryFormat(value.Value, span.Slice(index), out var written);
+        index += written;
+        span[index++] = (byte)'"';
+    }
+
+    public static ResId? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"' || span[index + 1] != (byte)'R') return null;
+        index += 2;
+        int start = index;
+        while (span[index] >= (byte)'0' && span[index] <= (byte)'9') index++;
+        if (!System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _)) return null;
+        if (span[index] != (byte)'"') return null;
+        index++;
+        return new ResId(val);
+    }
+}
+
+[GenJson]
+public partial class DictionaryWithCustomKeyClass
+{
+    public IDictionary<ResId, int> ResourceAmounts { get; set; } = new Dictionary<ResId, int>();
 }
