@@ -269,6 +269,80 @@ public class TestCustomConverter
         Assert.That(parsedUtf8.ResourceAmounts[new ResId(1)], Is.EqualTo(10));
         Assert.That(parsedUtf8.ResourceAmounts[new ResId(2)], Is.EqualTo(20));
     }
+
+    [Test]
+    public void TestDictionaryOverrides()
+    {
+        var obj = new DictionaryOverridesClass
+        {
+            Dict = new Dictionary<int, bool>
+            {
+                { 1, true },
+                { 2, false }
+            }
+        };
+
+        var json = obj.ToJson();
+        var expected = """{"Dict":{"X1X":"Y","X2X":"N"}}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var parsed = DictionaryOverridesClass.FromJson(json);
+        Assert.That(parsed, Is.Not.Null);
+        Assert.That(parsed.Dict, Is.Not.Null);
+        Assert.That(parsed.Dict.Count, Is.EqualTo(2));
+        Assert.That(parsed.Dict[1], Is.True);
+        Assert.That(parsed.Dict[2], Is.False);
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var parsedUtf8 = DictionaryOverridesClass.FromJsonUtf8(utf8Json);
+        Assert.That(parsedUtf8, Is.Not.Null);
+        Assert.That(parsedUtf8.Dict, Is.Not.Null);
+        Assert.That(parsedUtf8.Dict.Count, Is.EqualTo(2));
+        Assert.That(parsedUtf8.Dict[1], Is.True);
+        Assert.That(parsedUtf8.Dict[2], Is.False);
+    }
+
+    [Test]
+    public void TestCollectionOverride()
+    {
+        var obj = new CollectionOverrideClass
+        {
+            List = new List<int> { 1, 2 }
+        };
+
+        var json = obj.ToJson();
+        var expected = """{"List":["X1X","X2X"]}""";
+        Assert.That(json, Is.EqualTo(expected));
+
+        var parsed = CollectionOverrideClass.FromJson(json);
+        Assert.That(parsed, Is.Not.Null);
+        Assert.That(parsed.List, Is.Not.Null);
+        Assert.That(parsed.List, Is.EquivalentTo(new[] { 1, 2 }));
+
+        var size = obj.CalculateJsonSize();
+        Assert.That(size, Is.EqualTo(expected.Length));
+
+        var utf8Json = obj.ToJsonUtf8();
+        var utf8Expected = System.Text.Encoding.UTF8.GetBytes(expected);
+        Assert.That(utf8Json, Is.EqualTo(utf8Expected));
+
+        var utf8Size = obj.CalculateJsonSizeUtf8();
+        Assert.That(utf8Size, Is.EqualTo(utf8Expected.Length));
+
+        var parsedUtf8 = CollectionOverrideClass.FromJsonUtf8(utf8Json);
+        Assert.That(parsedUtf8, Is.Not.Null);
+        Assert.That(parsedUtf8.List, Is.Not.Null);
+        Assert.That(parsedUtf8.List, Is.EquivalentTo(new[] { 1, 2 }));
+    }
 }
 
 public static class StructConverterA
@@ -429,4 +503,57 @@ public static class ResIdConverter
 public partial class DictionaryWithCustomKeyClass
 {
     public IDictionary<ResId, int> ResourceAmounts { get; set; } = new Dictionary<ResId, int>();
+}
+
+[GenJson]
+public partial class DictionaryOverridesClass
+{
+    [GenJsonKeyConverter(typeof(MyCustomConverter))]
+    [GenJsonValueConverter(typeof(MyBoolConverter))]
+    public IDictionary<int, bool> Dict { get; set; } = new Dictionary<int, bool>();
+}
+
+public static class MyBoolConverter
+{
+    public static int GetSize(bool value) => 3;
+    public static void WriteJson(Span<char> span, ref int index, bool value)
+    {
+        span[index++] = '"';
+        span[index++] = value ? 'Y' : 'N';
+        span[index++] = '"';
+    }
+    public static bool? FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        if (span[index] != '"') return null;
+        index++;
+        var val = span[index] == 'Y';
+        index++;
+        if (span[index] != '"') return null;
+        index++;
+        return val;
+    }
+    public static int GetSizeUtf8(bool value) => 3;
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, bool value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)(value ? 'Y' : 'N');
+        span[index++] = (byte)'"';
+    }
+    public static bool? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"') return null;
+        index++;
+        var val = span[index] == (byte)'Y';
+        index++;
+        if (span[index] != (byte)'"') return null;
+        index++;
+        return val;
+    }
+}
+
+[GenJson]
+public partial class CollectionOverrideClass
+{
+    [GenJsonValueConverter(typeof(MyCustomConverter))]
+    public ICollection<int> List { get; set; } = new List<int>();
 }

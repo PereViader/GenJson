@@ -512,21 +512,25 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         ITypeSymbol type,
         List<DiagnosticInfo> diagnostics,
         Location errorLocation,
-        IAssemblySymbol assembly)
+        IAssemblySymbol assembly,
+        ITypeSymbol? customConverterOverride = null)
     {
-        var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
-                            parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
-                            type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
+        ITypeSymbol? converterType = customConverterOverride;
 
-        ITypeSymbol? converterType = null;
+        if (converterType == null)
+        {
+            var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
+                                parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute") ??
+                                type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
 
-        if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol attrConvType)
-        {
-            converterType = attrConvType;
-        }
-        else
-        {
-            converterType = TryGetAssemblyConverter(assembly, type);
+            if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol attrConvType)
+            {
+                converterType = attrConvType;
+            }
+            else
+            {
+                converterType = TryGetAssemblyConverter(assembly, type);
+            }
         }
 
         if (converterType != null)
@@ -662,8 +666,24 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, assembly);
-            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, assembly);
+            ITypeSymbol? keyConverterOverride = null;
+            var keyConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonKeyConverterAttribute") ??
+                                   parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonKeyConverterAttribute");
+            if (keyConverterAttr != null && keyConverterAttr.ConstructorArguments.Length > 0 && keyConverterAttr.ConstructorArguments[0].Value is ITypeSymbol keyConvType)
+            {
+                keyConverterOverride = keyConvType;
+            }
+
+            ITypeSymbol? valueConverterOverride = null;
+            var valueConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute") ??
+                                     parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute");
+            if (valueConverterAttr != null && valueConverterAttr.ConstructorArguments.Length > 0 && valueConverterAttr.ConstructorArguments[0].Value is ITypeSymbol valueConvType)
+            {
+                valueConverterOverride = valueConvType;
+            }
+
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, assembly, keyConverterOverride);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, assembly, valueConverterOverride);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -697,6 +717,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         ITypeSymbol? resolvedElementType = GetEnumerableElementType(type);
         if (resolvedElementType != null)
         {
+            ITypeSymbol? elementConverterOverride = null;
+            var elementConverterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute") ??
+                                       parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonValueConverterAttribute");
+            if (elementConverterAttr != null && elementConverterAttr.ConstructorArguments.Length > 0 && elementConverterAttr.ConstructorArguments[0].Value is ITypeSymbol elementConvType)
+            {
+                elementConverterOverride = elementConvType;
+            }
+
             var isArray = type is IArrayTypeSymbol;
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -722,7 +750,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, assembly), 
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, assembly, elementConverterOverride), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 

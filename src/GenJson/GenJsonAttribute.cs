@@ -140,5 +140,33 @@ namespace GenJson
         public Type TargetType { get; }
         public Type ConverterType { get; }
     }
+
+    /// <summary>
+    /// This attribute can be used to specify a custom converter for the keys of a dictionary property/field/parameter.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
+    public sealed class GenJsonKeyConverterAttribute : Attribute
+    {
+        public GenJsonKeyConverterAttribute(Type type)
+        {
+            Type = type;
+        }
+
+        public Type Type { get; set; }
+    }
+
+    /// <summary>
+    /// This attribute can be used to specify a custom converter for the values of a dictionary or elements of a collection.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
+    public sealed class GenJsonValueConverterAttribute : Attribute
+    {
+        public GenJsonValueConverterAttribute(Type type)
+        {
+            Type = type;
+        }
+
+        public Type Type { get; set; }
+    }
 }
 
