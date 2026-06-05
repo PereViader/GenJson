@@ -2604,9 +2604,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     GenerateKeyWrite(sb, subIndent, prop.JsonName, isUtf8, isCount: true);
 
                     sb.Append(subIndent);
-                    sb.Append("{ if (!this.");
-                    sb.Append(prop.Name);
-                    sb.AppendLine(".Length.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    if (isUtf8)
+                    {
+                        sb.Append("{ if (!global::System.Buffers.Text.Utf8Formatter.TryFormat(this.");
+                        sb.Append(prop.Name);
+                        sb.AppendLine(".Length, span.Slice(index), out int written))");
+                    }
+                    else
+                    {
+                        sb.Append("{ if (!this.");
+                        sb.Append(prop.Name);
+                        sb.AppendLine(".Length.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    }
                     sb.Append(subIndent);
                     sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
                     sb.Append(subIndent);
@@ -2628,7 +2637,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     GenerateKeyWrite(sb, subIndent + "        ", prop.JsonName, isUtf8, isCount: true);
 
                     sb.Append(subIndent);
-                    sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    if (isUtf8)
+                    {
+                        sb.AppendLine("        { if (!global::System.Buffers.Text.Utf8Formatter.TryFormat(_count, span.Slice(index), out int written))");
+                    }
+                    else
+                    {
+                        sb.AppendLine("        { if (!_count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                    }
                     sb.Append(subIndent);
                     sb.AppendLine("            { throw new System.Exception(\"Buffer too small (Count)\"); }");
                     sb.Append(subIndent);
@@ -2654,9 +2670,18 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 GenerateKeyWrite(sb, subIndent, prop.JsonName, isUtf8, isCount: true);
 
                 sb.Append(subIndent);
-                sb.Append("{ if (!this.");
-                sb.Append(prop.Name);
-                sb.AppendLine(".Count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                if (isUtf8)
+                {
+                    sb.Append("{ if (!global::System.Buffers.Text.Utf8Formatter.TryFormat(this.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(".Count, span.Slice(index), out int written))");
+                }
+                else
+                {
+                    sb.Append("{ if (!this.");
+                    sb.Append(prop.Name);
+                    sb.AppendLine(".Count.TryFormat(span.Slice(index), out int written, default, System.Globalization.CultureInfo.InvariantCulture))");
+                }
                 sb.Append(subIndent);
                 sb.AppendLine("    { throw new System.Exception(\"Buffer too small (Count)\"); }");
                 sb.Append(subIndent);

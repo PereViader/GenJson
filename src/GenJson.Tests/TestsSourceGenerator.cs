@@ -24,7 +24,10 @@ public class TestsSourceGenerator
         var generated = Generate(code);
 
         Assert.That(generated.diagnostics, Is.Empty);
-        //return Verifier.Verify(generated.code);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Contain("global::System.Buffers.Text.Utf8Formatter.TryFormat(this."));
+        Assert.That(combinedCode, Does.Contain("global::System.Buffers.Text.Utf8Formatter.TryFormat(_count"));
     }
 
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
