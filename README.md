@@ -13,6 +13,7 @@ This project is compatible with both pure C# projects and Unity3D.
 - **Zero* Allocation Serialization**: Uses `Span` based string creation to write directly into the result string's memory, avoiding `StringBuilder` and intermediate string allocations for primitives.
 - **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` and `ReadOnlySpan<byte>` (UTF-8) based parsing logic to avoid intermediate string allocations.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
+- **Generic Registry**: O(1) dynamic serialization and deserialization via unconstrained generics (`ToJson<T>`, `FromJson<T>`) using compile-time generated assembly initializers.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
   - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
@@ -727,6 +728,51 @@ List<Product> deserializedUtf8 = ProductListSerializer.FromJsonUtf8(utf8Json);
 > - A serializer class can only have exactly one `[GenJsonSerializable]` attribute applied (the C# compiler will enforce this automatically because `AllowMultiple = false`).
 > - If an annotated serializer class is not both `static` and `partial`, a compile-time error (`GENJSON005`) will be reported.
 > - The target type in `[GenJsonSerializable]` must be a supported type (primitives, enums, classes/structs decorated with `[GenJson]`, or types with a registered custom converter). If not, a compile-time error (`GENJSON004`) will be reported.
+
+### 16. Generic Registry
+
+GenJson is designed as a compile-time source generator where serialization and deserialization methods are usually invoked directly on the generated types (e.g., `MyClass.FromJson(json)`). 
+
+However, in generic contexts (such as a generic repository, network packet handler, or composition root) where the type `T` is unconstrained and not known at compile-time, you can use the **`GenJsonGenericRegistry`** to dynamically serialize and deserialize registered types.
+
+#### Setup: Assembly Initialization
+
+To populate the registry, the source generator automatically creates a public initialization class for each assembly named:
+`GenJson_{SanitizedAssemblyName}_AssemblyInitializer`
+
+Where `{SanitizedAssemblyName}` is the name of your assembly with any non-alphanumeric characters replaced by underscores. 
+
+At your application startup (composition root or entry point), invoke the `Initialize()` method of your assembly initializer:
+
+```csharp
+// Initialize once at startup (e.g. Program.cs or Main)
+GenJson_MyProject_AssemblyInitializer.Initialize();
+```
+
+> [!NOTE]
+> - Calling `Initialize()` multiple times is safe and guarded internally against duplicate registration.
+> - If your project references other assemblies containing `[GenJson]` types, call the respective assembly initializers to register their types as well.
+
+#### Using the Registry
+
+Once initialized, you can perform O(1) dynamic serialization and deserialization without dictionary lookups:
+
+```csharp
+public class NetworkHandler
+{
+    public string SerializePacket<T>(T packet) where T : class
+    {
+        // Dynamically serializes reference type packets using the registry
+        return GenJsonGenericRegistry.ToJson(packet);
+    }
+
+    public T? DeserializePacket<T>(string json) where T : class
+    {
+        // Dynamically deserializes reference type packets
+        return GenJsonGenericRegistry.FromJson<T>(json);
+    }
+}
+```
 
 ## How It Works
 
