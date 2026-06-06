@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Text;
 using GenJson.Generator;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace GenJson.Tests;
 
@@ -172,6 +173,13 @@ public class TestGenJsonDiagnostics
         var driver = CSharpGeneratorDriver.Create(new GenJsonSourceGenerator());
         driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
 
-        return outputCompilation.GetDiagnostics().AddRange(generatorDiagnostics);
+        // Run GenJsonAnalyzer
+        var compilationWithAnalyzers = outputCompilation.WithAnalyzers(
+            ImmutableArray.Create<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer>(new GenJson.Analyzer.GenJsonAnalyzer()));
+        var analyzerDiagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult();
+
+        return outputCompilation.GetDiagnostics()
+            .AddRange(generatorDiagnostics)
+            .AddRange(analyzerDiagnostics);
     }
 }

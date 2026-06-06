@@ -36,6 +36,9 @@ dotnet build src --configuration Release
 echo Copy generator dll to package
 cp "src/GenJson.Generator/bin/Release/netstandard2.0/GenJson.Generator.dll" "GenJson.Unity3d.Package/GenJson.Generator.dll"
 
+echo Copy analyzer dll to package
+cp "src/GenJson.Analyzer/bin/Release/netstandard2.0/GenJson.Analyzer.dll" "GenJson.Unity3d.Package/GenJson.Analyzer.dll"
+
 sh ./build/Unity3d.Package/GenerateUnity3dMetas.sh
 cd GenJson.Unity3d.Package
 npm pack

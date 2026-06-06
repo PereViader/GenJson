@@ -25,6 +25,7 @@
     <ProjectReference Include="..\GenJson.Generator\GenJson.Generator.csproj" />
     <ProjectReference Include="..\GenJson\GenJson.csproj" />
     <ProjectReference Include="..\GenJson.Generator\GenJson.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\GenJson.Analyzer\GenJson.Analyzer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

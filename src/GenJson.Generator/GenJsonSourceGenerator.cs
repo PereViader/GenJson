@@ -112,9 +112,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var assemblyNameProvider = context.CompilationProvider.Select((compilation, _) => compilation.Assembly.Name);
         
         var collectedWithAssembly = classData
-            .Select((result, _) => {
-                if (result == null || result.ClassData == null) return new InitializerTypeInfo("", false, false, false);
-                var data = result.ClassData;
+            .Select((data, _) => {
+                if (data == null) return new InitializerTypeInfo("", false, false, false);
                 var fullyQualifiedName = string.IsNullOrEmpty(data.Namespace)
                     ? $"global::{data.ClassName}"
                     : $"global::{data.Namespace}.{data.ClassName}";
@@ -139,7 +138,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(serializerData, GenerateSerializerClass!);
     }
 
-    private static GeneratorResult? GetClassData(GeneratorAttributeSyntaxContext context, ConverterRegistry registry, CancellationToken ct)
+    private static ClassData? GetClassData(GeneratorAttributeSyntaxContext context, ConverterRegistry registry, CancellationToken ct)
     {
         var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
         var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
@@ -151,38 +150,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         var compilation = context.SemanticModel.Compilation;
         var assembly = compilation.Assembly;
 
-        var diagnostics = new List<DiagnosticInfo>();
-
         bool isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
         bool isPartial = typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword);
 
-        if (isStatic)
+        if (isStatic || !isPartial)
         {
-            diagnostics.Add(new DiagnosticInfo(
-                "GENJSON001",
-                "GenJson attribute cannot be applied to static types",
-                "The type '{0}' is static. GenJson attribute cannot be applied to static types.",
-                "Usage",
-                DiagnosticSeverity.Error,
-                typeDeclaration.Identifier.GetLocation(),
-                typeSymbol.Name));
-        }
-
-        if (!isPartial)
-        {
-            diagnostics.Add(new DiagnosticInfo(
-                "GENJSON002",
-                "GenJson attribute can only be applied to partial types",
-                "The type '{0}' must be declared as partial to use the GenJson attribute.",
-                "Usage",
-                DiagnosticSeverity.Error,
-                typeDeclaration.Identifier.GetLocation(),
-                typeSymbol.Name));
-        }
-
-        if (diagnostics.Count > 0)
-        {
-            return new GeneratorResult(null, new EquatableList<DiagnosticInfo>(diagnostics));
+            return null;
         }
 
         if (typeSymbol.DeclaringSyntaxReferences.Length > 1)
@@ -274,7 +247,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                       nullableAnnotation == NullableAnnotation.Annotated ||
                                       (!memberType.IsValueType && nullableAnnotation == NullableAnnotation.None);
 
-                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None, compilation, registry);
+                    var type = GetGenJsonDataType(member, null, memberType, compilation, registry);
                     bool isValueType = memberType.IsValueType;
 
                     var propName = GetJsonName(member, null, namingPolicy);
@@ -325,7 +298,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         _ => throw new InvalidOperationException()
                     };
 
-                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None, compilation, registry);
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, compilation, registry);
                     // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
@@ -448,13 +421,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
-        if (diagnostics.Count > 0)
-        {
-            return new GeneratorResult(null, new EquatableList<DiagnosticInfo>(diagnostics));
-        }
-
-        var classData = new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
-        return new GeneratorResult(classData, new EquatableList<DiagnosticInfo>(new List<DiagnosticInfo>()));
+        return new ClassData(typeSymbol.Name, typeNameSpace, new EquatableList<PropertyData>(constructorArgs), new EquatableList<PropertyData>(initProperties), new EquatableList<PropertyData>(properties), keyword, typeSymbol.IsAbstract, hasGenJsonBase, isNullableContext, polymorphicDiscriminatorProp, new EquatableList<DerivedTypeData>(derivedTypes));
     }
 
     private static PropertyData? GetPropertyForParameter(
@@ -531,8 +498,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         ISymbol propertySymbol,
         IParameterSymbol? parameterSymbol,
         ITypeSymbol type,
-        List<DiagnosticInfo> diagnostics,
-        Location errorLocation,
         Compilation compilation,
         ConverterRegistry registry,
         ITypeSymbol? customConverterOverride = null)
@@ -565,46 +530,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (converterType != null)
         {
-            var fromJsonMethod = converterType.GetMembers("FromJson")
-                .OfType<IMethodSymbol>()
-                .FirstOrDefault(m => m.Parameters.Length == 2 && m.IsStatic);
-            if (fromJsonMethod != null)
-            {
-                var ret = fromJsonMethod.ReturnType;
-                bool isNullable = ret.IsReferenceType || ret.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
-                if (!isNullable)
-                {
-                    diagnostics.Add(new DiagnosticInfo(
-                        "GENJSON003",
-                        "Custom converter methods must return a nullable type",
-                        "The custom converter '{0}' has a FromJson method that returns a non-nullable type. Custom converter methods must return a nullable type (either a reference type or a Nullable<T>).",
-                        "Usage",
-                        DiagnosticSeverity.Error,
-                        errorLocation,
-                        converterType.Name));
-                }
-            }
-
-            var fromJsonUtf8Method = converterType.GetMembers("FromJsonUtf8")
-                .OfType<IMethodSymbol>()
-                .FirstOrDefault(m => m.Parameters.Length == 2 && m.IsStatic);
-            if (fromJsonUtf8Method != null)
-            {
-                var ret = fromJsonUtf8Method.ReturnType;
-                bool isNullable = ret.IsReferenceType || ret.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
-                if (!isNullable)
-                {
-                    diagnostics.Add(new DiagnosticInfo(
-                        "GENJSON003",
-                        "Custom converter methods must return a nullable type",
-                        "The custom converter '{0}' has a FromJsonUtf8 method that returns a non-nullable type. Custom converter methods must return a nullable type (either a reference type or a Nullable<T>).",
-                        "Usage",
-                        DiagnosticSeverity.Error,
-                        errorLocation,
-                        converterType.Name));
-                }
-            }
-
             bool isNullableTarget = type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
                                     type.NullableAnnotation == NullableAnnotation.Annotated ||
                                     (!type.IsValueType && type.NullableAnnotation == NullableAnnotation.None);
@@ -652,7 +577,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation, compilation, registry));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], compilation, registry));
         }
 
         switch (type.SpecialType)
@@ -720,8 +645,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 valueConverterOverride = valueConvType;
             }
 
-            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, compilation, registry, keyConverterOverride);
-            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, compilation, registry, valueConverterOverride);
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, compilation, registry, keyConverterOverride);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, compilation, registry, valueConverterOverride);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -792,7 +717,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, compilation, registry, elementConverterOverride), 
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, compilation, registry, elementConverterOverride), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -924,19 +849,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
     }
 
-    private void Generate(SourceProductionContext context, GeneratorResult result)
+    private void Generate(SourceProductionContext context, ClassData? data)
     {
-        foreach (var diag in result.Diagnostics.Value)
-        {
-            context.ReportDiagnostic(diag.ToDiagnostic());
-        }
-
-        if (result.ClassData is null)
+        if (data is null)
         {
             return;
         }
-
-        var data = result.ClassData;
 
         if (data.IsAbstract && data.DerivedTypes.Value.Count == 0)
         {
@@ -3525,8 +3443,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
     private static GenJsonDataType GetRootGenJsonDataType(
         ITypeSymbol type, 
-        List<DiagnosticInfo> diagnostics, 
-        Location? errorLocation, 
         Compilation compilation,
         ConverterRegistry registry)
     {
@@ -3581,7 +3497,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetRootGenJsonDataType(namedRaw.TypeArguments[0], diagnostics, errorLocation, compilation, registry));
+            return new GenJsonDataType.Nullable(GetRootGenJsonDataType(namedRaw.TypeArguments[0], compilation, registry));
         }
 
         switch (type.SpecialType)
@@ -3634,8 +3550,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetRootGenJsonDataType(keyType!, diagnostics, errorLocation, compilation, registry);
-            var valueGenType = GetRootGenJsonDataType(valueType!, diagnostics, errorLocation, compilation, registry);
+            var keyGenType = GetRootGenJsonDataType(keyType!, compilation, registry);
+            var valueGenType = GetRootGenJsonDataType(valueType!, compilation, registry);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -3694,7 +3610,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetRootGenJsonDataType(resolvedElementType, diagnostics, errorLocation, compilation, registry), 
+                GetRootGenJsonDataType(resolvedElementType, compilation, registry), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -3736,23 +3652,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         var compilation = context.SemanticModel.Compilation;
-        var assembly = compilation.Assembly;
-        var diagnostics = new List<DiagnosticInfo>();
-
         var isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
         var isPartial = typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword);
-        var errorLocation = typeDeclaration.Identifier.GetLocation();
 
         if (!isStatic || !isPartial)
         {
-            diagnostics.Add(new DiagnosticInfo(
-                "GENJSON005",
-                "Serializer class must be static and partial",
-                "The class '{0}' decorated with [GenJsonSerializable] must be both static and partial.",
-                "Usage",
-                DiagnosticSeverity.Error,
-                errorLocation,
-                typeSymbol.Name));
+            return null;
         }
 
         RootTypeInfo? rootType = null;
@@ -3762,22 +3667,13 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             serializableAttr.ConstructorArguments.Length == 1 &&
             serializableAttr.ConstructorArguments[0].Value is ITypeSymbol typeSymbolArg)
         {
-            var attrLocation = serializableAttr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation() ?? errorLocation;
-            
             if (!IsSupportedType(typeSymbolArg, compilation, registry))
             {
-                diagnostics.Add(new DiagnosticInfo(
-                    "GENJSON004",
-                    "Unsupported type in root registration",
-                    "The type '{0}' registered as a root type is not supported. It must be a primitive, enum, marked with [GenJson], or have a registered custom converter.",
-                    "Usage",
-                    DiagnosticSeverity.Error,
-                    attrLocation,
-                    typeSymbolArg.ToDisplayString()));
+                return null;
             }
             else
             {
-                var resolvedType = GetRootGenJsonDataType(typeSymbolArg, diagnostics, attrLocation, compilation, registry);
+                var resolvedType = GetRootGenJsonDataType(typeSymbolArg, compilation, registry);
                 var rawTypeName = typeSymbolArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 rootType = new RootTypeInfo(rawTypeName, resolvedType);
             }
@@ -3792,18 +3688,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             typeSymbol.Name,
             typeNameSpace,
             keyword,
-            rootType,
-            new EquatableList<DiagnosticInfo>(diagnostics));
+            rootType);
     }
 
     private void GenerateSerializerClass(SourceProductionContext context, SerializerClassData data)
     {
-        foreach (var diag in data.Diagnostics.Value)
-        {
-            context.ReportDiagnostic(diag.ToDiagnostic());
-        }
-
-        if (data.Diagnostics.Value.Any(d => d.Severity == DiagnosticSeverity.Error) || data.RootType == null)
+        if (data.RootType == null)
         {
             return;
         }
