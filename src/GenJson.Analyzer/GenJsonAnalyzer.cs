@@ -53,8 +53,16 @@ namespace GenJson.Analyzer
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor GENJSON006 = new DiagnosticDescriptor(
+            "GENJSON006",
+            "Converter class is missing required converter members",
+            "The converter class '{0}' is missing required converter members for type '{1}'.",
+            "Usage",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-            ImmutableArray.Create(GENJSON001, GENJSON002, GENJSON003, GENJSON004, GENJSON005);
+            ImmutableArray.Create(GENJSON001, GENJSON002, GENJSON003, GENJSON004, GENJSON005, GENJSON006);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -101,6 +109,7 @@ namespace GenJson.Analyzer
             if (converterAttr != null)
             {
                 ValidateConverter(context, symbol, converterAttr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation() ?? typeDecl.Identifier.GetLocation());
+                CheckMissingConverterMembers(context, typeDecl, symbol, converterAttr);
             }
 
             // Check GenJsonSerializableAttribute rules
@@ -401,6 +410,93 @@ namespace GenJson.Analyzer
             }
 
             return null;
+        }
+
+        private static void CheckMissingConverterMembers(SyntaxNodeAnalysisContext context, TypeDeclarationSyntax typeDecl, INamedTypeSymbol symbol, AttributeData converterAttr)
+        {
+            if (converterAttr.ConstructorArguments.Length == 1 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol targetType)
+            {
+                bool missing = !HasGetSize(symbol, targetType) ||
+                               !HasWriteJson(symbol, targetType) ||
+                               !HasFromJson(symbol, targetType) ||
+                               !HasGetSizeUtf8(symbol, targetType) ||
+                               !HasWriteJsonUtf8(symbol, targetType) ||
+                               !HasFromJsonUtf8(symbol, targetType);
+
+                if (missing)
+                {
+                    var location = typeDecl.Identifier.GetLocation();
+                    context.ReportDiagnostic(Diagnostic.Create(GENJSON006, location, symbol.Name, targetType.Name));
+                }
+            }
+        }
+
+        internal static bool IsTargetOrNullableTarget(ITypeSymbol type, ITypeSymbol targetType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(type, targetType))
+                return true;
+            if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+                type is INamedTypeSymbol named &&
+                named.TypeArguments.Length == 1 &&
+                SymbolEqualityComparer.Default.Equals(named.TypeArguments[0], targetType))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        internal static bool HasGetSize(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("GetSize")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && m.Parameters.Length == 1 && SymbolEqualityComparer.Default.Equals(m.Parameters[0].Type, targetType));
+        }
+
+        internal static bool HasWriteJson(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("WriteJson")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && 
+                          m.Parameters.Length == 3 && 
+                          m.Parameters[1].RefKind == RefKind.Ref && 
+                          SymbolEqualityComparer.Default.Equals(m.Parameters[2].Type, targetType));
+        }
+
+        internal static bool HasFromJson(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("FromJson")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && 
+                          m.Parameters.Length == 2 && 
+                          m.Parameters[1].RefKind == RefKind.Ref &&
+                          IsTargetOrNullableTarget(m.ReturnType, targetType));
+        }
+
+        internal static bool HasGetSizeUtf8(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("GetSizeUtf8")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && m.Parameters.Length == 1 && SymbolEqualityComparer.Default.Equals(m.Parameters[0].Type, targetType));
+        }
+
+        internal static bool HasWriteJsonUtf8(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("WriteJsonUtf8")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && 
+                          m.Parameters.Length == 3 && 
+                          m.Parameters[1].RefKind == RefKind.Ref && 
+                          SymbolEqualityComparer.Default.Equals(m.Parameters[2].Type, targetType));
+        }
+
+        internal static bool HasFromJsonUtf8(INamedTypeSymbol converterType, ITypeSymbol targetType)
+        {
+            return converterType.GetMembers("FromJsonUtf8")
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic && 
+                          m.Parameters.Length == 2 && 
+                          m.Parameters[1].RefKind == RefKind.Ref &&
+                          IsTargetOrNullableTarget(m.ReturnType, targetType));
         }
     }
 

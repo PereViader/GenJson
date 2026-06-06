@@ -153,6 +153,63 @@ public class TestGenJsonDiagnostics
             "GENJSON005 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
     }
 
+    [Test]
+    public void MissingConverterMembers_ReportsError()
+    {
+        var code = """
+            using System;
+            using GenJson;
+
+            namespace TestNamespace;
+
+            public struct ResId
+            {
+                public int Value { get; }
+            }
+
+            [GenJsonConverter(typeof(ResId))]
+            public static class ResIdConverter
+            {
+            }
+            """;
+
+        var diagnostics = GetDiagnostics(code);
+        Assert.That(diagnostics.Any(d => d is { Id: "GENJSON006", Severity: DiagnosticSeverity.Error }), Is.True, 
+            "GENJSON006 not found. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
+    }
+
+    [Test]
+    public void ConverterWithMembers_NoErrors()
+    {
+        var code = """
+            using System;
+            using GenJson;
+
+            namespace TestNamespace;
+
+            public struct ResId
+            {
+                public int Value { get; }
+            }
+
+            [GenJsonConverter(typeof(ResId))]
+            public static class ResIdConverter
+            {
+                public static int GetSize(ResId value) => 0;
+                public static void WriteJson(Span<char> span, ref int index, ResId value) {}
+                public static ResId? FromJson(ReadOnlySpan<char> span, ref int index) => null;
+                public static int GetSizeUtf8(ResId value) => 0;
+                public static void WriteJsonUtf8(Span<byte> span, ref int index, ResId value) {}
+                public static ResId? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index) => null;
+            }
+            """;
+
+        var diagnostics = GetDiagnostics(code);
+        Assert.That(diagnostics.Any(d => d.Id == "GENJSON006"), Is.False, 
+            "GENJSON006 found but not expected. All diagnostics:\n" + string.Join("\n", diagnostics.Select(d => $"{d.Id} ({d.Severity}): {d.GetMessage()}")));
+    }
+
+
 
     private static ImmutableArray<Diagnostic> GetDiagnostics(string code)
     {
