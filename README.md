@@ -164,6 +164,30 @@ public partial record User(
 );
 ```
 
+#### Naming Policy
+
+Instead of renaming each property individually, you can configure a naming policy on the class level via the `NamingPolicy` property of the `[GenJson]` attribute. This policy will automatically convert all property, field, and constructor parameter names of the class/struct (unless explicitly overridden by `[GenJsonPropertyName]`).
+
+The available naming policies (mimicking `System.Text.Json.JsonNamingPolicy`) are:
+- `GenJsonNamingPolicy.Unspecified` (default): Preserves the original C# property/field name casing directly.
+- `GenJsonNamingPolicy.CamelCase`: e.g. `OriginalName` becomes `originalName`.
+- `GenJsonNamingPolicy.KebabCaseLower`: e.g. `OriginalName` becomes `original-name`.
+- `GenJsonNamingPolicy.KebabCaseUpper`: e.g. `OriginalName` becomes `ORIGINAL-NAME`.
+- `GenJsonNamingPolicy.SnakeCaseLower`: e.g. `OriginalName` becomes `original_name`.
+- `GenJsonNamingPolicy.SnakeCaseUpper`: e.g. `OriginalName` becomes `ORIGINAL_NAME`.
+
+```csharp
+[GenJson(NamingPolicy = GenJsonNamingPolicy.SnakeCaseLower)]
+public partial class User
+{
+    public int UserId { get; set; } // Serialized as "user_id"
+    public string FirstName { get; set; } // Serialized as "first_name"
+
+    [GenJsonPropertyName("customName")]
+    public string Nickname { get; set; } // Serialized as "customName" (overridden)
+}
+```
+
 ### 4. Ignore Properties
 
 You can prevent a property from being serialized or deserialized using the `[GenJsonIgnore]` attribute.
@@ -743,6 +767,7 @@ string json = JsonSerializer.Serialize(myObject, options);
 ### Dynamic Attribute Bridging
 
 The bridge handles the translation of the following custom GenJson attributes automatically on the server:
+- **`[GenJson(NamingPolicy = ...)]`**: Maps class-level naming policy conversions dynamically to property/field names in System.Text.Json options.
 - **`[GenJsonPropertyName("custom_name")]`**: Maps the property name in System.Text.Json.
 - **`[GenJsonIgnore]`**: Excludes the property completely from both serialization and deserialization contracts.
 - **`[GenJsonEnumAsText]` and `[GenJsonEnumAsNumber]`**: Controls enum formatting (string vs backing number) at both the property and type levels.

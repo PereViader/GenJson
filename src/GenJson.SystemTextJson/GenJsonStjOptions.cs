@@ -141,6 +141,28 @@ namespace GenJson.SystemTextJson
             if (typeInfo.Kind == JsonTypeInfoKind.Object)
             {
                 var type = typeInfo.Type;
+                var genJsonAttr = type.GetCustomAttribute<GenJsonAttribute>();
+                var namingPolicy = genJsonAttr?.NamingPolicy ?? GenJsonNamingPolicy.Unspecified;
+                JsonNamingPolicy? stjNamingPolicy = null;
+                switch (namingPolicy)
+                {
+                    case GenJsonNamingPolicy.CamelCase:
+                        stjNamingPolicy = JsonNamingPolicy.CamelCase;
+                        break;
+                    case GenJsonNamingPolicy.KebabCaseLower:
+                        stjNamingPolicy = JsonNamingPolicy.KebabCaseLower;
+                        break;
+                    case GenJsonNamingPolicy.KebabCaseUpper:
+                        stjNamingPolicy = JsonNamingPolicy.KebabCaseUpper;
+                        break;
+                    case GenJsonNamingPolicy.SnakeCaseLower:
+                        stjNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                        break;
+                    case GenJsonNamingPolicy.SnakeCaseUpper:
+                        stjNamingPolicy = JsonNamingPolicy.SnakeCaseUpper;
+                        break;
+                }
+
                 var existingPropertyNames = new System.Collections.Generic.HashSet<string>(typeInfo.Properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
 
                 var currentType = type;
@@ -246,6 +268,10 @@ namespace GenJson.SystemTextJson
                             .FirstOrDefault() is GenJsonPropertyNameAttribute nameAttr)
                     {
                         property.Name = nameAttr.Name;
+                    }
+                    else if (stjNamingPolicy != null && property.AttributeProvider is MemberInfo memberInfo)
+                    {
+                        property.Name = stjNamingPolicy.ConvertName(memberInfo.Name);
                     }
 
                     // Property Custom Converters: [GenJsonConverter]

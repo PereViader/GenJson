@@ -249,6 +249,15 @@ namespace GenJson.SystemTextJson.Tests
         public string PublicField = "default_pub";
     }
 
+    [GenJson(NamingPolicy = GenJsonNamingPolicy.CamelCase)]
+    public partial class StjNamingPolicyModel
+    {
+        public string FirstName { get; set; } = "";
+        
+        [GenJsonPropertyName("custom_last_name")]
+        public string LastName { get; set; } = "";
+    }
+
     [TestFixture]
     public class BridgeTests
     {
@@ -470,6 +479,18 @@ namespace GenJson.SystemTextJson.Tests
 
             var deserialized = JsonSerializer.Deserialize<StjPublicFieldModel>(json, _options)!;
             Assert.That(deserialized.PublicField, Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void TestNamingPolicyBridging()
+        {
+            var model = new StjNamingPolicyModel { FirstName = "Bob", LastName = "Smith" };
+            string json = JsonSerializer.Serialize(model, _options);
+            Assert.That(json, Is.EqualTo("{\"firstName\":\"Bob\",\"custom_last_name\":\"Smith\"}"));
+
+            var deserialized = JsonSerializer.Deserialize<StjNamingPolicyModel>(json, _options)!;
+            Assert.That(deserialized.FirstName, Is.EqualTo("Bob"));
+            Assert.That(deserialized.LastName, Is.EqualTo("Smith"));
         }
     }
 }
