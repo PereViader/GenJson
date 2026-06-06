@@ -3,11 +3,54 @@ using System;
 namespace GenJson
 {
     /// <summary>
+    /// Specifies the naming policy used to convert C# member names to JSON property names.
+    /// </summary>
+    public enum GenJsonNamingPolicy
+    {
+        /// <summary>
+        /// Preserves the original casing of the C# member name.
+        /// Example: <c>OriginalName</c> remains <c>OriginalName</c>.
+        /// </summary>
+        Unspecified = 0,
+
+        /// <summary>
+        /// Gets the naming policy for camel-casing.
+        /// Example: <c>OriginalName</c> becomes <c>originalName</c>.
+        /// </summary>
+        CamelCase = 1,
+
+        /// <summary>
+        /// Gets the naming policy for lowercase kebab-casing.
+        /// Example: <c>OriginalName</c> becomes <c>original-name</c>.
+        /// </summary>
+        KebabCaseLower = 2,
+
+        /// <summary>
+        /// Gets the naming policy for uppercase kebab-casing.
+        /// Example: <c>OriginalName</c> becomes <c>ORIGINAL-NAME</c>.
+        /// </summary>
+        KebabCaseUpper = 3,
+
+        /// <summary>
+        /// Gets the naming policy for lowercase snake-casing.
+        /// Example: <c>OriginalName</c> becomes <c>original_name</c>.
+        /// </summary>
+        SnakeCaseLower = 4,
+
+        /// <summary>
+        /// Gets the naming policy for uppercase snake-casing.
+        /// Example: <c>OriginalName</c> becomes <c>ORIGINAL_NAME</c>.
+        /// </summary>
+        SnakeCaseUpper = 5
+    }
+
+    /// <summary>
     /// Flag types with this attribute to source generate an efficient ToJson method for them
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public sealed class GenJsonAttribute : Attribute
     {
+        public GenJsonNamingPolicy NamingPolicy { get; set; }
     }
 
     /// <summary>

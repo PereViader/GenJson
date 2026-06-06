@@ -9,6 +9,16 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GenJson.Generator;
 
+public enum GenJsonNamingPolicy
+{
+    Unspecified = 0,
+    CamelCase = 1,
+    KebabCaseLower = 2,
+    KebabCaseUpper = 3,
+    SnakeCaseLower = 4,
+    SnakeCaseUpper = 5
+}
+
 public abstract record GenJsonDataType
 {
     public sealed record Primitive(string TypeName) : GenJsonDataType; // Integers
@@ -208,6 +218,23 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
         }
 
+        var genJsonAttr = typeSymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonAttribute");
+        var namingPolicy = GenJsonNamingPolicy.Unspecified;
+        if (genJsonAttr != null)
+        {
+            foreach (var arg in genJsonAttr.NamedArguments)
+            {
+                if (arg.Key == "NamingPolicy")
+                {
+                    if (arg.Value.Value != null)
+                    {
+                        namingPolicy = (GenJsonNamingPolicy)Convert.ToInt32(arg.Value.Value);
+                    }
+                    break;
+                }
+            }
+        }
+
         var properties = new List<PropertyData>();
         var propertiesMap = new Dictionary<string, (PropertyData Data, ISymbol Symbol)>(StringComparer.OrdinalIgnoreCase);
 
@@ -274,7 +301,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None, assembly);
                     bool isValueType = memberType.IsValueType;
 
-                    var propName = GetJsonName(member, null);
+                    var propName = GetJsonName(member, null, namingPolicy);
 
                     var declaredType = memberType;
                     if (declaredType.IsValueType && declaredType is INamedTypeSymbol namedType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
@@ -331,7 +358,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     // If neither, returns prop.Name.
                     // So for C -> A mapping: Prop is A. Param is C.
                     // If C has no Attr, GetJsonName returns "A". Perfect.
-                    var newJsonName = GetJsonName(originalSymbol, param);
+                    var newJsonName = GetJsonName(originalSymbol, param, namingPolicy);
 
                     var newPropData = propData with { Type = newType, JsonName = newJsonName, ConstructorParamName = param.Name };
 
@@ -908,7 +935,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static string GetJsonName(ISymbol propertySymbol, IParameterSymbol? parameterSymbol)
+    private static string GetJsonName(ISymbol propertySymbol, IParameterSymbol? parameterSymbol, GenJsonNamingPolicy namingPolicy)
     {
         var converterAttr = propertySymbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute") ??
                             parameterSymbol?.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonPropertyNameAttribute");
@@ -918,7 +945,27 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return name;
         }
 
-        return propertySymbol.Name;
+        var baseName = propertySymbol.Name;
+        return ApplyNamingPolicy(baseName, namingPolicy);
+    }
+
+    private static string ApplyNamingPolicy(string name, GenJsonNamingPolicy policy)
+    {
+        switch (policy)
+        {
+            case GenJsonNamingPolicy.CamelCase:
+                return System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(name);
+            case GenJsonNamingPolicy.KebabCaseLower:
+                return System.Text.Json.JsonNamingPolicy.KebabCaseLower.ConvertName(name);
+            case GenJsonNamingPolicy.KebabCaseUpper:
+                return System.Text.Json.JsonNamingPolicy.KebabCaseUpper.ConvertName(name);
+            case GenJsonNamingPolicy.SnakeCaseLower:
+                return System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(name);
+            case GenJsonNamingPolicy.SnakeCaseUpper:
+                return System.Text.Json.JsonNamingPolicy.SnakeCaseUpper.ConvertName(name);
+            default:
+                return name;
+        }
     }
 
     private void Generate(SourceProductionContext context, GeneratorResult result)
