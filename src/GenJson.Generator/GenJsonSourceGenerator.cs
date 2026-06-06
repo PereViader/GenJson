@@ -9,166 +9,137 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GenJson.Generator;
 
-public enum GenJsonNamingPolicy
-{
-    Unspecified = 0,
-    CamelCase = 1,
-    KebabCaseLower = 2,
-    KebabCaseUpper = 3,
-    SnakeCaseLower = 4,
-    SnakeCaseUpper = 5
-}
-
-public abstract record GenJsonDataType
-{
-    public sealed record Primitive(string TypeName) : GenJsonDataType; // Integers
-
-    public sealed record Boolean : GenJsonDataType
-    {
-        public static readonly Boolean Instance = new();
-        private Boolean() { }
-    }
-
-    public sealed record FloatingPoint(string TypeName) : GenJsonDataType; // Float, Double, Decimal
-
-    public sealed record String : GenJsonDataType
-    {
-        public static readonly String Instance = new();
-        private String() { }
-    }
-
-    public sealed record Char : GenJsonDataType
-    {
-        public static readonly Char Instance = new();
-        private Char() { }
-    }
-
-    public sealed record Guid : GenJsonDataType
-    {
-        public static readonly Guid Instance = new();
-        private Guid() { }
-    }
-
-    public sealed record DateTime : GenJsonDataType
-    {
-        public static readonly DateTime Instance = new();
-        private DateTime() { }
-    }
-
-    public sealed record TimeSpan : GenJsonDataType
-    {
-        public static readonly TimeSpan Instance = new();
-        private TimeSpan() { }
-    }
-
-    public sealed record DateTimeOffset : GenJsonDataType
-    {
-        public static readonly DateTimeOffset Instance = new();
-        private DateTimeOffset() { }
-    }
-
-    public sealed record Version : GenJsonDataType
-    {
-        public static readonly Version Instance = new();
-        private Version() { }
-    }
-
-    public sealed record Uri : GenJsonDataType
-    {
-        public static readonly Uri Instance = new();
-        private Uri() { }
-    }
-
-    public sealed record Object(string TypeName) : GenJsonDataType; // Another GenJson class
-
-    public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
-    public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
-    public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
-    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members) : GenJsonDataType;
-    public sealed record CustomConverter(string ConverterTypeName, string ExpectedTypeName, bool IsNullable, bool IsValueType) : GenJsonDataType;
-}
-
-public record PropertyData(string Name, string JsonName, string TypeName, bool IsNullable, bool IsValueType, GenJsonDataType Type, string? ConstructorParamName = null);
-
-public record ClassData(
-    string ClassName,
-    string Namespace,
-    EquatableList<PropertyData> ConstructorArgs,
-    EquatableList<PropertyData> InitProperties,
-    EquatableList<PropertyData> AllProperties,
-    string Keyword,
-    bool IsAbstract,
-    bool HasGenJsonBase,
-    bool IsNullableContext,
-    string? PolymorphicDiscriminatorProp,
-    EquatableList<DerivedTypeData> DerivedTypes);
-
-public record DerivedTypeData(string TypeName, string DiscriminatorValue, bool IsIntDiscriminator);
-
-public record DiagnosticInfo(
-    string Id,
-    string Title,
-    string MessageFormat,
-    string Category,
-    DiagnosticSeverity Severity,
-    Location? Location,
-    string MessageArg)
-{
-    public Diagnostic ToDiagnostic()
-    {
-        var descriptor = new DiagnosticDescriptor(
-            Id, Title, MessageFormat, Category, Severity, isEnabledByDefault: true);
-        return Diagnostic.Create(descriptor, Location, MessageArg);
-    }
-}
-
-public record GeneratorResult(
-    ClassData? ClassData,
-    EquatableList<DiagnosticInfo> Diagnostics);
-
-public record RootTypeInfo(string RawTypeName, GenJsonDataType Type);
-
-public record SerializerClassData(
-    string ClassName,
-    string Namespace,
-    string Keyword,
-    RootTypeInfo? RootType,
-    EquatableList<DiagnosticInfo> Diagnostics);
-
 [Generator]
 public class GenJsonSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var classData = context.SyntaxProvider
+        var localConverters = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "GenJson.GenJsonConverterAttribute",
+                (node, _) => node is TypeDeclarationSyntax,
+                (ctx, ct) => {
+                    var converterSymbol = (INamedTypeSymbol)ctx.TargetSymbol;
+                    var attr = ctx.Attributes.FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
+                    if (attr != null && attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is ITypeSymbol targetType)
+                    {
+                        return (ConverterMapping?)new ConverterMapping(
+                            targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                            converterSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                    }
+                    return (ConverterMapping?)null;
+                })
+            .Where(x => x.HasValue)
+            .Select((x, _) => x.GetValueOrDefault())
+            .Collect();
+
+        var assemblyConverters = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: (node, _) => node is AttributeListSyntax attrList && attrList.Target?.Identifier.ValueText == "assembly",
+                transform: (ctx, ct) => {
+                    var attrList = (AttributeListSyntax)ctx.Node;
+                    var list = new List<ConverterMapping>();
+                    foreach (var attr in attrList.Attributes)
+                    {
+                        var symbol = ctx.SemanticModel.GetSymbolInfo(attr, ct).Symbol as IMethodSymbol;
+                        if (symbol?.ContainingType?.ToDisplayString() == "GenJson.GenJsonConverterAttribute")
+                        {
+                            if (attr.ArgumentList != null && attr.ArgumentList.Arguments.Count == 1)
+                            {
+                                var argExpr = attr.ArgumentList.Arguments[0].Expression;
+                                if (ctx.SemanticModel.GetTypeInfo(argExpr, ct).Type is { } converterType)
+                                {
+                                    var converterAttr = converterType.GetAttributes().FirstOrDefault(a =>
+                                        a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
+                                    if (converterAttr != null && converterAttr.ConstructorArguments.Length == 1 &&
+                                        converterAttr.ConstructorArguments[0].Value is ITypeSymbol targetType)
+                                    {
+                                        list.Add(new ConverterMapping(
+                                            targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                                            converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return new EquatableList<ConverterMapping>(list);
+                })
+            .Collect()
+            .Select((lists, _) => {
+                var merged = new List<ConverterMapping>();
+                foreach (var list in lists)
+                {
+                    merged.AddRange(list.Value);
+                }
+                return new EquatableList<ConverterMapping>(merged);
+            });
+
+        var registryProvider = localConverters.Combine(assemblyConverters)
+            .Select((tuple, ct) => {
+                var (local, assemblyList) = tuple;
+                var map = new Dictionary<string, string>(StringComparer.Ordinal);
+
+                foreach (var mapping in local)
+                {
+                    map[mapping.TargetTypeName] = mapping.ConverterTypeName;
+                }
+
+                foreach (var mapping in assemblyList.Value)
+                {
+                    map[mapping.TargetTypeName] = mapping.ConverterTypeName;
+                }
+
+                var sortedMappings = map.Select(kvp => new ConverterMapping(kvp.Key, kvp.Value))
+                    .OrderBy(m => m.TargetTypeName)
+                    .ToList();
+
+                return new ConverterRegistry(new EquatableList<ConverterMapping>(sortedMappings));
+            });
+
+        var rawClassContexts = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "GenJson.GenJsonAttribute",
-                IsSyntaxNodeValid,
-                GetClassData)
+                (node, ct) => node is TypeDeclarationSyntax,
+                (ctx, _) => ctx);
+        
+        var classData = rawClassContexts
+            .Combine(registryProvider)
+            .Select((tuple, ct) => GetClassData(tuple.Left, tuple.Right, ct))
             .Where(x => x is not null);
 
         context.RegisterSourceOutput(classData, Generate!);
 
         var assemblyNameProvider = context.CompilationProvider.Select((compilation, _) => compilation.Assembly.Name);
-        var collectedWithAssembly = classData.Collect().Combine(assemblyNameProvider);
+        
+        var collectedWithAssembly = classData
+            .Select((result, _) => {
+                if (result == null || result.ClassData == null) return new InitializerTypeInfo("", false, false, false);
+                var data = result.ClassData;
+                var fullyQualifiedName = string.IsNullOrEmpty(data.Namespace)
+                    ? $"global::{data.ClassName}"
+                    : $"global::{data.Namespace}.{data.ClassName}";
+                bool isStruct = data.Keyword.Contains("struct");
+                return new InitializerTypeInfo(fullyQualifiedName, isStruct, data.IsAbstract, data.DerivedTypes.Value.Count > 0);
+            })
+            .Where(info => !string.IsNullOrEmpty(info.FullyQualifiedName))
+            .Collect()
+            .Combine(assemblyNameProvider);
+        
         context.RegisterSourceOutput(collectedWithAssembly, GenerateAssemblyInitializer!);
-
+        
         var serializerData = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "GenJson.GenJsonSerializableAttribute",
                 IsClassSyntaxNodeValid,
-                GetSerializerClassData)
+                (ctx, _) => ctx)
+            .Combine(registryProvider)
+            .Select((tuple, ct) => GetSerializerClassData(tuple.Left, tuple.Right, ct))
             .Where(x => x is not null);
 
         context.RegisterSourceOutput(serializerData, GenerateSerializerClass!);
     }
 
-    private static bool IsSyntaxNodeValid(SyntaxNode node, CancellationToken ct)
-    {
-        return node is TypeDeclarationSyntax;
-    }
-
-    private static GeneratorResult? GetClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static GeneratorResult? GetClassData(GeneratorAttributeSyntaxContext context, ConverterRegistry registry, CancellationToken ct)
     {
         var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
         var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
@@ -177,7 +148,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return null;
         }
 
-        var assembly = context.SemanticModel.Compilation.Assembly;
+        var compilation = context.SemanticModel.Compilation;
+        var assembly = compilation.Assembly;
 
         var diagnostics = new List<DiagnosticInfo>();
 
@@ -302,7 +274,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                       nullableAnnotation == NullableAnnotation.Annotated ||
                                       (!memberType.IsValueType && nullableAnnotation == NullableAnnotation.None);
 
-                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None, assembly);
+                    var type = GetGenJsonDataType(member, null, memberType, diagnostics, member.Locations.FirstOrDefault() ?? Location.None, compilation, registry);
                     bool isValueType = memberType.IsValueType;
 
                     var propName = GetJsonName(member, null, namingPolicy);
@@ -353,7 +325,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         _ => throw new InvalidOperationException()
                     };
 
-                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None, assembly);
+                    var newType = GetGenJsonDataType(originalSymbol, param, originalType, diagnostics, param.Locations.FirstOrDefault() ?? Location.None, compilation, registry);
                     // IMPORTANT: For inherited parameters like "C" mapped to "A", we want to use the parameter's attributes if any,
                     // BUT if the parameter is just a pass-through (like C -> A), and C has NO attributes, we want A's JSON name.
                     // GetJsonName checks param first, then property.
@@ -561,7 +533,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         ITypeSymbol type,
         List<DiagnosticInfo> diagnostics,
         Location errorLocation,
-        IAssemblySymbol assembly,
+        Compilation compilation,
+        ConverterRegistry registry,
         ITypeSymbol? customConverterOverride = null)
     {
         ITypeSymbol? converterType = customConverterOverride;
@@ -573,8 +546,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 !GetBoolNamedArgument(a, "Key") && !GetBoolNamedArgument(a, "Value")) ??
                                 parameterSymbol?.GetAttributes().FirstOrDefault(a => 
                 a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
-                !GetBoolNamedArgument(a, "Key") && !GetBoolNamedArgument(a, "Value")) ??
-                                type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
+                !GetBoolNamedArgument(a, "Key") && !GetBoolNamedArgument(a, "Value"));
 
             if (converterAttr != null && converterAttr.ConstructorArguments.Length > 0 && converterAttr.ConstructorArguments[0].Value is ITypeSymbol attrConvType)
             {
@@ -582,7 +554,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             else
             {
-                converterType = TryGetAssemblyConverter(assembly, type);
+                var targetTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var converterTypeName = registry.GetConverterForType(targetTypeName);
+                if (converterTypeName != null)
+                {
+                    converterType = GetTypeByFullyQualifiedName(compilation, converterTypeName);
+                }
             }
         }
 
@@ -675,7 +652,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation, assembly));
+            return new GenJsonDataType.Nullable(GetGenJsonDataType(propertySymbol, parameterSymbol, namedRaw.TypeArguments[0], diagnostics, errorLocation, compilation, registry));
         }
 
         switch (type.SpecialType)
@@ -743,8 +720,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 valueConverterOverride = valueConvType;
             }
 
-            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, assembly, keyConverterOverride);
-            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, assembly, valueConverterOverride);
+            var keyGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, keyType!, diagnostics, errorLocation, compilation, registry, keyConverterOverride);
+            var valueGenType = GetGenJsonDataType(propertySymbol, parameterSymbol, valueType!, diagnostics, errorLocation, compilation, registry, valueConverterOverride);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -815,7 +792,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, assembly, elementConverterOverride), 
+                GetGenJsonDataType(propertySymbol, parameterSymbol, resolvedElementType, diagnostics, errorLocation, compilation, registry, elementConverterOverride), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -826,32 +803,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return new GenJsonDataType.Primitive(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
     }
 
-    private static ITypeSymbol? TryGetAssemblyConverter(IAssemblySymbol assembly, ITypeSymbol type)
-    {
-        foreach (var attr in assembly.GetAttributes())
-        {
-            if (attr.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute" &&
-                attr.ConstructorArguments.Length == 1 &&
-                attr.ConstructorArguments[0].Value is ITypeSymbol converterType)
-            {
-                ITypeSymbol? targetType = null;
-                foreach (var arg in attr.NamedArguments)
-                {
-                    if (arg.Key == "TargetType" && arg.Value.Value is ITypeSymbol t)
-                    {
-                        targetType = t;
-                        break;
-                    }
-                }
 
-                if (targetType != null && SymbolEqualityComparer.Default.Equals(targetType, type))
-                {
-                    return converterType;
-                }
-            }
-        }
-        return null;
-    }
 
     private static bool GetBoolNamedArgument(AttributeData attr, string name)
     {
@@ -3503,12 +3455,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
     }
 
-    private static bool IsSupportedType(ITypeSymbol type, IAssemblySymbol assembly)
+    private static bool IsSupportedType(ITypeSymbol type, Compilation compilation, ConverterRegistry registry)
     {
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return IsSupportedType(namedRaw.TypeArguments[0], assembly);
+            return IsSupportedType(namedRaw.TypeArguments[0], compilation, registry);
         }
 
         switch (type.SpecialType)
@@ -3551,25 +3503,21 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return true;
         }
 
-        if (TryGetAssemblyConverter(assembly, type) != null)
-        {
-            return true;
-        }
-
-        if (type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute"))
+        var targetTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (registry.GetConverterForType(targetTypeName) != null)
         {
             return true;
         }
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            return IsSupportedType(keyType!, assembly) && IsSupportedType(valueType!, assembly);
+            return IsSupportedType(keyType!, compilation, registry) && IsSupportedType(valueType!, compilation, registry);
         }
 
         var resolvedElementType = GetEnumerableElementType(type);
         if (resolvedElementType != null)
         {
-            return IsSupportedType(resolvedElementType, assembly);
+            return IsSupportedType(resolvedElementType, compilation, registry);
         }
 
         return false;
@@ -3579,18 +3527,15 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         ITypeSymbol type, 
         List<DiagnosticInfo> diagnostics, 
         Location? errorLocation, 
-        IAssemblySymbol assembly)
+        Compilation compilation,
+        ConverterRegistry registry)
     {
-        var typeConverterOverride = type.GetAttributes().FirstOrDefault(a => 
-            a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
         ITypeSymbol? converterType = null;
-        if (typeConverterOverride != null && typeConverterOverride.ConstructorArguments.Length > 0 && typeConverterOverride.ConstructorArguments[0].Value is ITypeSymbol convType)
+        var targetTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var converterTypeName = registry.GetConverterForType(targetTypeName);
+        if (converterTypeName != null)
         {
-            converterType = convType;
-        }
-        else
-        {
-            converterType = TryGetAssemblyConverter(assembly, type);
+            converterType = GetTypeByFullyQualifiedName(compilation, converterTypeName);
         }
 
         if (converterType != null)
@@ -3636,7 +3581,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
             type is INamedTypeSymbol { TypeArguments.Length: > 0 } namedRaw)
         {
-            return new GenJsonDataType.Nullable(GetRootGenJsonDataType(namedRaw.TypeArguments[0], diagnostics, errorLocation, assembly));
+            return new GenJsonDataType.Nullable(GetRootGenJsonDataType(namedRaw.TypeArguments[0], diagnostics, errorLocation, compilation, registry));
         }
 
         switch (type.SpecialType)
@@ -3689,8 +3634,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         if (TryGetDictionaryTypes(type, out var keyType, out var valueType))
         {
-            var keyGenType = GetRootGenJsonDataType(keyType!, diagnostics, errorLocation, assembly);
-            var valueGenType = GetRootGenJsonDataType(valueType!, diagnostics, errorLocation, assembly);
+            var keyGenType = GetRootGenJsonDataType(keyType!, diagnostics, errorLocation, compilation, registry);
+            var valueGenType = GetRootGenJsonDataType(valueType!, diagnostics, errorLocation, compilation, registry);
             
             string constructionTypeName;
             bool hasCapacityConstructor = false;
@@ -3749,7 +3694,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             
             return new GenJsonDataType.Enumerable(
-                GetRootGenJsonDataType(resolvedElementType, diagnostics, errorLocation, assembly), 
+                GetRootGenJsonDataType(resolvedElementType, diagnostics, errorLocation, compilation, registry), 
                 isArray, 
                 constructionTypeName!, 
                 resolvedElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), 
@@ -3781,7 +3726,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         return node is ClassDeclarationSyntax;
     }
 
-    private static SerializerClassData? GetSerializerClassData(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static SerializerClassData? GetSerializerClassData(GeneratorAttributeSyntaxContext context, ConverterRegistry registry, CancellationToken ct)
     {
         var typeDeclaration = (TypeDeclarationSyntax)context.TargetNode;
         var typeSymbol = context.TargetSymbol as INamedTypeSymbol;
@@ -3790,7 +3735,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             return null;
         }
 
-        var assembly = context.SemanticModel.Compilation.Assembly;
+        var compilation = context.SemanticModel.Compilation;
+        var assembly = compilation.Assembly;
         var diagnostics = new List<DiagnosticInfo>();
 
         var isStatic = typeDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
@@ -3818,7 +3764,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             var attrLocation = serializableAttr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation() ?? errorLocation;
             
-            if (!IsSupportedType(typeSymbolArg, assembly))
+            if (!IsSupportedType(typeSymbolArg, compilation, registry))
             {
                 diagnostics.Add(new DiagnosticInfo(
                     "GENJSON004",
@@ -3831,7 +3777,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             }
             else
             {
-                var resolvedType = GetRootGenJsonDataType(typeSymbolArg, diagnostics, attrLocation, assembly);
+                var resolvedType = GetRootGenJsonDataType(typeSymbolArg, diagnostics, attrLocation, compilation, registry);
                 var rawTypeName = typeSymbolArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 rootType = new RootTypeInfo(rawTypeName, resolvedType);
             }
@@ -4035,7 +3981,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         context.AddSource($"{(string.IsNullOrEmpty(data.Namespace) ? "" : data.Namespace + "_")}{data.ClassName}.GenJson.g.cs", sb.ToString());
     }
 
-    private void GenerateAssemblyInitializer(SourceProductionContext context, (System.Collections.Immutable.ImmutableArray<GeneratorResult> Results, string AssemblyName) input)
+    private void GenerateAssemblyInitializer(SourceProductionContext context, (System.Collections.Immutable.ImmutableArray<InitializerTypeInfo> Results, string AssemblyName) input)
     {
         var results = input.Results;
         var assemblyName = input.AssemblyName;
@@ -4059,23 +4005,16 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine("            _initialized = true;");
         sb.AppendLine();
 
-        foreach (var result in results)
+        foreach (var data in results)
         {
-            if (result?.ClassData == null) continue;
-            var data = result.ClassData;
-
-            if (data.IsAbstract && data.DerivedTypes.Value.Count == 0)
+            if (data.IsAbstract && !data.HasDerivedTypes)
             {
                 continue;
             }
 
-            var fullyQualifiedName = string.IsNullOrEmpty(data.Namespace)
-                ? $"global::{data.ClassName}"
-                : $"global::{data.Namespace}.{data.ClassName}";
+            var fullyQualifiedName = data.FullyQualifiedName;
 
-            bool isStruct = data.Keyword.Contains("struct");
-
-            if (isStruct)
+            if (data.IsStruct)
             {
                 sb.AppendLine($"            global::GenJson.GenJsonGenericRegistry.RegisterStruct<{fullyQualifiedName}>(");
                 sb.AppendLine($"                (val, opt) => val.ToJson(opt),");
@@ -4118,5 +4057,61 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
         return sb.ToString();
     }
+
+
+    private static INamedTypeSymbol? GetTypeByFullyQualifiedName(Compilation compilation, string name)
+    {
+        if (name.StartsWith("global::"))
+        {
+            name = name.Substring(8);
+        }
+        
+        var type = compilation.GetTypeByMetadataName(name);
+        if (type != null) return type;
+
+        int lastDot = name.LastIndexOf('.');
+        while (lastDot != -1)
+        {
+            name = name.Substring(0, lastDot) + "+" + name.Substring(lastDot + 1);
+            type = compilation.GetTypeByMetadataName(name);
+            if (type != null) return type;
+            lastDot = name.LastIndexOf('.', lastDot - 1);
+        }
+
+        return null;
+    }
+}
+
+public record struct ConverterMapping(string TargetTypeName, string ConverterTypeName);
+
+public class ConverterRegistry : IEquatable<ConverterRegistry>
+{
+    private readonly Dictionary<string, string> _map;
+    public readonly EquatableList<ConverterMapping> Mappings;
+
+    public ConverterRegistry(EquatableList<ConverterMapping> mappings)
+    {
+        Mappings = mappings;
+        _map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var mapping in mappings.Value)
+        {
+            _map[mapping.TargetTypeName] = mapping.ConverterTypeName;
+        }
+    }
+
+    public string? GetConverterForType(string targetTypeName)
+    {
+        return _map.TryGetValue(targetTypeName, out var converterTypeName) ? converterTypeName : null;
+    }
+
+    public bool Equals(ConverterRegistry? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Mappings.Equals(other.Mappings);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as ConverterRegistry);
+    public override int GetHashCode() => Mappings.GetHashCode();
 }
 

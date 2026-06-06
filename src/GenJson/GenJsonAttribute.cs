@@ -54,8 +54,10 @@ namespace GenJson
     }
 
     /// <summary>
-    /// This attribute can be used to implement special logic to map from/back json to instance.
-    /// It can be used at the class/struct, property/field, parameter, or assembly level.
+    /// This attribute is used to define and register custom converters.
+    /// - On a static converter class: maps the converter to the target type, e.g., [GenJsonConverter(typeof(TargetType))]
+    /// - On an assembly: registers the converter globally, e.g., [assembly: GenJsonConverter(typeof(ConverterType))]
+    /// - On a property/field/parameter: overrides the converter for that member, e.g., [GenJsonConverter(typeof(ConverterType))]
     /// To customize dictionary keys or values/collection elements, set the Key or Value properties to true.
     /// </summary>
     [AttributeUsage(
@@ -74,7 +76,6 @@ namespace GenJson
         }
 
         public Type Type { get; set; }
-        public Type? TargetType { get; set; }
         public bool Key { get; set; }
         public bool Value { get; set; }
     }

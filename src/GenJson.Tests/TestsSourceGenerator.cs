@@ -30,6 +30,48 @@ public class TestsSourceGenerator
         Assert.That(combinedCode, Does.Contain("global::System.Buffers.Text.Utf8Formatter.TryFormat(_count"));
     }
 
+    [Test]
+    public void CustomConverterGeneratorTest()
+    {
+        var code = """
+using System;
+using GenJson;
+
+namespace MyTest
+{
+    public struct CustomId
+    {
+        public int Id { get; }
+        public CustomId(int id) => Id = id;
+    }
+
+    [GenJsonConverter(typeof(CustomId))]
+    public static class CustomIdConverter
+    {
+        public static int GetSize(CustomId value) => 5;
+        public static void WriteJson(Span<char> span, ref int index, CustomId value) {}
+        public static CustomId? FromJson(ReadOnlySpan<char> span, ref int index) => null;
+        public static int GetSizeUtf8(CustomId value) => 5;
+        public static void WriteJsonUtf8(Span<byte> span, ref int index, CustomId value) {}
+        public static CustomId? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index) => null;
+    }
+
+    [GenJson]
+    public partial class Player
+    {
+        public CustomId Id { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        Assert.That(generated.diagnostics, Is.Empty);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Contain("global::MyTest.CustomIdConverter.WriteJson"));
+        Assert.That(combinedCode, Does.Contain("global::MyTest.CustomIdConverter.FromJson"));
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
     {
         var references = AppDomain.CurrentDomain

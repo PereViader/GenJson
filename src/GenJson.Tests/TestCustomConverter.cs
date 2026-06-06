@@ -345,6 +345,7 @@ public class TestCustomConverter
     }
 }
 
+[GenJsonConverter(typeof(MyStruct))]
 public static class StructConverterA
 {
     public static int GetSize(MyStruct value) => 5;
@@ -425,7 +426,6 @@ public static class StructConverterB
     }
 }
 
-[GenJsonConverter(typeof(StructConverterA))]
 public struct MyStruct
 {
     public int Value { get; set; }
@@ -440,7 +440,6 @@ public partial class CustomConverterOnTypeClass
     public MyStruct OverriddenProp { get; set; }
 }
 
-[GenJsonConverter(typeof(ResIdConverter))]
 public struct ResId : IEquatable<ResId>
 {
     public int Value { get; }
@@ -450,6 +449,7 @@ public struct ResId : IEquatable<ResId>
     public override int GetHashCode() => Value;
 }
 
+[GenJsonConverter(typeof(ResId))]
 public static class ResIdConverter
 {
     public static int GetSize(ResId value) => value.Value.ToString().Length + 3; // e.g. "R1" -> quotes + length

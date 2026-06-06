@@ -4,7 +4,7 @@ using NUnit.Framework;
 using GenJson;
 using GenJson.SystemTextJson;
 
-[assembly: GenJsonConverter(typeof(GenJson.SystemTextJson.Tests.StjExternalStructConverter), TargetType = typeof(GenJson.SystemTextJson.Tests.StjExternalStruct))]
+[assembly: GenJsonConverter(typeof(GenJson.SystemTextJson.Tests.StjExternalStructConverter))]
 
 
 namespace GenJson.SystemTextJson.Tests
@@ -137,6 +137,7 @@ namespace GenJson.SystemTextJson.Tests
         public int Value { get; set; }
     }
 
+    [GenJsonConverter(typeof(StjExternalStruct))]
     public static class StjExternalStructConverter
     {
         public static int GetSize(StjExternalStruct value) => 5;

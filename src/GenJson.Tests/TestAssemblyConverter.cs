@@ -3,8 +3,7 @@ using NUnit.Framework;
 using GenJson;
 using GenJson.Tests;
 
-[assembly: GenJsonConverter(typeof(ExternalStructAssemblyConverter), TargetType = typeof(ExternalStruct))]
-[assembly: GenJsonConverter(typeof(PriorityStructAssemblyConverter), TargetType = typeof(PriorityStruct))]
+[assembly: GenJsonConverter(typeof(ExternalStructAssemblyConverter))]
 
 namespace GenJson.Tests
 {
@@ -13,12 +12,12 @@ namespace GenJson.Tests
         public int Value { get; set; }
     }
 
-    [GenJsonConverter(typeof(PriorityStructTypeConverter))]
     public struct PriorityStruct
     {
         public int Value { get; set; }
     }
 
+    [GenJsonConverter(typeof(ExternalStruct))]
     public static class ExternalStructAssemblyConverter
     {
         public static int GetSize(ExternalStruct value) => 5;
@@ -142,6 +141,7 @@ namespace GenJson.Tests
         }
     }
 
+    [GenJsonConverter(typeof(PriorityStruct))]
     public static class PriorityStructTypeConverter
     {
         public static int GetSize(PriorityStruct value) => 5;
