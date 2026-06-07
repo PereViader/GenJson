@@ -109,7 +109,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(classData, Generate!);
 
-        var assemblyNameProvider = context.CompilationProvider.Select((compilation, _) => compilation.Assembly.Name);
+        var assemblyNameProvider = context.CompilationProvider.Select((compilation, _) => compilation.Assembly?.Name);
         
         var collectedWithAssembly = classData
             .Select((data, _) => {
@@ -457,24 +457,28 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         if (baseInit != null)
                         {
                             // Find which argument uses our parameter
-                            var args = baseInit.ArgumentList.Arguments;
-                            for (int j = 0; j < args.Count; j++)
+                            // Roslyn annotates ArgumentList as non-nullable, but it can be null at runtime under syntax errors/incomplete code
+                            if (baseInit.ArgumentList is { } argumentList)
                             {
-                                if (args[j].Expression is IdentifierNameSyntax id && id.Identifier.Text == parameter.Name)
+                                var args = argumentList.Arguments;
+                                for (int j = 0; j < args.Count; j++)
                                 {
-                                    // This parameter matches base arg at index j
-                                    // Find base constructor parameter at index j
-                                    var model = compilation.GetSemanticModel(typeDecl.SyntaxTree);
-                                    var baseType = model.GetTypeInfo(baseInit.Type).Type as INamedTypeSymbol;
-
-                                    if (baseType != null)
+                                    if (args[j].Expression is IdentifierNameSyntax id && id.Identifier.Text == parameter.Name)
                                     {
-                                        var baseCtor = baseType.Constructors.OrderByDescending(c => c.Parameters.Length).FirstOrDefault();
-                                        if (baseCtor != null && j < baseCtor.Parameters.Length)
+                                        // This parameter matches base arg at index j
+                                        // Find base constructor parameter at index j
+                                        var model = compilation.GetSemanticModel(typeDecl.SyntaxTree);
+                                        var baseType = model.GetTypeInfo(baseInit.Type).Type as INamedTypeSymbol;
+
+                                        if (baseType != null)
                                         {
-                                            var baseParam = baseCtor.Parameters[j];
-                                            var baseResult = GetPropertyForParameter(baseParam, propertiesMap, compilation);
-                                            if (baseResult != null) return baseResult;
+                                            var baseCtor = baseType.Constructors.OrderByDescending(c => c.Parameters.Length).FirstOrDefault();
+                                            if (baseCtor != null && j < baseCtor.Parameters.Length)
+                                            {
+                                                var baseParam = baseCtor.Parameters[j];
+                                                var baseResult = GetPropertyForParameter(baseParam, propertiesMap, compilation);
+                                                if (baseResult != null) return baseResult;
+                                            }
                                         }
                                     }
                                 }
@@ -3904,10 +3908,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         context.AddSource($"{(string.IsNullOrEmpty(data.Namespace) ? "" : data.Namespace + "_")}{data.ClassName}.GenJson.g.cs", sb.ToString());
     }
 
-    private void GenerateAssemblyInitializer(SourceProductionContext context, (System.Collections.Immutable.ImmutableArray<InitializerTypeInfo> Results, string AssemblyName) input)
+    private void GenerateAssemblyInitializer(SourceProductionContext context, (System.Collections.Immutable.ImmutableArray<InitializerTypeInfo> Results, string? AssemblyName) input)
     {
-        var results = input.Results;
         var assemblyName = input.AssemblyName;
+        if (string.IsNullOrEmpty(assemblyName))
+        {
+            return;
+        }
+        var results = input.Results;
         var sanitizedAssembly = SanitizeIdentifier(assemblyName);
         var className = $"GenJson_{sanitizedAssembly}_AssemblyInitializer";
 
@@ -3952,10 +3960,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         context.AddSource($"{className}.g.cs", sb.ToString());
     }
 
-    private static string SanitizeIdentifier(string name)
+    private static string SanitizeIdentifier(string? name)
     {
+        if (string.IsNullOrEmpty(name))
+        {
+            return "Assembly";
+        }
         var sb = new StringBuilder();
-        foreach (char c in name)
+        foreach (char c in name!)
         {
             if (char.IsLetterOrDigit(c) || c == '_')
             {
