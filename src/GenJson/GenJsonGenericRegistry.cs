@@ -33,42 +33,42 @@ namespace GenJson
         public static string ToJson<T>(T value, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.ToJson;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(value, useCountOptimization);
         }
 
         public static byte[] ToJsonUtf8<T>(T value, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.ToJsonUtf8;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(value, useCountOptimization);
         }
 
         public static bool TryFromJson<T>(string json, out T? result, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.TryFromJson;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(json.AsSpan(), useCountOptimization, out result);
         }
 
         public static bool TryFromJson<T>(ReadOnlySpan<char> json, out T? result, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.TryFromJson;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(json, useCountOptimization, out result);
         }
 
         public static bool TryFromJsonUtf8<T>(byte[] json, out T? result, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.TryFromJsonUtf8;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(json, useCountOptimization, out result);
         }
 
         public static bool TryFromJsonUtf8<T>(ReadOnlySpan<byte> json, out T? result, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.TryFromJsonUtf8;
-            if (delegateInstance == null) throw new InvalidOperationException($"Type '{typeof(T).FullName}' is not registered in GenJsonGenericRegistry.");
+            if (delegateInstance == null) ThrowHelper.ThrowTypeNotRegistered(typeof(T));
             return delegateInstance(json, useCountOptimization, out result);
         }
     }

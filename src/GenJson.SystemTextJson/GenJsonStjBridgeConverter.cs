@@ -91,11 +91,11 @@ namespace GenJson.SystemTextJson
 
             if (_writeUtf8 == null && _writeChar == null)
             {
-                throw new InvalidOperationException($"The converter {staticConverterType.FullName} must define either static WriteJsonUtf8 or WriteJson.");
+                ThrowHelper.ThrowInvalidConverterWrite(staticConverterType);
             }
             if (_readUtf8 == null && _readChar == null && _valueTypeReader == null)
             {
-                throw new InvalidOperationException($"The converter {staticConverterType.FullName} must define either static FromJsonUtf8 or FromJson.");
+                ThrowHelper.ThrowInvalidConverterRead(staticConverterType);
             }
         }
 
@@ -134,7 +134,8 @@ namespace GenJson.SystemTextJson
                 }
             }
 
-            throw new NotSupportedException("No valid deserialization method found on custom converter.");
+            ThrowHelper.ThrowDeserializationNotSupported();
+            return default;
         }
 
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
@@ -189,7 +190,7 @@ namespace GenJson.SystemTextJson
             }
             else
             {
-                throw new NotSupportedException("No valid serialization method found on custom converter.");
+                ThrowHelper.ThrowSerializationNotSupported();
             }
         }
     }

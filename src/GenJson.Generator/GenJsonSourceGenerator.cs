@@ -2249,13 +2249,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("                default:");
             if (data.IsAbstract)
             {
-                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    global::GenJson.ThrowHelper.ThrowUnknownDerivedType(this.GetType());");
+                sb.AppendLine("                    return default;");
             }
             else
             {
                 sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
                 sb.AppendLine("                    {");
-                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                        global::GenJson.ThrowHelper.ThrowUnknownDerivedType(this.GetType());");
                 sb.AppendLine("                    }");
                 sb.AppendLine("                    break;");
             }
@@ -2457,13 +2458,14 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             if (data.IsAbstract)
             {
                 // ...
-                sb.AppendLine("                    throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                    global::GenJson.ThrowHelper.ThrowUnknownDerivedType(this.GetType());");
+                sb.AppendLine("                    return;");
             }
             else
             {
                 sb.AppendLine("                    if (this.GetType() != typeof(" + data.ClassName + "))");
                 sb.AppendLine("                    {");
-                sb.AppendLine("                        throw new System.NotSupportedException(\"Unknown derived type: \" + this.GetType().Name);");
+                sb.AppendLine("                        global::GenJson.ThrowHelper.ThrowUnknownDerivedType(this.GetType());");
                 sb.AppendLine("                    }");
                 sb.AppendLine("                    break;");
             }
