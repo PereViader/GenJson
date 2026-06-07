@@ -3956,6 +3956,26 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public static void Deinitialize()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (!_initialized) return;");
+        sb.AppendLine("            _initialized = false;");
+        sb.AppendLine();
+
+        foreach (var data in results)
+        {
+            if (data.IsAbstract && !data.HasDerivedTypes)
+            {
+                continue;
+            }
+
+            var fullyQualifiedName = data.FullyQualifiedName;
+
+            sb.AppendLine($"            global::GenJson.GenJsonGenericRegistry.Deregister<{fullyQualifiedName}>();");
+        }
+
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

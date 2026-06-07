@@ -30,6 +30,14 @@ namespace GenJson
             Info<T>.TryFromJsonUtf8 = tryFromJsonUtf8;
         }
 
+        public static void Deregister<T>()
+        {
+            Info<T>.ToJson = null;
+            Info<T>.ToJsonUtf8 = null;
+            Info<T>.TryFromJson = null;
+            Info<T>.TryFromJsonUtf8 = null;
+        }
+
         public static string ToJson<T>(T value, bool useCountOptimization = false)
         {
             var delegateInstance = Info<T>.ToJson;

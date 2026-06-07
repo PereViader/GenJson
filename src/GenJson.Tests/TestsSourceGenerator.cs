@@ -72,6 +72,30 @@ namespace MyTest
         Assert.That(combinedCode, Does.Contain("global::MyTest.CustomIdConverter.FromJson"));
     }
 
+    [Test]
+    public void AssemblyInitializerDeinitializeTest()
+    {
+        var code = """
+using GenJson;
+
+namespace MyTest
+{
+    [GenJson]
+    public partial class Player
+    {
+        public string? Name { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        Assert.That(generated.diagnostics, Is.Empty);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Contain("public static void Deinitialize()"));
+        Assert.That(combinedCode, Does.Contain("global::GenJson.GenJsonGenericRegistry.Deregister<global::MyTest.Player>();"));
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
     {
         var references = AppDomain.CurrentDomain

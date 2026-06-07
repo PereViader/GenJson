@@ -136,6 +136,48 @@ namespace GenJson.Tests
             Assert.DoesNotThrow(() => GenJson_GenJson_Tests_AssemblyInitializer.Initialize());
             Assert.DoesNotThrow(() => GenJson_GenJson_Tests_AssemblyInitializer.Initialize());
         }
+
+        [Test]
+        public void TestDeinitialize()
+        {
+            try
+            {
+                var obj = new StringClass { Present = "Test" };
+                Assert.That(Serialize(obj), Is.EqualTo("""{"Present":"Test"}"""));
+
+                // Deinitialize
+                GenJson_GenJson_Tests_AssemblyInitializer.Deinitialize();
+
+                // Try to serialize: it should throw because StringClass is no longer registered
+                Assert.Throws<InvalidOperationException>(() => Serialize(obj));
+
+                // Re-initialize
+                GenJson_GenJson_Tests_AssemblyInitializer.Initialize();
+
+                // Serialization should work again
+                Assert.That(Serialize(obj), Is.EqualTo("""{"Present":"Test"}"""));
+            }
+            finally
+            {
+                // Ensure registry is initialized for other tests
+                GenJson_GenJson_Tests_AssemblyInitializer.Initialize();
+            }
+        }
+
+        [Test]
+        public void TestMultipleDeinitializationIsSafe()
+        {
+            try
+            {
+                Assert.DoesNotThrow(() => GenJson_GenJson_Tests_AssemblyInitializer.Deinitialize());
+                Assert.DoesNotThrow(() => GenJson_GenJson_Tests_AssemblyInitializer.Deinitialize());
+            }
+            finally
+            {
+                // Re-initialize to avoid breaking other tests
+                GenJson_GenJson_Tests_AssemblyInitializer.Initialize();
+            }
+        }
     }
 }
 
