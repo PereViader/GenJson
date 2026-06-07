@@ -10,7 +10,7 @@ using MessagePack;
 using Perfolizer.Horology;
 using Perfolizer.Metrology;
 
-BenchmarkRunner.Run(typeof(BenchmarkToJson).Assembly, ManualConfig
+BenchmarkSwitcher.FromAssembly(typeof(BenchmarkToJson).Assembly).Run(args, ManualConfig
     .Create(DefaultConfig.Instance)
     .AddColumn(StatisticColumn.Median)
     .WithSummaryStyle(new SummaryStyle(
