@@ -13,7 +13,7 @@ This project is compatible with both pure C# projects and Unity3D.
 - **Zero* Allocation Serialization**: Uses `Span` based string creation to write directly into the result string's memory, avoiding `StringBuilder` and intermediate string allocations for primitives.
 - **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` and `ReadOnlySpan<byte>` (UTF-8) based parsing logic to avoid intermediate string allocations.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
-- **Generic Registry**: O(1) dynamic serialization and deserialization via unconstrained generics (`ToJson<T>`, `FromJson<T>`) using compile-time generated assembly initializers.
+- **Generic Registry**: Dynamic serialization and deserialization via unconstrained generics (`ToJson<T>`, `TryFromJson<T>`) using compile-time generated assembly initializers.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
   - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
@@ -757,21 +757,22 @@ GenJson_MyProject_AssemblyInitializer.Initialize();
 
 #### Using the Registry
 
-Once initialized, you can perform O(1) dynamic serialization and deserialization without dictionary lookups:
+Once initialized, you can perform dynamic serialization and deserialization without dictionary lookups.
 
 ```csharp
 public class NetworkHandler
 {
-    public string SerializePacket<T>(T packet) where T : class
+    public string? SerializePacket<T>(T? packet)
     {
-        // Dynamically serializes reference type packets using the registry
-        return GenJsonGenericRegistry.ToJson(packet);
+        if (packet == null) return null;
+        // Dynamically serializes any reference or value type packets
+        return GenJsonGenericRegistry.ToJson<T>(packet);
     }
 
-    public T? DeserializePacket<T>(string json) where T : class
+    public bool TryDeserializePacket<T>(string json, out T? result)
     {
-        // Dynamically deserializes reference type packets
-        return GenJsonGenericRegistry.FromJson<T>(json);
+        // Dynamically deserializes any reference or value type packets using the Try pattern
+        return GenJsonGenericRegistry.TryFromJson<T>(json, out result);
     }
 }
 ```

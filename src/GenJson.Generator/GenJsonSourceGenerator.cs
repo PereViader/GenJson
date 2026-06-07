@@ -901,6 +901,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
         GenerateFromJson(sb, data, newModifier, false);
         GenerateFromJson(sb, data, newModifier, true);
+        GenerateTryFromJson(sb, data, newModifier, false);
+        GenerateTryFromJson(sb, data, newModifier, true);
         GenerateParse(sb, data, allProperties, newModifier, false);
         GenerateParse(sb, data, allProperties, newModifier, true);
 
@@ -2783,6 +2785,37 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
+    private void GenerateTryFromJson(StringBuilder sb, ClassData data, string newModifier, bool isUtf8)
+    {
+        string inputType = isUtf8 ? "System.ReadOnlySpan<byte>" : "System.ReadOnlySpan<char>";
+        string methodName = isUtf8 ? "TryFromJsonUtf8" : "TryFromJson";
+        string fromJsonMethod = isUtf8 ? "FromJsonUtf8" : "FromJson";
+        bool isStruct = data.Keyword.Contains("struct");
+        string nullableSuffix = isStruct ? "" : "?";
+
+        sb.Append("        public static ");
+        sb.Append(newModifier);
+        sb.AppendLine($"bool {methodName}({inputType} json, bool useCountOptimization, out {data.ClassName}{nullableSuffix} result)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            var parsed = {fromJsonMethod}(json, useCountOptimization);");
+        sb.AppendLine("            if (parsed != null)");
+        sb.AppendLine("            {");
+        if (isStruct)
+        {
+            sb.AppendLine("                result = parsed.Value;");
+        }
+        else
+        {
+            sb.AppendLine("                result = parsed;");
+        }
+        sb.AppendLine("                return true;");
+        sb.AppendLine("            }");
+        sb.AppendLine("            result = default;");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+    }
+
     private void GenerateParse(StringBuilder sb, ClassData data, System.Collections.Generic.IReadOnlyList<PropertyData> allProperties, string newModifier, bool isUtf8)
     {
         string spanType = isUtf8 ? "System.ReadOnlySpan<byte>" : "System.ReadOnlySpan<char>";
@@ -3904,24 +3937,12 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             var fullyQualifiedName = data.FullyQualifiedName;
 
-            if (data.IsStruct)
-            {
-                sb.AppendLine($"            global::GenJson.GenJsonGenericRegistry.RegisterStruct<{fullyQualifiedName}>(");
-                sb.AppendLine($"                (val, opt) => val.ToJson(opt),");
-                sb.AppendLine($"                (val, opt) => val.ToJsonUtf8(opt),");
-                sb.AppendLine($"                (span, opt) => {fullyQualifiedName}.FromJson(span, opt),");
-                sb.AppendLine($"                (span, opt) => {fullyQualifiedName}.FromJsonUtf8(span, opt)");
-                sb.AppendLine($"            );");
-            }
-            else
-            {
-                sb.AppendLine($"            global::GenJson.GenJsonGenericRegistry.RegisterClass<{fullyQualifiedName}>(");
-                sb.AppendLine($"                (val, opt) => val?.ToJson(opt),");
-                sb.AppendLine($"                (val, opt) => val?.ToJsonUtf8(opt),");
-                sb.AppendLine($"                (span, opt) => {fullyQualifiedName}.FromJson(span, opt),");
-                sb.AppendLine($"                (span, opt) => {fullyQualifiedName}.FromJsonUtf8(span, opt)");
-                sb.AppendLine($"            );");
-            }
+            sb.AppendLine($"            global::GenJson.GenJsonGenericRegistry.Register<{fullyQualifiedName}>(");
+            sb.AppendLine($"                (val, opt) => val.ToJson(opt),");
+            sb.AppendLine($"                (val, opt) => val.ToJsonUtf8(opt),");
+            sb.AppendLine($"                {fullyQualifiedName}.TryFromJson,");
+            sb.AppendLine($"                {fullyQualifiedName}.TryFromJsonUtf8");
+            sb.AppendLine($"            );");
         }
 
         sb.AppendLine("        }");

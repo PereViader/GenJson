@@ -14,6 +14,38 @@ namespace GenJson.Tests
             GenJson_GenJson_Tests_AssemblyInitializer.Initialize();
         }
 
+        private static string? Serialize<T>(T? obj)
+        {
+            if (obj == null) return null;
+            return GenJsonGenericRegistry.ToJson(obj);
+        }
+
+        private static byte[]? SerializeUtf8<T>(T? obj)
+        {
+            if (obj == null) return null;
+            return GenJsonGenericRegistry.ToJsonUtf8(obj);
+        }
+
+        private static bool Deserialize<T>(string json, out T? result)
+        {
+            return GenJsonGenericRegistry.TryFromJson<T>(json, out result);
+        }
+
+        private static bool Deserialize<T>(ReadOnlySpan<char> json, out T? result)
+        {
+            return GenJsonGenericRegistry.TryFromJson<T>(json, out result);
+        }
+
+        private static bool DeserializeUtf8<T>(byte[] json, out T? result)
+        {
+            return GenJsonGenericRegistry.TryFromJsonUtf8<T>(json, out result);
+        }
+
+        private static bool DeserializeUtf8<T>(ReadOnlySpan<byte> json, out T? result)
+        {
+            return GenJsonGenericRegistry.TryFromJsonUtf8<T>(json, out result);
+        }
+
         [Test]
         public void TestClassSerialization()
         {
@@ -25,33 +57,37 @@ namespace GenJson.Tests
             };
 
             // ToJson (Class)
-            var json = GenJsonGenericRegistry.ToJson(obj);
+            var json = Serialize(obj);
             Assert.That(json, Is.EqualTo("""{"Present":"Hello","NullablePresent":"World"}"""));
 
-            // FromJson (Class, string)
-            var obj2 = GenJsonGenericRegistry.FromJson<StringClass>(json);
+            // TryFromJson (Class, string)
+            var success2 = Deserialize<StringClass>(json!, out var obj2);
+            Assert.That(success2, Is.True);
             Assert.That(obj2, Is.Not.Null);
             Assert.That(obj2!.Present, Is.EqualTo("Hello"));
             Assert.That(obj2.NullablePresent, Is.EqualTo("World"));
             Assert.That(obj2.NullableNull, Is.Null);
 
             // ToJsonUtf8 (Class)
-            var utf8 = GenJsonGenericRegistry.ToJsonUtf8(obj);
+            var utf8 = SerializeUtf8(obj);
             var expectedUtf8 = Encoding.UTF8.GetBytes("""{"Present":"Hello","NullablePresent":"World"}""");
             Assert.That(utf8, Is.EqualTo(expectedUtf8));
 
-            // FromJsonUtf8 (Class, byte[])
-            var obj3 = GenJsonGenericRegistry.FromJsonUtf8<StringClass>(utf8);
+            // TryFromJsonUtf8 (Class, byte[])
+            var success3 = DeserializeUtf8<StringClass>(utf8!, out var obj3);
+            Assert.That(success3, Is.True);
             Assert.That(obj3, Is.Not.Null);
             Assert.That(obj3!.Present, Is.EqualTo("Hello"));
 
-            // FromJson (Class, ReadOnlySpan<char>)
-            var obj4 = GenJsonGenericRegistry.FromJson<StringClass>(json.AsSpan());
+            // TryFromJson (Class, ReadOnlySpan<char>)
+            var success4 = Deserialize<StringClass>(json.AsSpan(), out var obj4);
+            Assert.That(success4, Is.True);
             Assert.That(obj4, Is.Not.Null);
             Assert.That(obj4!.Present, Is.EqualTo("Hello"));
 
-            // FromJsonUtf8 (Class, ReadOnlySpan<byte>)
-            var obj5 = GenJsonGenericRegistry.FromJsonUtf8<StringClass>(new ReadOnlySpan<byte>(utf8));
+            // TryFromJsonUtf8 (Class, ReadOnlySpan<byte>)
+            var success5 = DeserializeUtf8<StringClass>(new ReadOnlySpan<byte>(utf8), out var obj5);
+            Assert.That(success5, Is.True);
             Assert.That(obj5, Is.Not.Null);
             Assert.That(obj5!.Present, Is.EqualTo("Hello"));
         }
@@ -62,50 +98,36 @@ namespace GenJson.Tests
             var obj = new ParentRecordStruct(new EmptyClass { Value = 42 });
 
             // ToJson (Struct)
-            var json = GenJsonGenericRegistry.ToJson(obj);
+            var json = Serialize(obj);
             Assert.That(json, Is.EqualTo("""{"Child":{"Value":42}}"""));
 
-            // FromJson (Struct, string)
-            var obj2 = GenJsonGenericRegistry.FromJson<ParentRecordStruct>(json);
-            Assert.That(obj2, Is.Not.Null);
-            Assert.That(obj2!.Value.Child, Is.Not.Null);
-            Assert.That(obj2.Value.Child.Value, Is.EqualTo(42));
+            // TryFromJson (Struct, string)
+            var success2 = Deserialize<ParentRecordStruct>(json!, out var obj2);
+            Assert.That(success2, Is.True);
+            Assert.That(obj2.Child, Is.Not.Null);
+            Assert.That(obj2.Child.Value, Is.EqualTo(42));
 
             // ToJsonUtf8 (Struct)
-            var utf8 = GenJsonGenericRegistry.ToJsonUtf8(obj);
+            var utf8 = SerializeUtf8(obj);
             var expectedUtf8 = Encoding.UTF8.GetBytes("""{"Child":{"Value":42}}""");
             Assert.That(utf8, Is.EqualTo(expectedUtf8));
 
-            // FromJsonUtf8 (Struct, byte[])
-            var obj3 = GenJsonGenericRegistry.FromJsonUtf8<ParentRecordStruct>(utf8);
-            Assert.That(obj3, Is.Not.Null);
-            Assert.That(obj3!.Value.Child.Value, Is.EqualTo(42));
+            // TryFromJsonUtf8 (Struct, byte[])
+            var success3 = DeserializeUtf8<ParentRecordStruct>(utf8!, out var obj3);
+            Assert.That(success3, Is.True);
+            Assert.That(obj3.Child.Value, Is.EqualTo(42));
 
-            // FromJson (Struct, ReadOnlySpan<char>)
-            var obj4 = GenJsonGenericRegistry.FromJson<ParentRecordStruct>(json.AsSpan());
-            Assert.That(obj4, Is.Not.Null);
-            Assert.That(obj4!.Value.Child.Value, Is.EqualTo(42));
+            // TryFromJson (Struct, ReadOnlySpan<char>)
+            var success4 = Deserialize<ParentRecordStruct>(json.AsSpan(), out var obj4);
+            Assert.That(success4, Is.True);
+            Assert.That(obj4.Child.Value, Is.EqualTo(42));
 
-            // FromJsonUtf8 (Struct, ReadOnlySpan<byte>)
-            var obj5 = GenJsonGenericRegistry.FromJsonUtf8<ParentRecordStruct>(new ReadOnlySpan<byte>(utf8));
-            Assert.That(obj5, Is.Not.Null);
-            Assert.That(obj5!.Value.Child.Value, Is.EqualTo(42));
+            // TryFromJsonUtf8 (Struct, ReadOnlySpan<byte>)
+            var success5 = DeserializeUtf8<ParentRecordStruct>(new ReadOnlySpan<byte>(utf8), out var obj5);
+            Assert.That(success5, Is.True);
+            Assert.That(obj5.Child.Value, Is.EqualTo(42));
         }
 
-        [Test]
-        public void TestNullHandling()
-        {
-            // Null string/array to FromJson should return null
-            Assert.That(GenJsonGenericRegistry.FromJson<StringClass>((string?)null), Is.Null);
-            Assert.That(GenJsonGenericRegistry.FromJsonUtf8<StringClass>((byte[]?)null), Is.Null);
-
-            Assert.That(GenJsonGenericRegistry.FromJson<ParentRecordStruct>((string?)null), Is.Null);
-            Assert.That(GenJsonGenericRegistry.FromJsonUtf8<ParentRecordStruct>((byte[]?)null), Is.Null);
-
-            // Null object to ToJson should return null (for classes)
-            Assert.That(GenJsonGenericRegistry.ToJson<StringClass>(null), Is.Null);
-            Assert.That(GenJsonGenericRegistry.ToJsonUtf8<StringClass>(null), Is.Null);
-        }
 
         [Test]
         public void TestMultipleInitializationIsSafe()
@@ -116,3 +138,4 @@ namespace GenJson.Tests
         }
     }
 }
+
