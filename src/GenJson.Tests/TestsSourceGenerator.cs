@@ -259,6 +259,31 @@ namespace MyTest
         Assert.That(combinedCode, Does.Contain("global::ReferencedLib.CustomDataConverter.WriteJson"));
     }
 
+    [Test]
+    public void CollectionDoubleIndentationTest()
+    {
+        var code = """
+using System.Collections.Generic;
+using GenJson;
+
+namespace MyTest
+{
+    [GenJson]
+    public partial class ListHolder
+    {
+        public List<int>? Values { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        Assert.That(generated.diagnostics, Is.Empty);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Not.Contain("                                var count0"));
+        Assert.That(combinedCode, Does.Not.Contain("                                int count0"));
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code, params MetadataReference[] extraReferences)
     {
         List<MetadataReference> references = AppDomain.CurrentDomain

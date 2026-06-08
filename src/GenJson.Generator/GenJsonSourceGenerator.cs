@@ -1087,7 +1087,6 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     sb.Append($"if (!global::GenJson.GenJsonParser.TryExpect(json, ref index, {(isUtf8 ? "(byte)'['" : "'['")})) return null;");
                     sb.AppendLine();
 
-                    sb.Append(scopedIndent);
                     string countVar = $"count{depth}";
                     if (explicitCountVar != null)
                     {
