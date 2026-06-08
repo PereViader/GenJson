@@ -1352,7 +1352,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                     sb.AppendLine($"if (!{enumKeyType.UnderlyingType}.TryParse({keyStrVar}, out dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
                                 }
                                 sb.Append(loopIndent);
-                                sb.AppendLine($"if (!System.Enum.IsDefined<{enumKeyType.TypeName}>(({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
+                                sb.AppendLine($"if (!System.Enum.IsDefined(typeof({enumKeyType.TypeName}), ({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
                                 sb.Append(loopIndent);
                                 sb.AppendLine($"{keyVar} = ({enumKeyType.TypeName})dictEnumVal{depth};");
                             }
@@ -3378,7 +3378,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.Append(indent);
             sb.AppendLine("{");
             sb.Append(indent);
-            sb.Append($"    if (!System.Enum.IsDefined<{en.TypeName}>(({en.TypeName})enumVal_{safeTarget}))");
+            sb.Append($"    if (!System.Enum.IsDefined(typeof({en.TypeName}), ({en.TypeName})enumVal_{safeTarget}))");
             sb.AppendLine();
             sb.Append(indent);
             sb.AppendLine("    {");

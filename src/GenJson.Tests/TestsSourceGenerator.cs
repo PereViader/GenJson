@@ -156,6 +156,34 @@ namespace MyTest
         Assert.That(generated.diagnostics, Is.Empty);
     }
 
+    [Test]
+    public void EnumIsDefinedGenericCompatibilityTest()
+    {
+        var code = """
+using GenJson;
+
+namespace MyTest
+{
+    public enum MyEnum
+    {
+        A, B
+    }
+
+    [GenJson]
+    public partial class EnumHolder
+    {
+        public MyEnum Value { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        Assert.That(generated.diagnostics, Is.Empty);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Not.Contain("System.Enum.IsDefined<"));
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
     {
         var references = AppDomain.CurrentDomain
