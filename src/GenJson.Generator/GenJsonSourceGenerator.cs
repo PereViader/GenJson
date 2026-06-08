@@ -917,7 +917,10 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("}");
         }
 
-        context.AddSource($"{data.ClassName}.GenJson.g.cs", sb.ToString());
+        var hintName = string.IsNullOrEmpty(data.Namespace)
+            ? $"{data.ClassName}.GenJson.g.cs"
+            : $"{data.Namespace}_{data.ClassName}.GenJson.g.cs";
+        context.AddSource(hintName, sb.ToString());
     }
 
     private void GenerateParseValue(StringBuilder sb, GenJsonDataType type, string targetVar, string indent, int depth, bool isUtf8, string? explicitCountVar = null)

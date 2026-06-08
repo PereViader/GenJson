@@ -96,6 +96,44 @@ namespace MyTest
         Assert.That(combinedCode, Does.Contain("global::GenJson.GenJsonGenericRegistry.Deregister<global::MyTest.Player>();"));
     }
 
+    [Test]
+    public void SourceFilenameCollisionTest()
+    {
+        var code = """
+using GenJson;
+
+namespace NamespaceA
+{
+    [GenJson]
+    public partial class User
+    {
+        public int Id { get; set; }
+    }
+}
+
+namespace NamespaceB
+{
+    [GenJson]
+    public partial class User
+    {
+        public string? Name { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        var files = generated.code.ToList();
+        
+        // Let's print out the file contents or their count
+        foreach (var file in files)
+        {
+            Console.WriteLine("GENERATED FILE:\n" + file + "\n---");
+        }
+        
+        Assert.That(generated.diagnostics, Is.Empty);
+        Assert.That(files.Count, Is.EqualTo(3)); // 1 assembly initializer + 2 classes
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
     {
         var references = AppDomain.CurrentDomain
