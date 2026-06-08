@@ -134,6 +134,28 @@ namespace NamespaceB
         Assert.That(files.Count, Is.EqualTo(3)); // 1 assembly initializer + 2 classes
     }
 
+    [Test]
+    public void DictionaryKeyParsingTest()
+    {
+        var code = """
+using System.Collections.Generic;
+using GenJson;
+
+namespace MyTest
+{
+    [GenJson]
+    public partial class DictionaryHolder
+    {
+        public Dictionary<int, string>? IntKeyDict { get; set; }
+        public Dictionary<double, string>? DoubleKeyDict { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code);
+        Assert.That(generated.diagnostics, Is.Empty);
+    }
+
     private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
     {
         var references = AppDomain.CurrentDomain
