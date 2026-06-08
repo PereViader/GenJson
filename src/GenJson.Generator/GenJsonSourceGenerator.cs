@@ -584,7 +584,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     members.Add(member.Name);
                 }
             }
-            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType, fallbackValue, new EquatableList<string>(members));
+            var isFlags = enumType.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "System.FlagsAttribute");
+            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), asString, underlyingType, fallbackValue, new EquatableList<string>(members), isFlags);
         }
 
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
@@ -1360,8 +1361,11 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                 {
                                     sb.AppendLine($"if (!{enumKeyType.UnderlyingType}.TryParse({keyStrVar}, out dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
                                 }
-                                sb.Append(loopIndent);
-                                sb.AppendLine($"if (!System.Enum.IsDefined(typeof({enumKeyType.TypeName}), ({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
+                                if (!enumKeyType.IsFlags)
+                                {
+                                    sb.Append(loopIndent);
+                                    sb.AppendLine($"if (!System.Enum.IsDefined(typeof({enumKeyType.TypeName}), ({enumKeyType.TypeName})dictEnumVal{depth})) {skipInvalidDictionaryEnumKey}");
+                                }
                                 sb.Append(loopIndent);
                                 sb.AppendLine($"{keyVar} = ({enumKeyType.TypeName})dictEnumVal{depth};");
                             }
@@ -3386,39 +3390,51 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine("else");
             sb.Append(indent);
             sb.AppendLine("{");
-            sb.Append(indent);
-            sb.Append($"    if (!System.Enum.IsDefined(typeof({en.TypeName}), ({en.TypeName})enumVal_{safeTarget}))");
-            sb.AppendLine();
-            sb.Append(indent);
-            sb.AppendLine("    {");
-            if (en.FallbackValue != null)
+            if (en.IsFlags)
             {
                 sb.Append(indent);
-                sb.Append("        ");
+                sb.Append("    ");
                 sb.Append(targetVar);
-                sb.Append(" = ");
-                sb.Append(en.FallbackValue);
-                sb.AppendLine(";");
+                sb.Append(" = (");
+                sb.Append(en.TypeName);
+                sb.AppendLine($")enumVal_{safeTarget};");
             }
             else
             {
                 sb.Append(indent);
-                sb.Append($" return null;"); sb.AppendLine();
+                sb.Append($"    if (!System.Enum.IsDefined(typeof({en.TypeName}), ({en.TypeName})enumVal_{safeTarget}))");
+                sb.AppendLine();
+                sb.Append(indent);
+                sb.AppendLine("    {");
+                if (en.FallbackValue != null)
+                {
+                    sb.Append(indent);
+                    sb.Append("        ");
+                    sb.Append(targetVar);
+                    sb.Append(" = ");
+                    sb.Append(en.FallbackValue);
+                    sb.AppendLine(";");
+                }
+                else
+                {
+                    sb.Append(indent);
+                    sb.Append($" return null;"); sb.AppendLine();
+                }
+                sb.Append(indent);
+                sb.AppendLine("    }");
+                sb.Append(indent);
+                sb.AppendLine("    else");
+                sb.Append(indent);
+                sb.AppendLine("    {");
+                sb.Append(indent);
+                sb.Append("        ");
+                sb.Append(targetVar);
+                sb.Append(" = (");
+                sb.Append(en.TypeName);
+                sb.AppendLine($")enumVal_{safeTarget};");
+                sb.Append(indent);
+                sb.AppendLine("    }");
             }
-            sb.Append(indent);
-            sb.AppendLine("    }");
-            sb.Append(indent);
-            sb.AppendLine("    else");
-            sb.Append(indent);
-            sb.AppendLine("    {");
-            sb.Append(indent);
-            sb.Append("        ");
-            sb.Append(targetVar);
-            sb.Append(" = (");
-            sb.Append(en.TypeName);
-            sb.AppendLine($")enumVal_{safeTarget};");
-            sb.Append(indent);
-            sb.AppendLine("    }");
             sb.Append(indent);
             sb.AppendLine("}");
         }
@@ -3542,7 +3558,8 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                     members.Add(member.Name);
                 }
             }
-            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), typeHasAsText, underlyingType, fallbackValue, new EquatableList<string>(members));
+            var isFlags = enumType.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "System.FlagsAttribute");
+            return new GenJsonDataType.Enum(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), typeHasAsText, underlyingType, fallbackValue, new EquatableList<string>(members), isFlags);
         }
 
         if (type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&

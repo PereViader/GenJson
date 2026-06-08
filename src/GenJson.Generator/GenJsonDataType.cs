@@ -1,4 +1,4 @@
-﻿namespace GenJson.Generator;
+namespace GenJson.Generator;
 
 public abstract record GenJsonDataType
 {
@@ -65,6 +65,6 @@ public abstract record GenJsonDataType
     public sealed record Nullable(GenJsonDataType Underlying) : GenJsonDataType;
     public sealed record Enumerable(GenJsonDataType ElementType, bool IsArray, string ConstructionTypeName, string ElementTypeName, bool IsElementValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
     public sealed record Dictionary(GenJsonDataType KeyType, GenJsonDataType ValueType, string ConstructionTypeName, string KeyTypeName, string ValueTypeName, bool IsValueValueType, bool HasCapacityConstructor = false) : GenJsonDataType;
-    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members) : GenJsonDataType;
+    public sealed record Enum(string TypeName, bool AsString, string UnderlyingType, string? FallbackValue, EquatableList<string> Members, bool IsFlags) : GenJsonDataType;
     public sealed record CustomConverter(string ConverterTypeName, string ExpectedTypeName, bool IsNullable, bool IsValueType) : GenJsonDataType;
 }
