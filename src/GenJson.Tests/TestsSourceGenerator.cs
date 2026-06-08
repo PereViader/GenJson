@@ -184,15 +184,91 @@ namespace MyTest
         Assert.That(combinedCode, Does.Not.Contain("System.Enum.IsDefined<"));
     }
 
-    private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code)
+    [Test]
+    public void AssemblyConverterFromReferencedAssemblyTest()
     {
-        var references = AppDomain.CurrentDomain
+        var referencedCode = """
+using System;
+using GenJson;
+
+namespace ReferencedLib
+{
+    public struct CustomData
+    {
+        public int Value { get; set; }
+    }
+
+    [GenJsonConverter(typeof(CustomData))]
+    public static class CustomDataConverter
+    {
+        public static int GetSize(CustomData value) => 5;
+        public static void WriteJson(Span<char> span, ref int index, CustomData value) {}
+        public static CustomData? FromJson(ReadOnlySpan<char> span, ref int index) => null;
+        public static int GetSizeUtf8(CustomData value) => 5;
+        public static void WriteJsonUtf8(Span<byte> span, ref int index, CustomData value) {}
+        public static CustomData? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index) => null;
+    }
+}
+""";
+
+        var refReferences = AppDomain.CurrentDomain
             .GetAssemblies()
             .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location) && !a.Location.Contains("GenJson.Tests.dll"))
-            .Select(a => MetadataReference.CreateFromFile(a.Location))
+            .Select(a => (MetadataReference)MetadataReference.CreateFromFile(a.Location))
+            .Concat(new[] { MetadataReference.CreateFromFile(typeof(GenJsonAttribute).Assembly.Location) })
+            .ToList();
+
+        var refCompilation = CSharpCompilation.Create("ReferencedAssembly",
+            new[] { CSharpSyntaxTree.ParseText(referencedCode) },
+            refReferences,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var ms = new MemoryStream();
+        var emitResult = refCompilation.Emit(ms);
+        if (!emitResult.Success)
+        {
+            foreach (var diag in emitResult.Diagnostics)
+            {
+                Console.WriteLine("EMIT DIAGNOSTIC: " + diag);
+            }
+        }
+        Assert.That(emitResult.Success, Is.True);
+        ms.Seek(0, SeekOrigin.Begin);
+        var refMetadata = MetadataReference.CreateFromStream(ms);
+
+        var code = """
+using GenJson;
+using ReferencedLib;
+
+[assembly: GenJsonConverter(typeof(CustomDataConverter))]
+
+namespace MyTest
+{
+    [GenJson]
+    public partial class Model
+    {
+        public CustomData Data { get; set; }
+    }
+}
+""";
+
+        var generated = Generate(code, refMetadata);
+        Assert.That(generated.diagnostics, Is.Empty);
+        
+        var combinedCode = string.Join("\n", generated.code);
+        Assert.That(combinedCode, Does.Contain("global::ReferencedLib.CustomDataConverter.WriteJson"));
+    }
+
+    private static (IEnumerable<string> code, ImmutableArray<Diagnostic> diagnostics) Generate(string code, params MetadataReference[] extraReferences)
+    {
+        List<MetadataReference> references = AppDomain.CurrentDomain
+            .GetAssemblies()
+            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location) && !a.Location.Contains("GenJson.Tests.dll"))
+            .Select(a => (MetadataReference)MetadataReference.CreateFromFile(a.Location))
             .ToList();
 
         references.Add(MetadataReference.CreateFromFile(typeof(GenJsonAttribute).Assembly.Location));
+        references.AddRange(extraReferences);
 
         var compilation = CSharpCompilation.Create("AssemblyName",
             [CSharpSyntaxTree.ParseText(SourceText.From(code, Encoding.UTF8), new CSharpParseOptions(LanguageVersion.Latest))],

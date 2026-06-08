@@ -47,7 +47,16 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                             if (attr.ArgumentList != null && attr.ArgumentList.Arguments.Count == 1)
                             {
                                 var argExpr = attr.ArgumentList.Arguments[0].Expression;
-                                if (ctx.SemanticModel.GetTypeInfo(argExpr, ct).Type is { } converterType)
+                                ITypeSymbol? converterType = null;
+                                if (argExpr is TypeOfExpressionSyntax typeofExpr)
+                                {
+                                    converterType = ctx.SemanticModel.GetTypeInfo(typeofExpr.Type, ct).Type;
+                                }
+                                else
+                                {
+                                    converterType = ctx.SemanticModel.GetTypeInfo(argExpr, ct).Type;
+                                }
+                                if (converterType is { })
                                 {
                                     var converterAttr = converterType.GetAttributes().FirstOrDefault(a =>
                                         a.AttributeClass?.ToDisplayString() == "GenJson.GenJsonConverterAttribute");
