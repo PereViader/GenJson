@@ -13,7 +13,6 @@ This project is compatible with both pure C# projects and Unity3D.
 - **Zero* Allocation Serialization**: Uses `Span` based string creation to write directly into the result string's memory, avoiding `StringBuilder` and intermediate string allocations for primitives.
 - **Zero* Allocation Deserialization**: Uses `ReadOnlySpan<char>` and `ReadOnlySpan<byte>` (UTF-8) based parsing logic to avoid intermediate string allocations.
 - **Easy Integration**: Simply mark your classes with the `[GenJson]` attribute.
-- **Generic Registry**: Dynamic serialization and deserialization via unconstrained generics (`ToJson<T>`, `TryFromJson<T>`) using compile-time generated assembly initializers.
 - **Rich Type Support**:
   - Primitives: `int`, `string`, `bool`, `double`, `float`, `decimal` etc
   - Standard Types: `Guid`, `Uri`, `Version`, `DateTime`, `TimeSpan`, `DateTimeOffset`
