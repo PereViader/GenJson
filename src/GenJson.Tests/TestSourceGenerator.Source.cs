@@ -663,3 +663,155 @@ public partial class DecoratedFieldClass
     [GenJsonIgnore]
     public string IgnoredField;
 }
+
+[GenJson]
+public partial class NullableEdgeModel
+{
+    public string? NullableString { get; set; }
+    public Uri? NullableUri { get; set; }
+    public Version? NullableVersion { get; set; }
+    public StringClass? NullableChild { get; set; }
+    public List<string?>? NullableList { get; set; }
+    public Dictionary<string, string?>? NullableDict { get; set; }
+    public int? NullableInt { get; set; }
+}
+
+[GenJson]
+public partial class DictionaryKeyTypesModel
+{
+    public Dictionary<Version, string> VersionDict { get; set; } = new();
+    public Dictionary<Guid, int> GuidDict { get; set; } = new();
+    public Dictionary<DateTime, string> DateTimeDict { get; set; } = new();
+    public Dictionary<TimeSpan, int> TimeSpanDict { get; set; } = new();
+    public Dictionary<double, string> DoubleDict { get; set; } = new();
+}
+
+[GenJson]
+[GenJsonDerivedType(typeof(EmptyDerivedClass), "empty")]
+[GenJsonDerivedType(typeof(NullPropsDerivedClass), "nullProps")]
+public abstract partial class PolyBaseWithEmptyDerived
+{
+}
+
+[GenJson]
+public partial class EmptyDerivedClass : PolyBaseWithEmptyDerived
+{
+}
+
+[GenJson]
+public partial class NullPropsDerivedClass : PolyBaseWithEmptyDerived
+{
+    public string? NullProp { get; set; }
+}
+
+public static class NullableTestCustomConverter
+{
+    public static int GetSize(int value) => value.ToString().Length + 4;
+    public static void WriteJson(Span<char> span, ref int index, int value)
+    {
+        span[index++] = '"';
+        span[index++] = 'X';
+        value.TryFormat(span.Slice(index), out var written);
+        index += written;
+        span[index++] = 'X';
+        span[index++] = '"';
+    }
+    public static int? FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        if (span[index] != '"') return null;
+        index++;
+        if (span[index] != 'X') return null;
+        index++;
+        int start = index;
+        while (char.IsDigit(span[index])) index++;
+        if (!int.TryParse(span.Slice(start, index - start), out int val)) return null;
+        if (span[index] != 'X') return null;
+        index++;
+        if (span[index] != '"') return null;
+        index++;
+        return val;
+    }
+
+    public static int GetSizeUtf8(int value) => GetSize(value);
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, int value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)'X';
+        System.Buffers.Text.Utf8Formatter.TryFormat(value, span.Slice(index), out var written);
+        index += written;
+        span[index++] = (byte)'X';
+        span[index++] = (byte)'"';
+    }
+    public static int? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"') return null;
+        index++;
+        if (span[index] != (byte)'X') return null;
+        index++;
+        int start = index;
+        while (span[index] >= (byte)'0' && span[index] <= (byte)'9') index++;
+        if (!System.Buffers.Text.Utf8Parser.TryParse(span.Slice(start, index - start), out int val, out var _)) return null;
+        if (span[index] != (byte)'X') return null;
+        index++;
+        if (span[index] != (byte)'"') return null;
+        index++;
+        return val;
+    }
+}
+
+public static class NullableTestStringConverter
+{
+    public static int GetSize(string value) => value.Length + 4;
+    public static void WriteJson(Span<char> span, ref int index, string value)
+    {
+        span[index++] = '"';
+        span[index++] = '[';
+        for (int i = 0; i < value.Length; i++) span[index++] = value[i];
+        span[index++] = ']';
+        span[index++] = '"';
+    }
+    public static string? FromJson(ReadOnlySpan<char> span, ref int index)
+    {
+        if (span[index] != '"' || span[index + 1] != '[') return null;
+        index += 2;
+        int start = index;
+        while (index < span.Length && span[index] != ']') index++;
+        if (index >= span.Length || span[index + 1] != '"') return null;
+        var val = new string(span.Slice(start, index - start));
+        index += 2;
+        return val;
+    }
+
+    public static int GetSizeUtf8(string value) => System.Text.Encoding.UTF8.GetByteCount(value) + 4;
+    public static void WriteJsonUtf8(Span<byte> span, ref int index, string value)
+    {
+        span[index++] = (byte)'"';
+        span[index++] = (byte)'[';
+        int written = System.Text.Encoding.UTF8.GetBytes(value, span.Slice(index));
+        index += written;
+        span[index++] = (byte)']';
+        span[index++] = (byte)'"';
+    }
+    public static string? FromJsonUtf8(ReadOnlySpan<byte> span, ref int index)
+    {
+        if (span[index] != (byte)'"' || span[index + 1] != (byte)'[') return null;
+        index += 2;
+        int start = index;
+        while (index < span.Length && span[index] != (byte)']') index++;
+        if (index >= span.Length || span[index + 1] != (byte)'"') return null;
+        var val = System.Text.Encoding.UTF8.GetString(span.Slice(start, index - start));
+        index += 2;
+        return val;
+    }
+}
+
+[GenJson]
+public partial class CustomConverterNullableModel
+{
+    [GenJsonConverter(typeof(NullableTestCustomConverter))]
+    public int? NullableCustomVal { get; set; }
+
+    [GenJsonConverter(typeof(NullableTestStringConverter))]
+    public string? NullableCustomStr { get; set; }
+}
+

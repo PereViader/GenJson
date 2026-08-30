@@ -360,10 +360,8 @@ namespace GenJson
                                 index = originalIndex;
                                 return false;
                             }
-                            var hexSequence = json.Slice(index, 4);
+                            unescaped = ParseHexFour(json.Slice(index, 4));
                             index += 4;
-                            unescaped = (char)int.Parse(hexSequence, NumberStyles.HexNumber,
-                                CultureInfo.InvariantCulture);
                             break;
                         default: unescaped = c; break;
                     }
