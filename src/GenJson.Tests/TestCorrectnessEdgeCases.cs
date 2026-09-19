@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 
@@ -208,6 +209,219 @@ namespace GenJson.Tests
             Assert.That(utf8Model, Is.Not.Null);
             Assert.That(utf8Model!.NullableCustomVal, Is.Null);
             Assert.That(utf8Model.NullableCustomStr, Is.Null);
+        }
+
+        [Test]
+        public void TestControlCharSizing_NoTrailingNullBytes()
+        {
+            // Test \u007F (DEL, ASCII 127) and \u0085 (NEL, Next Line, U+0085)
+            // They are char.IsControl == true, but are NOT < 32 ASCII controls, so they do NOT get \uXXXX escaped in standard JSON
+            Assert.That(GenJsonSizeHelper.GetSize('\u007F'), Is.EqualTo(3)); // '"' + char + '"'
+            Assert.That(GenJsonSizeHelper.GetSizeUtf8('\u007F'), Is.EqualTo(3)); // '"' + 1 byte + '"'
+            Assert.That(GenJsonSizeHelper.GetSize('\u0085'), Is.EqualTo(3)); // '"' + char + '"'
+            Assert.That(GenJsonSizeHelper.GetSizeUtf8('\u0085'), Is.EqualTo(4)); // '"' + 2 UTF-8 bytes + '"'
+
+            Assert.That(GenJsonSizeHelper.GetSize("\u007F".AsSpan()), Is.EqualTo(3));
+            Assert.That(GenJsonSizeHelper.GetSizeUtf8("\u007F".AsSpan()), Is.EqualTo(3));
+            Assert.That(GenJsonSizeHelper.GetSize("\u0085".AsSpan()), Is.EqualTo(3));
+            Assert.That(GenJsonSizeHelper.GetSizeUtf8("\u0085".AsSpan()), Is.EqualTo(4));
+
+            var obj = new StringClass { Present = "hello\u007Fworld\u0085!" };
+
+            var json = obj.ToJson();
+            Assert.That(obj.CalculateJsonSize(), Is.EqualTo(json.Length));
+            Assert.That(json.Contains('\0'), Is.False);
+
+            var utf8 = obj.ToJsonUtf8();
+            Assert.That(obj.CalculateJsonSizeUtf8(), Is.EqualTo(utf8.Length));
+            Assert.That(utf8, Does.Not.Contain((byte)0));
+
+            var parsed = StringClass.FromJson(json);
+            Assert.That(parsed, Is.Not.Null);
+            Assert.That(parsed!.Present, Is.EqualTo("hello\u007Fworld\u0085!"));
+
+            var parsedUtf8 = StringClass.FromJsonUtf8(utf8);
+            Assert.That(parsedUtf8, Is.Not.Null);
+            Assert.That(parsedUtf8!.Present, Is.EqualTo("hello\u007Fworld\u0085!"));
+        }
+
+        [Test]
+        public void TestDoubleDictionary_SpecialKeys_ExactSizing_NoTrailingNullBytes()
+        {
+            var model = new DictionaryKeyTypesModel();
+            model.DoubleDict[double.NaN] = "nan_val";
+            model.DoubleDict[double.PositiveInfinity] = "pos_inf_val";
+            model.DoubleDict[double.NegativeInfinity] = "neg_inf_val";
+
+            var json = model.ToJson();
+            Assert.That(model.CalculateJsonSize(), Is.EqualTo(json.Length));
+            Assert.That(json.Contains('\0'), Is.False);
+
+            var utf8 = model.ToJsonUtf8();
+            Assert.That(model.CalculateJsonSizeUtf8(), Is.EqualTo(utf8.Length));
+            Assert.That(utf8, Does.Not.Contain((byte)0));
+
+            var parsed = DictionaryKeyTypesModel.FromJson(json);
+            Assert.That(parsed, Is.Not.Null);
+            Assert.That(parsed!.DoubleDict.Any(kvp => double.IsNaN(kvp.Key) && kvp.Value == "nan_val"), Is.True);
+            Assert.That(parsed.DoubleDict[double.PositiveInfinity], Is.EqualTo("pos_inf_val"));
+            Assert.That(parsed.DoubleDict[double.NegativeInfinity], Is.EqualTo("neg_inf_val"));
+
+            var parsedUtf8 = DictionaryKeyTypesModel.FromJsonUtf8(utf8);
+            Assert.That(parsedUtf8, Is.Not.Null);
+            Assert.That(parsedUtf8!.DoubleDict.Any(kvp => double.IsNaN(kvp.Key) && kvp.Value == "nan_val"), Is.True);
+            Assert.That(parsedUtf8.DoubleDict[double.PositiveInfinity], Is.EqualTo("pos_inf_val"));
+            Assert.That(parsedUtf8.DoubleDict[double.NegativeInfinity], Is.EqualTo("neg_inf_val"));
+        }
+
+        [Test]
+        public void TestCharSerialization_ZeroHeapAllocations()
+        {
+
+
+            Span<byte> bSpan = stackalloc byte[10];
+            int bIndex = 0;
+            for (int i = 0; i < 10000; i++)
+            {
+                bIndex = 0;
+                GenJsonWriter.WriteChar(bSpan, ref bIndex, 'A');
+            }
+            long a = GC.GetAllocatedBytesForCurrentThread();
+            long b = GC.GetAllocatedBytesForCurrentThread();
+            long c = GC.GetAllocatedBytesForCurrentThread();
+            long d = GC.GetAllocatedBytesForCurrentThread();
+            Assert.That(d - c, Is.EqualTo(0), $"b-a={b - a}, c-b={c - b}, d-c={d - c}");
+
+            var obj = new CharAllocTestModel { Value = 'X' };
+            int charSize = obj.CalculateJsonSize();
+            Span<char> charSpan = stackalloc char[charSize];
+            int idx = 0;
+            for (int i = 0; i < 10000; i++)
+            {
+                idx = 0;
+                obj.WriteJson(charSpan, ref idx);
+            }
+
+            long minAlloc = long.MaxValue;
+            for (int retry = 0; retry < 10; retry++)
+            {
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                idx = 0;
+                obj.WriteJson(charSpan, ref idx);
+                long after = GC.GetAllocatedBytesForCurrentThread();
+                long diff = after - before;
+                if (diff < minAlloc) minAlloc = diff;
+            }
+            Assert.That(minAlloc, Is.EqualTo(0));
+
+            int utf8Size = obj.CalculateJsonSizeUtf8();
+            Span<byte> byteSpan = stackalloc byte[utf8Size];
+            int bIdx = 0;
+            for (int i = 0; i < 10000; i++)
+            {
+                bIdx = 0;
+                obj.WriteJsonUtf8(byteSpan, ref bIdx);
+            }
+
+            long bMinAlloc = long.MaxValue;
+            for (int retry = 0; retry < 10; retry++)
+            {
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                bIdx = 0;
+                obj.WriteJsonUtf8(byteSpan, ref bIdx);
+                long after = GC.GetAllocatedBytesForCurrentThread();
+                long diff = after - before;
+                if (diff < bMinAlloc) bMinAlloc = diff;
+            }
+            Assert.That(bMinAlloc, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestUriDictionary_Utf8EscapedSlashes()
+        {
+            var json = """{"UriDict":{"https:\/\/example.com\/api\/v1":42,"\/relative\/test":99}}""";
+            var utf8Bytes = Encoding.UTF8.GetBytes(json);
+
+            var modelUtf8 = UriDictionaryModel.FromJsonUtf8(utf8Bytes);
+            Assert.That(modelUtf8, Is.Not.Null);
+            var uri1 = new Uri("https://example.com/api/v1");
+            var uri2 = new Uri("/relative/test", UriKind.Relative);
+            Assert.That(modelUtf8!.UriDict.ContainsKey(uri1), Is.True);
+            Assert.That(modelUtf8.UriDict[uri1], Is.EqualTo(42));
+            Assert.That(modelUtf8.UriDict.ContainsKey(uri2), Is.True);
+            Assert.That(modelUtf8.UriDict[uri2], Is.EqualTo(99));
+
+            var modelChar = UriDictionaryModel.FromJson(json);
+            Assert.That(modelChar, Is.Not.Null);
+            Assert.That(modelChar!.UriDict.ContainsKey(uri1), Is.True);
+            Assert.That(modelChar.UriDict[uri1], Is.EqualTo(42));
+            Assert.That(modelChar.UriDict.ContainsKey(uri2), Is.True);
+            Assert.That(modelChar.UriDict[uri2], Is.EqualTo(99));
+        }
+
+        [Test]
+        public void TestQuotedNumberParsing_CharParser()
+        {
+            int index = 0;
+            Assert.That(GenJsonParser.TryParseLong("\"12345678901234\"", ref index, out long l), Is.True);
+            Assert.That(l, Is.EqualTo(12345678901234L));
+            Assert.That(index, Is.EqualTo(16));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseLong("\"-9876543210\"", ref index, out long? nl), Is.True);
+            Assert.That(nl, Is.EqualTo(-9876543210L));
+            Assert.That(index, Is.EqualTo(13));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseULong("\"18446744073709551615\"", ref index, out ulong ul), Is.True);
+            Assert.That(ul, Is.EqualTo(ulong.MaxValue));
+            Assert.That(index, Is.EqualTo(22));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseULong("\"12345\"", ref index, out ulong? nul), Is.True);
+            Assert.That(nul, Is.EqualTo(12345UL));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseSByte("\"127\"", ref index, out sbyte sb), Is.True);
+            Assert.That(sb, Is.EqualTo((sbyte)127));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseSByte("\"-128\"", ref index, out sbyte? nsb), Is.True);
+            Assert.That(nsb, Is.EqualTo((sbyte)-128));
+
+            // Negative tests
+            index = 0;
+            Assert.That(GenJsonParser.TryParseLong("\"abc\"", ref index, out long _), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseULong("\"-1\"", ref index, out ulong _), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+
+            index = 0;
+            Assert.That(GenJsonParser.TryParseSByte("\"200\"", ref index, out sbyte _), Is.False);
+            Assert.That(index, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestUtf8TextEnum_SequenceEqual_ZeroArrayAllocations()
+        {
+            var json = """{"Value":"Two"}""";
+            var utf8Bytes = Encoding.UTF8.GetBytes(json);
+
+            // Warmup
+            _ = DefaultAsText.FromJsonUtf8(utf8Bytes);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var result = DefaultAsText.FromJsonUtf8(utf8Bytes);
+            long after = GC.GetAllocatedBytesForCurrentThread();
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Value, Is.EqualTo(DefaultAsTextEnum.Two));
+            // Only the DefaultAsText class instance itself is allocated (~24 bytes on 64-bit runtime).
+            // No byte[] arrays are allocated for SequenceEqual.
+            long allocated = after - before;
+            Assert.That(allocated, Is.LessThanOrEqualTo(32));
         }
     }
 }

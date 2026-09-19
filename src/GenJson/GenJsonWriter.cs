@@ -168,6 +168,135 @@ namespace GenJson
             span[index++] = (byte)'"';
         }
 
+        public static void WriteChar(Span<char> span, ref int index, char value)
+        {
+            span[index++] = '"';
+            switch (value)
+            {
+                case '"':
+                    span[index++] = '\\';
+                    span[index++] = '"';
+                    break;
+                case '\\':
+                    span[index++] = '\\';
+                    span[index++] = '\\';
+                    break;
+                case '\b':
+                    span[index++] = '\\';
+                    span[index++] = 'b';
+                    break;
+                case '\f':
+                    span[index++] = '\\';
+                    span[index++] = 'f';
+                    break;
+                case '\n':
+                    span[index++] = '\\';
+                    span[index++] = 'n';
+                    break;
+                case '\r':
+                    span[index++] = '\\';
+                    span[index++] = 'r';
+                    break;
+                case '\t':
+                    span[index++] = '\\';
+                    span[index++] = 't';
+                    break;
+                case '\uffff':
+                    span[index++] = '\\';
+                    span[index++] = 'u';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                    span[index++] = 'f';
+                    break;
+                default:
+                    if (value < ' ')
+                    {
+                        span[index++] = '\\';
+                        span[index++] = 'u';
+                        span[index++] = '0';
+                        span[index++] = '0';
+                        int val = value;
+                        span[index++] = GetHex(val >> 4);
+                        span[index++] = GetHex(val & 0xF);
+                    }
+                    else
+                    {
+                        span[index++] = value;
+                    }
+                    break;
+            }
+            span[index++] = '"';
+        }
+
+        public static void WriteChar(Span<byte> span, ref int index, char value)
+        {
+            span[index++] = (byte)'"';
+            switch (value)
+            {
+                case '"':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'"';
+                    break;
+                case '\\':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'\\';
+                    break;
+                case '\b':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'b';
+                    break;
+                case '\f':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'f';
+                    break;
+                case '\n':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'n';
+                    break;
+                case '\r':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'r';
+                    break;
+                case '\t':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'t';
+                    break;
+                case '\uffff':
+                    span[index++] = (byte)'\\';
+                    span[index++] = (byte)'u';
+                    span[index++] = (byte)'f';
+                    span[index++] = (byte)'f';
+                    span[index++] = (byte)'f';
+                    span[index++] = (byte)'f';
+                    break;
+                default:
+                    if (value < ' ')
+                    {
+                        span[index++] = (byte)'\\';
+                        span[index++] = (byte)'u';
+                        span[index++] = (byte)'0';
+                        span[index++] = (byte)'0';
+                        int val = value;
+                        span[index++] = (byte)GetHex(val >> 4);
+                        span[index++] = (byte)GetHex(val & 0xF);
+                    }
+                    else if (value < 128)
+                    {
+                        span[index++] = (byte)value;
+                    }
+                    else
+                    {
+                        Span<char> chars = stackalloc char[1];
+                        chars[0] = value;
+                        int written = Encoding.UTF8.GetBytes(chars, span.Slice(index));
+                        index += written;
+                    }
+                    break;
+            }
+            span[index++] = (byte)'"';
+        }
+
         private static char GetHex(int n) => (char)(n < 10 ? n + '0' : n - 10 + 'a');
     }
 }

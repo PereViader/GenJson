@@ -815,3 +815,15 @@ public partial class CustomConverterNullableModel
     public string? NullableCustomStr { get; set; }
 }
 
+[GenJson]
+public partial class CharAllocTestModel
+{
+    public char Value { get; set; }
+}
+
+[GenJson]
+public partial class UriDictionaryModel
+{
+    public Dictionary<Uri, int> UriDict { get; set; } = new();
+}
+

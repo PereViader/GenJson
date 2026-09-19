@@ -606,17 +606,11 @@ namespace GenJson
 
         public static bool TryParseSByte(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out sbyte? result)
         {
-            var start = index;
-            if (index < json.Length && json[index] == '-') index++;
-            while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (sbyte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseSByte(json, ref index, out sbyte val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -626,25 +620,42 @@ namespace GenJson
             var start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (sbyte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (sbyte.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == '-') curr++;
+                while (curr < json.Length && (char.IsDigit(json[curr]))) curr++;
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (sbyte.TryParse(sliceFallback, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 
         public static bool TryParseLong(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out long? result)
         {
-            var start = index;
-            if (index < json.Length && json[index] == '-') index++;
-            while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (long.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseLong(json, ref index, out long val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -654,24 +665,42 @@ namespace GenJson
             var start = index;
             if (index < json.Length && json[index] == '-') index++;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (long.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (long.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                if (curr < json.Length && json[curr] == '-') curr++;
+                while (curr < json.Length && (char.IsDigit(json[curr]))) curr++;
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (long.TryParse(sliceFallback, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 
         public static bool TryParseULong(ReadOnlySpan<char> json, ref int index, [NotNullWhen(true)] out ulong? result)
         {
-            var start = index;
-            while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (ulong.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var varRes))
+            if (TryParseULong(json, ref index, out ulong val))
             {
-                result = varRes;
+                result = val;
                 return true;
             }
-
-            index = start;
             result = null;
             return false;
         }
@@ -680,9 +709,31 @@ namespace GenJson
         {
             var start = index;
             while (index < json.Length && (char.IsDigit(json[index]))) index++;
-            var slice = json.Slice(start, index - start);
-            if (ulong.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            if (index > start)
+            {
+                var slice = json.Slice(start, index - start);
+                if (ulong.TryParse(slice, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)) return true;
+            }
             index = start;
+
+            if (index < json.Length && json[index] == '"')
+            {
+                var valueStart = index + 1;
+                var curr = valueStart;
+                while (curr < json.Length && (char.IsDigit(json[curr]))) curr++;
+
+                if (curr < json.Length && json[curr] == '"')
+                {
+                    var sliceFallback = json.Slice(valueStart, curr - valueStart);
+                    if (ulong.TryParse(sliceFallback, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+                    {
+                        index = curr + 1;
+                        return true;
+                    }
+                }
+            }
+
+            result = default;
             return false;
         }
 

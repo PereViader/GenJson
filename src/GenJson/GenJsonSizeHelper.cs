@@ -202,7 +202,7 @@ namespace GenJson
             '\"' => 4,
             '\uffff' => 8,
             '\0' => 8,
-            _ when char.IsControl(c) => 8,
+            _ when c < 32 => 8,
             _ => 3
         };
 
@@ -238,7 +238,7 @@ namespace GenJson
                     '\"' => 2,
                     '\uffff' => 6,
                     '\0' => 6,
-                    _ when char.IsControl(c) => 6,
+                    _ when c < 32 => 6,
                     _ => 1
                 };
             }
@@ -386,7 +386,7 @@ namespace GenJson
         {
             if (c == '"' || c == '\\') return 4;
             if (c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') return 4;
-            if (c == '\uffff' || c == '\0' || char.IsControl(c)) return 8;
+            if (c == '\uffff' || c < 32) return 8;
 
             if (c < 128) return 3;
             
@@ -418,7 +418,7 @@ namespace GenJson
                 char c = input[i];
                 if (c == '"' || c == '\\') length += 2;
                 else if (c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') length += 2;
-                else if (c == 0xffff || c == '\0' || char.IsControl(c)) length += 6;
+                else if (c == 0xffff || c < 32) length += 6;
                 else if (c < 128) length += 1;
                 else
                 {

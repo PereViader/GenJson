@@ -1337,7 +1337,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         sb.Append($"if (!global::GenJson.GenJsonParser.{parserPrefix}StringSpan(json, ref index, out var {keyStrVar}, out var {escapedVar})) return null;");
                         sb.AppendLine();
 
-                        if (!(d.KeyType is GenJsonDataType.String))
+                        if (!(d.KeyType is GenJsonDataType.String || d.KeyType is GenJsonDataType.Uri))
                         {
                             sb.Append(loopIndent);
                             sb.AppendLine($"if ({escapedVar}) return null;");
@@ -1361,23 +1361,37 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                         {
                             if (enumKeyType.AsString)
                             {
-                                sb.Append(loopIndent);
-                                foreach (var member in enumKeyType.Members.Value)
+                                if (isUtf8)
                                 {
-                                    if (isUtf8)
+                                    int mIdx = 0;
+                                    foreach (var member in enumKeyType.Members.Value)
                                     {
                                         var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(member);
                                         var utf8BytesStr = string.Join(", ", utf8Bytes.Select(b => $"(byte){b}"));
-                                        sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, new byte[] {{ {utf8BytesStr} }})) {keyVar} = {enumKeyType.TypeName}.{member};");
+                                        sb.Append(loopIndent);
+                                        sb.AppendLine($"global::System.ReadOnlySpan<byte> expectedDictEnum_{depth}_{mIdx++} = new byte[] {{ {utf8BytesStr} }};");
                                     }
-                                    else
+                                    int checkIdx = 0;
+                                    sb.Append(loopIndent);
+                                    foreach (var member in enumKeyType.Members.Value)
+                                    {
+                                        sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, expectedDictEnum_{depth}_{checkIdx++})) {keyVar} = {enumKeyType.TypeName}.{member};");
+                                        sb.Append(loopIndent);
+                                        sb.Append("else ");
+                                    }
+                                    sb.AppendLine(skipInvalidDictionaryEnumKey);
+                                }
+                                else
+                                {
+                                    sb.Append(loopIndent);
+                                    foreach (var member in enumKeyType.Members.Value)
                                     {
                                         sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual({keyStrVar}, global::System.MemoryExtensions.AsSpan(\"{member}\"))) {keyVar} = {enumKeyType.TypeName}.{member};");
+                                        sb.Append(loopIndent);
+                                        sb.Append("else ");
                                     }
-                                    sb.Append(loopIndent);
-                                    sb.Append("else ");
+                                    sb.AppendLine(skipInvalidDictionaryEnumKey);
                                 }
-                                sb.AppendLine(skipInvalidDictionaryEnumKey);
                             }
                             else
                             {
@@ -1409,7 +1423,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                                     {
                                         sb.Append(loopIndent);
                                         string uriKeyStr = isUtf8
-                                            ? $"global::System.Text.Encoding.UTF8.GetString({keyStrVar})"
+                                            ? $"({escapedVar} ? global::GenJson.GenJsonParser.UnescapeStringUtf8({keyStrVar}) : global::System.Text.Encoding.UTF8.GetString({keyStrVar}))"
                                             : $"({escapedVar} ? global::GenJson.GenJsonParser.UnescapeString({keyStrVar}) : new string({keyStrVar}))";
                                         sb.AppendLine($"if (!System.Uri.TryCreate({uriKeyStr}, System.UriKind.RelativeOrAbsolute, out {keyVar})) return null;");
                                     }
@@ -1562,11 +1576,27 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
         {
             case GenJsonDataType.Primitive:
             case GenJsonDataType.Boolean:
-            case GenJsonDataType.FloatingPoint:
                 sb.Append(indent);
                 sb.Append($"size += {sizeHelper}(");
                 sb.Append(valueAccessor);
                 sb.AppendLine(");");
+                break;
+
+            case GenJsonDataType.FloatingPoint fp:
+                sb.Append(indent);
+                sb.Append($"size += {sizeHelper}(");
+                sb.Append(valueAccessor);
+                sb.Append(")");
+                if (unquoted)
+                {
+                    string? floatType = fp.TypeName.EndsWith("Double") || fp.TypeName.EndsWith("double") ? "double" :
+                                       fp.TypeName.EndsWith("Single") || fp.TypeName.EndsWith("float") ? "float" : null;
+                    if (floatType != null)
+                    {
+                        sb.Append($" - (({floatType}.IsNaN({valueAccessor}) || {floatType}.IsInfinity({valueAccessor})) ? 2 : 0)");
+                    }
+                }
+                sb.AppendLine(";");
                 break;
 
             case GenJsonDataType.Char:
@@ -1940,9 +1970,9 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
 
             case GenJsonDataType.Char:
                 sb.Append(indent);
-                sb.Append("global::GenJson.GenJsonWriter.WriteString(span, ref index, ");
+                sb.Append("global::GenJson.GenJsonWriter.WriteChar(span, ref index, ");
                 sb.Append(valueAccessor);
-                sb.AppendLine(".ToString());");
+                sb.AppendLine(");");
                 break;
 
             case GenJsonDataType.String:
@@ -3405,7 +3435,21 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
             sb.AppendLine($"if (!enumEscaped_{safeTarget})");
             sb.Append(indent);
             sb.AppendLine("{");
+            if (isUtf8)
+            {
+                int mIdx = 0;
+                foreach (var member in en.Members.Value)
+                {
+                    var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(member);
+                    var utf8BytesStr = string.Join(", ", utf8Bytes.Select(b => $"(byte){b}"));
+                    sb.Append(indent);
+                    sb.Append("    ");
+                    sb.AppendLine($"global::System.ReadOnlySpan<byte> expected_{safeTarget}_{mIdx++} = new byte[] {{ {utf8BytesStr} }};");
+                }
+            }
+
             bool first = true;
+            int checkIdx = 0;
             foreach (var member in en.Members.Value)
             {
                 sb.Append(indent);
@@ -3413,9 +3457,7 @@ public class GenJsonSourceGenerator : IIncrementalGenerator
                 if (!first) sb.Append("else ");
                 if (isUtf8)
                 {
-                    var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(member);
-                    var utf8BytesStr = string.Join(", ", utf8Bytes.Select(b => $"(byte){b}"));
-                    sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual(enumSpan_{safeTarget}, new byte[] {{ {utf8BytesStr} }})) {{ {targetVar} = {en.TypeName}.{member}; enumFound_{safeTarget} = true; }}");
+                    sb.AppendLine($"if (global::System.MemoryExtensions.SequenceEqual(enumSpan_{safeTarget}, expected_{safeTarget}_{checkIdx++})) {{ {targetVar} = {en.TypeName}.{member}; enumFound_{safeTarget} = true; }}");
                 }
                 else
                 {
